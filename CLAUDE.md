@@ -65,7 +65,7 @@ Give Michael exact PowerShell commands; recommend, don't list options.
 - Tests sit beside the code (`*.test.ts`); each formula is tested at its GDD calibration points.
 - Mobile first: iPhone portrait, safe-area insets, 44 pt tap targets, one-handed, no hover, no zoom.
 - Markdown: one line per paragraph or bullet. Never hard-wrap.
-- Commits: `Phase N: what changed`; docs in the same commit; sealed content in its own. Use absolute paths in shell calls: `cd` moves the session.
+- Commits: `Phase N: what changed`; docs in the same commit; sealed content in its own; push once checks pass. Use absolute paths in shell calls: `cd` moves the session.
 
 ## Save-change checklist
 

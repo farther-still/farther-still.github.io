@@ -6,8 +6,7 @@ import { quarantineKey } from './backend';
 import type { LocalStore, QuarantineCopy } from './backend';
 import { classify } from './classify';
 import type { Classified, ClassifyOptions, DamagedRecord, GoodRecord } from './classify';
-import { CHECKPOINT_SLOTS, HOT_SLOT } from './constants';
-import { checksumMatches } from './record';
+import { CHECKPOINT_SLOTS, HOT_SLOT, SEQ_PLAUSIBLE } from './constants';
 import type { SlotRecord } from './schema';
 
 export type LoadNotice = { kind: 'fallback' | 'hot-missing'; text: string };
@@ -64,10 +63,11 @@ export const planLoad = (records: readonly Classified[]): LoadPlan => {
 };
 
 /**
- * The sequence carries on after the highest seq among records whose checksum matches, of any kind: such a seq
- * is one the app really wrote. A seq inside a record whose checksum fails is part of the damage and is never
- * built on, so damage cannot leave the sequence somewhere it cannot go on from. Nothing is lost by ignoring
- * it: a damaged record never wins a load, whatever seq it claims.
+ * The sequence carries on after the highest seq seen, so that the next write outranks everything in storage,
+ * including a record from a newer version that the player chose to go back past. One limit keeps damage from
+ * leaving the sequence where it cannot go on: a record the app could not use only counts if its seq is
+ * plausible. A usable record always counts, whatever its seq, since the app must be able to follow its own
+ * writes.
  *
  * A checkpoint slot holding a record the app could not use counts as empty: by the time anything is written it
  * has a kept copy, and it should be the first to be replaced.
@@ -79,7 +79,7 @@ export const cursorFor = (records: readonly Classified[]): WriteCursor => {
   for (const record of records) {
     const usable = record.kind === 'good' || record.kind === 'suspect';
     const seq = record.seq ?? 0;
-    if (seq > highest && (usable || checksumMatches(record.raw))) highest = seq;
+    if (seq > highest && (usable || seq < SEQ_PLAUSIBLE)) highest = seq;
     if (record.slot in checkpointSeqs) checkpointSeqs[record.slot] = usable ? seq : 0;
   }
   return { nextSeq: highest + 1, checkpointSeqs };

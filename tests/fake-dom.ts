@@ -72,6 +72,8 @@ export type FakeDom = {
   reloads: () => number;
   /** Fires a listener registered on `window` or `document`, such as `pagehide`. */
   fire: (type: string) => void;
+  /** How many listeners `window` and `document` hold for an event. Two games would each have registered one. */
+  listenerCount: (type: string) => number;
 };
 
 export const installFakeDom = (): FakeDom => {
@@ -121,5 +123,6 @@ export const installFakeDom = (): FakeDom => {
     fire: (type) => {
       for (const listener of listeners.get(type) ?? []) listener();
     },
+    listenerCount: (type) => (listeners.get(type) ?? []).length,
   };
 };

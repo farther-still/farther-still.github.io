@@ -122,7 +122,7 @@ export const recoveryScreen = (view: RecoveryView, actions: RecoveryActions): HT
       'What was found',
       ...(records.length === 0
         ? [el('p', { class: 'muted', text: 'Nothing could be listed.' })]
-        : records.map((record) => el('p', { text: describe(record) }))),
+        : [...records].sort((a, b) => (b.seq ?? 0) - (a.seq ?? 0)).map((record) => el('p', { text: describe(record) }))),
     ),
     reason === 'newer'
       ? section(

@@ -164,7 +164,10 @@ describe('recovery wiring', () => {
     expect(after.quarantine).toMatchObject([{ kind: 'kept', reason: 'set-aside', slot: 'hot', seq: 30, raw: later }]);
     expect(after.slots['hot']).toMatchObject({ seq: 31, payload: { game: { profile: { runsStarted: 2 } } } });
 
-    // One game is running, not two: one tap is one write.
+    // One game is running, not two. The second tap on the choice did nothing: a second game would have
+    // registered its own listeners.
+    expect(dom.listenerCount('pagehide')).toBe(1);
+    expect(dom.listenerCount('visibilitychange')).toBe(1);
     dom.tap('Count + 1');
     await vi.waitFor(async () => expect(seqOf((await storage()).slots['hot'])).toBe(32));
     await new Promise((resolve) => setTimeout(resolve, 50));

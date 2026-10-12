@@ -44,7 +44,7 @@ const fingerprint = (raw: unknown): string => {
 /**
  * A record's seq, if it has the form of one this app writes: a whole number from 1 up to the schema's ceiling.
  * It says where the record ranks. Whether the write sequence may build on it is a separate question, answered
- * by the record's checksum (see `cursorFor`).
+ * by whether the record is usable and whether the seq is plausible (see `cursorFor`).
  */
 export const readSeq = (raw: unknown): number | null => {
   const seq = isObject(raw) ? raw['seq'] : undefined;

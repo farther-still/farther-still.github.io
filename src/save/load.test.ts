@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { BUILD, CONTENT, FIXED_NOW, dump, flaky, freshIndexedDb, game, payload, putRaw, record, unsealed } from '../../tests/helpers';
 import { LocalBackend, readSeq } from './backend';
 import { classify } from './classify';
-import { DB_NAME, SEQ_CEILING } from './constants';
+import { DB_NAME, SEQ_CEILING, SEQ_PLAUSIBLE } from './constants';
 import { copiesBeforeRecovery, cursorFor, loadSave, planLoad, prepareRecoveryExit } from './load';
 import type { Migration } from './migrations';
 import { checksumOf, sealRecord } from './record';
@@ -64,6 +64,16 @@ describe('classify', () => {
 
   it('calls a record from a later save version newer, whatever else is true of it', () => {
     expect(classify('hot', newer('hot', 8), CONTENT)).toMatchObject({ kind: 'newer', seq: 8, saveVersion: 2 });
+  });
+
+  it('calls junk that merely claims a newer version damaged, not newer', () => {
+    // "Newer" is decided before the checksum, since a later version may seal records differently. So it needs
+    // more than a big version number: it needs a seq this version can use.
+    for (const seq of [undefined, 'x', 0, -4, 2.5, SEQ_PLAUSIBLE, SEQ_CEILING - 1, 1e308]) {
+      expect(classify('checkpoint-3', { saveVersion: 9, seq }, CONTENT), String(seq)).toMatchObject({ kind: 'damaged' });
+      expect(classify('checkpoint-3', { ...record('checkpoint-3', 5), saveVersion: 9, seq }, CONTENT), String(seq)).toMatchObject({ kind: 'damaged' });
+    }
+    expect(classify('checkpoint-3', { saveVersion: 9, seq: 500 }, CONTENT)).toMatchObject({ kind: 'newer', seq: 500 });
   });
 
   it('reads a seq only if this app could have written it', () => {
@@ -177,18 +187,39 @@ describe('planLoad', () => {
 describe('cursorFor', () => {
   const c = (slot: string, raw: unknown) => classify(slot, raw, CONTENT);
 
-  it('builds on the seq of any record whose checksum matches, including one from a newer version', () => {
-    const fromTheFuture = sealRecord({ ...unsealed(record('checkpoint-1', 500)), saveVersion: 2 as never });
-    const cursor = cursorFor([c('hot', record('hot', 12)), c('checkpoint-1', fromTheFuture), c('checkpoint-0', suspect('checkpoint-0', 40))]);
-    expect(c('checkpoint-1', fromTheFuture).kind).toBe('newer');
-    expect(cursor.nextSeq).toBe(501);
+  it('continues after the highest seq of any record, usable or not, so the next write outranks them all', () => {
+    expect(cursorFor([c('hot', damage(record('hot', 57))), c('checkpoint-0', record('checkpoint-0', 40))]).nextSeq).toBe(58);
+    // A record from a newer version counts whether or not its checksum can be checked by this version.
+    const sealedByTheFuture = sealRecord({ ...unsealed(record('checkpoint-1', 500)), saveVersion: 2 as never });
+    for (const fromTheFuture of [sealedByTheFuture, newer('checkpoint-1', 500)]) {
+      expect(c('checkpoint-1', fromTheFuture).kind).toBe('newer');
+      const cursor = cursorFor([c('hot', record('hot', 12)), c('checkpoint-1', fromTheFuture), c('checkpoint-0', suspect('checkpoint-0', 40))]);
+      expect(cursor.nextSeq).toBe(501);
+    }
   });
 
-  it('never builds on a seq inside a record whose checksum fails, whatever it claims', () => {
-    for (const seq of [57, SEQ_CEILING - 1, SEQ_CEILING - 4, SEQ_CEILING, Number.MAX_SAFE_INTEGER, 1e308, -5, 2.5]) {
-      const cursor = cursorFor([c('hot', record('hot', 12)), c('checkpoint-2', { ...record('checkpoint-2', 3), seq })]);
-      expect(cursor.nextSeq, String(seq)).toBe(13);
+  it('does not let a record it could not use push the sequence past what is plausible', () => {
+    for (const seq of [SEQ_PLAUSIBLE, SEQ_CEILING - 1, SEQ_CEILING - 4, SEQ_CEILING, Number.MAX_SAFE_INTEGER, 1e308, -5, 2.5]) {
+      for (const unusable of [{ ...record('checkpoint-2', 3), seq }, { ...record('checkpoint-2', 3), seq, saveVersion: 9 }]) {
+        const cursor = cursorFor([c('hot', record('hot', 12)), c('checkpoint-2', unusable)]);
+        expect(cursor.nextSeq, String(seq)).toBe(13);
+      }
     }
+    // Just inside the bound it counts, and there is still all the room in the world after it.
+    const cursor = cursorFor([c('hot', record('hot', 12)), c('checkpoint-2', { ...record('checkpoint-2', 3), seq: SEQ_PLAUSIBLE - 1 })]);
+    expect(cursor.nextSeq).toBe(SEQ_PLAUSIBLE);
+    expect(SEQ_CEILING - cursor.nextSeq).toBeGreaterThan(1e15);
+  });
+
+  it('always follows its own writes, however high their seq', async () => {
+    // A usable record counts whatever its seq, or the app could not read back what it wrote.
+    await backend.write(record('hot', SEQ_PLAUSIBLE + 5));
+    const loaded = await loadSave(backend, CONTENT);
+    if (loaded.kind !== 'ready') throw new Error('expected ready');
+    expect(loaded.cursor.nextSeq).toBe(SEQ_PLAUSIBLE + 6);
+    const writer = new SaveWriter({ store: backend, build: BUILD, content: CONTENT, now: () => FIXED_NOW, log: () => undefined }, loaded.cursor, loaded.record);
+    expect((await writer.commit(payload(), { checkpoint: true })).ok).toBe(true);
+    expect(await loadSave(backend, CONTENT)).toMatchObject({ kind: 'ready', record: { seq: SEQ_PLAUSIBLE + 7, slot: 'hot' } });
   });
 
   it('can still write, and load what it wrote, beside a damaged record claiming the highest seq there is', async () => {
@@ -249,8 +280,8 @@ describe('loadSave', () => {
     expect(result.record.seq).toBe(7);
     expect(result.rewriteHot).toBe(true);
     expect(result.notices.map((notice) => notice.kind)).toEqual(['fallback']);
-    // The sequence carries on from the record that was loaded; the damaged one's seq is not built on.
-    expect(result.cursor.nextSeq).toBe(8);
+    // The next write outranks the damaged record too, whatever happens to that record's slot.
+    expect(result.cursor.nextSeq).toBe(10);
     const after = await dump(backend);
     expect(after.slots).toEqual(slotsBefore);
     expect(after.quarantine).toMatchObject([{ kind: 'kept', reason: 'damaged', slot: 'hot', seq: 9, raw: bad }]);
@@ -258,7 +289,7 @@ describe('loadSave', () => {
     // The rewrite the app makes next replaces the damaged hot slot, and the following launch is clean.
     const writer = new SaveWriter({ store: backend, build: BUILD, content: CONTENT, now: () => FIXED_NOW, log: () => undefined }, result.cursor, result.record);
     await writer.commit(result.record.payload);
-    expect(await loadSave(backend, CONTENT)).toMatchObject({ kind: 'ready', record: { seq: 8, slot: 'hot' }, notices: [], rewriteHot: false });
+    expect(await loadSave(backend, CONTENT)).toMatchObject({ kind: 'ready', record: { seq: 10, slot: 'hot' }, notices: [], rewriteHot: false });
   });
 
   it('says the hot slot was missing when it simply is not there', async () => {
@@ -290,6 +321,40 @@ describe('loadSave', () => {
       expect(again.record.seq).toBe(9);
     }
     expect(await backend.listQuarantine()).toHaveLength(2);
+  });
+
+  // The third verifier pass found the recovery screen returning at every launch for a record that claimed a
+  // newer version, sat outside the hot slot, and had a seq the write sequence would not build on.
+  it.each([
+    ['in a checkpoint slot, seq unreadable', 'checkpoint-3', { saveVersion: 9, junk: true }],
+    ['in a checkpoint slot, seq absurd', 'checkpoint-3', { ...record('checkpoint-3', 5), saveVersion: 9, seq: 2 ** 45 }],
+    ['under a key no slot uses', 'not-a-slot', { saveVersion: 9, seq: 'x' }],
+  ])('does not keep returning to recovery for junk that claims a newer version (%s)', async (_name, key, junk) => {
+    await backend.write(record('hot', 9));
+    await putRaw(backend, key, junk);
+    const first = await loadSave(backend, CONTENT);
+    expect(first).toMatchObject({ kind: 'ready', record: { seq: 9 }, rewriteHot: false });
+    if (first.kind === 'ready') expect(first.notices.map((notice) => notice.kind)).toEqual(['fallback']);
+    expect(await backend.listQuarantine()).toMatchObject([{ kind: 'kept', reason: 'damaged', slot: key, raw: junk }]);
+    for (let launch = 0; launch < 3; launch += 1) {
+      expect(await loadSave(backend, CONTENT)).toMatchObject({ kind: 'ready', record: { seq: 9 }, notices: [] });
+    }
+    expect(await backend.listQuarantine()).toHaveLength(1);
+  });
+
+  it('goes back to the game, not the recovery screen, once the player has gone back past a real newer record', async () => {
+    await putRaw(backend, 'checkpoint-3', newer('checkpoint-3', 500));
+    await backend.write(record('hot', 9));
+    expect(await loadSave(backend, CONTENT)).toMatchObject({ kind: 'recovery', reason: 'newer' });
+    // The player chooses the hot record.
+    const exit = await prepareRecoveryExit(backend, CONTENT);
+    if (!exit.ok) throw new Error('expected the exit to succeed');
+    expect(exit.cursor.nextSeq).toBe(501);
+    const writer = new SaveWriter({ store: backend, build: BUILD, content: CONTENT, now: () => FIXED_NOW, log: () => undefined }, exit.cursor, null);
+    await writer.commit(payload());
+    for (let launch = 0; launch < 3; launch += 1) {
+      expect(await loadSave(backend, CONTENT)).toMatchObject({ kind: 'ready', record: { seq: 501, slot: 'hot' }, notices: [] });
+    }
   });
 
   it('rotates a damaged checkpoint out at the next new run, its copy already kept', async () => {

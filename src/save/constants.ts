@@ -18,6 +18,11 @@ export const ALL_SLOTS = [HOT_SLOT, ...CHECKPOINT_SLOTS] as const;
 
 /** The schema's limit on seq: 2^52. No real save comes near this many writes. */
 export const SEQ_CEILING = 4503599627370496;
+/**
+ * The most a record the app could NOT use is allowed to push the write sequence: 2^40, which one write every
+ * millisecond would take 35 years to reach. Past it, such a record's seq is taken as part of the damage.
+ */
+export const SEQ_PLAUSIBLE = 1099511627776;
 
 export const ROUTINE_QUARANTINE_LIMIT = 10;
 export const DIAGNOSTICS_LIMIT = 200;

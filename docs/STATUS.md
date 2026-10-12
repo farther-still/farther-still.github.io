@@ -4,7 +4,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Current phase
 
-**Phase 3a gate ⛔.** Phase 2 was approved on 2026-10-12. Phase 3a, the walking skeleton, was built the same day: an installable app with a dummy state, the full save system less cloud backup, the update flow, Settings, the diagnostics log, the checks, CI and the Pages deploy. It is live at `https://farther-still.github.io/`. The gate report was posted with the steps for Michael's phone acceptance run. Waiting for the literal reply "approved"; answers, questions or silence are not approval. Do not start Phase 3b before it.
+**Phase 3a gate ⛔.** Phase 2 was approved on 2026-10-12. Phase 3a, the walking skeleton, was built the same day: an installable app with a dummy state, the full save system less cloud backup, the update flow, Settings, the diagnostics log, the checks, CI and the Pages deploy. It is live at `https://farther-still.github.io/`. The gate report was posted with the steps for Michael's phone acceptance run, and he answered its two questions the same day (1 a, 2 a). His reply did not contain "approved", and the phone run had not been reported. Still waiting for that word; answers, questions or silence are not approval. Do not start Phase 3b before it. He asked for Phase 3b to start in a new session and was given a prompt for it.
 
 **Spoiler rule for every session.** `docs/sealed/` holds zone themes and all content names. Michael does not open it. Never quote anything from it in chat, gate reports, commit messages or this file. Refer to zones as Z1–Z8, elements as E1–E3 and enemy types as T1–T4.
 
@@ -13,7 +13,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 ### PENDING
 
 - [ ] Michael: Phase 3a phone acceptance run (steps in the gate report); report back the four readouts listed under "Still to settle" in `docs/ARCHITECTURE.md` section 13
-- [ ] Phase 3a: wait for "approved" on the gate report
+- [ ] Phase 3a: wait for "approved" on the gate report. If the phone run reports a failure, fix it inside Phase 3a first
 - [ ] Phase 3b: vertical slice ⛔. First: save version 2 with its migration and fixture, removing the dummy state and `data/dummy.json`; then `check-content`, the reference-name test, battle replays and `npm run sim`
 - [ ] Phase 3b gate: report what one zone cost to author, so the DV-6 condition can be judged on evidence
 - [ ] Phase 4: balance simulator ⛔
@@ -58,7 +58,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ### Verified on the laptop (2026-10-12)
 
-- `npm run check`: PASS. Four TypeScript projects, lint, 329 tests in 18 files, repo check, prose check.
+- `npm run check`: PASS. Four TypeScript projects, lint, 335 tests in 18 files, repo check, prose check. The count was 329 at the commit the gate report described; the rest came with the fixes after it.
 - `npm run build` and `npm run check:dist`: PASS.
 - Each lint ban, the engine's no-DOM compile and each check script is run against a deliberate violation in `tests/enforcement.test.ts` and `tests/checks.test.ts`: PASS.
 - The built app, served by `npm run preview`, driven in a Chromium pane: PASS on each of the following.
@@ -86,7 +86,7 @@ The first pass failed the build on three of nine checks. Its one must-fix was a 
 
 All of it was fixed. A recovery choice now reads the slots again before writing and changes nothing if it cannot; after an unreadable start only the two choices that write nothing are offered (`docs/ARCHITECTURE.md` A-19 to A-22).
 
-The re-check passed, with no new must-fix. It confirmed the original reproduction no longer works through the real `startApp` and found no other route that writes slots it has not just read. Its remaining findings were then fixed by the author and have not been re-verified: the build scan and the worker now resolve the page's file references the same way; the write sequence builds only on records whose checksum matches, which replaced a first fix the re-check showed had only moved the problem; a start that fails part-way has its own honest screen; and the startup and recovery wiring now has tests through the real `startApp` (`src/ui/app.test.ts`).
+The re-check passed, with no new must-fix. It confirmed the original reproduction no longer works through the real `startApp` and found no other route that writes slots it has not just read. Its remaining findings were then fixed by the author and have not been re-verified: the build scan and the worker now resolve the page's file references the same way; the rule for which `seq` values the write sequence may build on was rewritten twice, the first rewrite having only moved the problem (see "After the gate report"); a start that fails part-way has its own honest screen; and the startup and recovery wiring now has tests through the real `startApp` (`src/ui/app.test.ts`).
 
 Left as they are, by choice:
 
@@ -96,6 +96,20 @@ Left as they are, by choice:
 - The sheets and Settings have no automated tests of their own.
 
 It could not check: the app in a real browser or on the phone; GitHub Actions running; and the host serving a stale page just after a deploy, which the worker's new install check is there for.
+
+### Gate questions (answered 2026-10-12: 1 a, 2 a)
+
+| # | Question | Michael's answer | Recorded as |
+|---|---|---|---|
+| 1 | Who pushes from here on: Claude once the checks pass and STATUS is current, or Michael each time? | a | **Ruling.** Claude pushes to `main` when `npm run check` and `npm run check:dist` pass and STATUS is current; CI still gates the deploy. In `CLAUDE.md` conventions and `docs/ARCHITECTURE.md` section 12. |
+| 2 | Should a push that changes only documents skip the deploy, since every push ships a new version? | a | **Ruling.** Leave it. Every push is a new version; revisit only if "update ready" becomes a nuisance in Phase 3b. In `docs/ARCHITECTURE.md` section 12. |
+
+He also said not to move on in the same session: Phase 3b starts in a new one, from a prompt he was given on 2026-10-12.
+
+### After the gate report (2026-10-12)
+
+- One more fault was found by the author, not the verifier, while re-reading the last fix: building the write sequence only on checksum-verified records would have brought the recovery screen back at every launch after the player went back past a record from a newer version. The rule is now the one in `docs/ARCHITECTURE.md` 7.1 and A-20: any record's `seq` counts unless the record is unusable and the `seq` is implausibly large.
+- A third, narrow verifier pass then looked only at what had changed since the re-check. It passed, with no must-fix. It confirmed by mutation that the new wiring tests fail if the recovery exit goes back to using what was read when the screen opened, or if a writing choice is offered after an unreadable start. It found one should-fix: junk that merely claimed a newer save version, sitting outside the hot slot with a `seq` the write sequence would not build on, brought the recovery screen back at every launch. Such a record now counts as damaged, and a real newer record is outranked by the next write. It also found a test that could not catch a missing second-tap guard, and three stale statements in this file. All fixed by the author; the fixes after this third pass have not been re-verified, and they are small: one classification rule with five tests, one stronger assertion, and wording.
 
 ### Not checked yet
 
@@ -369,7 +383,7 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 
 ## Handoff
 
-- **Done:** Phases 0 to 2 approved. Phase 3a built: `src/`, `data/`, `tests/`, `scripts/`, the hook and the CI workflow, with `CLAUDE.md`, `docs/ARCHITECTURE.md` (decisions A-12 to A-22 and section 14) and this file brought in line. The built app was run in a browser on the laptop. A separate verifier failed the first build and passed the second.
+- **Done:** Phases 0 to 2 approved. Phase 3a built: `src/`, `data/`, `tests/`, `scripts/`, the hook and the CI workflow, with `CLAUDE.md`, `docs/ARCHITECTURE.md` (decisions A-12 to A-22 and section 14) and this file brought in line. The built app was run in a browser on the laptop. A separate verifier failed the first build, passed the second, and passed a third, narrow look at the fixes made after that.
 - **Worked:** Asking the verifier to prove a suspected hole with a throwaway test through the real entry point. That is how it found the lost save, which no unit test of mine could have: each function was right and the wiring was wrong. Tests that lint or compile a deliberate violation, so a check that stops firing fails the build. Building labelled versions with `FS_BUILD_ID` and serving them with `npm run preview` to try the update flow on the laptop. Closing the last tab in the browser pane to stand in for a force-quit.
-- **Failed:** The first build lost a save on the recovery screen after an unreadable start. My first fix for absurd `seq` values only moved the problem and the re-check caught it. Two of my tests could not fail for the reason in their titles. Traps: shell heredocs break on apostrophes here, so write patch scripts with the Write tool and run the file; `cd` inside a Bash call moves the session's working directory; Python prints in cp1252 unless run with `-X utf8`; `CLAUDE.md` has 36 characters to spare; a scratch script must sit inside the repo for `node_modules` to resolve; `happy-dom` 21 and TypeScript 7 were days and months old on 2026-10-12 and were passed over for that reason; the first word on the recovery screen's list ("Run 2") can match a test that is waiting for the game screen.
+- **Failed:** The first build lost a save on the recovery screen after an unreadable start. The rule for absurd `seq` values took four attempts: the verifier caught two of the wrong ones and I caught one. Two of my tests could not fail for the reason in their titles. Traps: shell heredocs break on apostrophes here, so write patch scripts with the Write tool and run the file; `cd` inside a Bash call moves the session's working directory; Python prints in cp1252 unless run with `-X utf8`; `CLAUDE.md` has 13 characters to spare; a scratch script must sit inside the repo for `node_modules` to resolve; `happy-dom` 21 and TypeScript 7 were days and months old on 2026-10-12 and were passed over for that reason; the first word on the recovery screen's list ("Run 2") can match a test that is waiting for the game screen.
 - **Next:** Wait for "approved". Michael's phone run may come back with failures: treat each as a Phase 3a fix, not Phase 3b work. Then Phase 3b, starting with save version 2 and its migration, so the first real migration runs on a phone whose save does not matter yet.
