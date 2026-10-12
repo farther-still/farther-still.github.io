@@ -4,7 +4,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Current phase
 
-**Phase 2 gate ⛔.** Phase 1 was approved on 2026-10-12 with the reply "a, approved", where "a" is the DV-4 ruling (both movement controls at once). Phase 2 is written: `CLAUDE.md` expanded to 7,919 characters and `docs/ARCHITECTURE.md` with a module diagram. The Phase 2 gate report was posted the same day with one question (A1). Waiting for the literal reply "approved"; answers, questions or silence are not approval. Do not start Phase 3a before it.
+**Phase 2 gate ⛔.** Phase 1 was approved on 2026-10-12 with the reply "a, approved", where "a" is the DV-4 ruling (both movement controls at once). Phase 2 is written: `CLAUDE.md` expanded to 7,919 characters and `docs/ARCHITECTURE.md` with a module diagram. The Phase 2 gate report was posted the same day with one question, which Michael answered the same day (A1 a: use the Vite PWA plugin). His reply did not contain "approved". Still waiting for that word; answers, questions or silence are not approval. Do not start Phase 3a before it.
 
 **Spoiler rule for every session.** `docs/sealed/` holds zone themes and all content names. Michael does not open it. Never quote anything from it in chat, gate reports, commit messages or this file. Refer to zones as Z1–Z8, elements as E1–E3 and enemy types as T1–T4.
 
@@ -14,7 +14,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 - [ ] Before Phase 3a's first install: give Michael exact steps to create the free GitHub organization `farther-still` (he asked for this to be explained later), and settle the install address
 - [ ] Phase 3b gate: report what one zone cost to author, so the DV-6 condition can be judged on evidence
-- [ ] Phase 2: wait for "approved" on the gate report; record the answer to A1 in `docs/ARCHITECTURE.md` section 13
+- [ ] Phase 2: wait for "approved" on the gate report
 - [ ] Phase 3a: walking skeleton (PWA, save system, CI, Pages deploy) ⛔
 - [ ] Phase 3b: vertical slice ⛔
 - [ ] Phase 4: balance simulator ⛔
@@ -36,6 +36,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 - [x] Phase 1: DV-4 ruled (both controls at once) and Phase 1 approved by Michael, 2026-10-12
 - [x] Phase 2: `CLAUDE.md` expanded (7,919 characters) and `docs/ARCHITECTURE.md` written; content paths under `data/` sealed in `.gitattributes`
 - [x] Phase 2: script checks run; a separate verifier pass and a re-check run, and their findings fixed; gate report posted ⛔
+- [x] Phase 2: gate question answered (A1 a) and recorded in `docs/ARCHITECTURE.md` section 13
 
 ## Phase 2 working record
 
@@ -47,11 +48,11 @@ Re-read this file at the start of every session and every work cycle. Update it 
 - The GDD gained what the architecture needed: two notes and one field in the reset ledger (2.5), the content-count check reading `data/content-spec.json` (7.9), and two screens plus a landscape panel (8.2, 8.3).
 - Nothing is built. Every check in the enforcement map is a specification for Phase 3a, except `.gitignore` and `.gitattributes`.
 
-### Gate question (posted 2026-10-12, not yet answered)
+### Gate question (answered 2026-10-12: A1 a)
 
-| # | Question | Recommended default |
-|---|---|---|
-| A1 | Service worker: a Vite PWA plugin that supplies the list of files to cache while the worker's logic stays our own code, or a fully hand-written worker with no plugin? | The plugin |
+| # | Question | Michael's answer | Recorded as |
+|---|---|---|---|
+| A1 | Service worker: a Vite PWA plugin that supplies the list of files to cache while the worker's logic stays our own code, or a fully hand-written worker with no plugin? | a | **Ruling.** The plugin. Recorded in `docs/ARCHITECTURE.md` A-11 and section 9. |
 
 ### Verifier pass (2026-10-12)
 
@@ -288,5 +289,5 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 
 - **Done:** Phases 0 and 1 approved. Phase 2 written and at its gate: `CLAUDE.md` (7,919 characters), `docs/ARCHITECTURE.md`, `.gitattributes` sealing content paths under `data/`, small GDD additions, and this file. Each phase's documents went through script checks and a separate verifier pass with a re-check.
 - **Worked:** Giving the verifier the source documents and asking it to find faults, never my conclusions. In both phases its first pass failed the draft on things my own scripts could not see: targets the formulas could not reach in Phase 1, and save paths that could lose data in Phase 2. Recovering exact batch posts from the earlier session's transcript. Keeping spoilers in separate files and separate commits.
-- **Failed:** First drafts in both phases. In Phase 2 the worst was a load path that could overwrite a save it had rejected. Traps: `cd` inside a Bash call moves the session's working directory; shell heredocs break on apostrophes here, so write scripts to a file first; Python prints in cp1252 unless run with `-X utf8`; `CLAUDE.md` has under 100 characters to spare.
-- **Next:** Wait for "approved" and record A1. Then Phase 3a, platform before game: give Michael the organization steps; scaffold Vite, TypeScript, ESLint, Vitest and the hook; build the save system with a dummy state exactly as `docs/ARCHITECTURE.md` section 7 describes, fixtures and all; the PWA shell, update flow, Settings and diagnostics; the checks in the enforcement map; CI and the Pages deploy; then exact phone test steps for his acceptance run.
+- **Failed:** First drafts in both phases. In Phase 2 the worst was a load path that could overwrite a save it had rejected. Michael has answered the questions at every gate so far without the word "approved", so each gate has needed an extra round trip: end every gate report with a ready-made reply line that includes the word. Traps: `cd` inside a Bash call moves the session's working directory; shell heredocs break on apostrophes here, so write scripts to a file first; Python prints in cp1252 unless run with `-X utf8`; `CLAUDE.md` has under 100 characters to spare.
+- **Next:** Wait for "approved"; A1 is recorded. Then Phase 3a, platform before game: give Michael the organization steps; scaffold Vite, TypeScript, ESLint, Vitest and the hook; build the save system with a dummy state exactly as `docs/ARCHITECTURE.md` section 7 describes, fixtures and all; the PWA shell, update flow, Settings and diagnostics; the checks in the enforcement map; CI and the Pages deploy; then exact phone test steps for his acceptance run.

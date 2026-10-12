@@ -363,7 +363,7 @@ sequenceDiagram
 
 - **Guards.** On the plain-HTTP LAN dev server `navigator.storage`, `navigator.share`, `navigator.clipboard` and `navigator.serviceWorker` do not exist. Every use is feature-tested first.
 - **Manifest.** Name "Farther Still", `display: standalone`, start URL and scope at the site root.
-- **Service worker.** Precaches the whole build so the game runs offline. What an update does, stated as it really behaves:
+- **Service worker.** Precaches the whole build so the game runs offline. A Vite PWA plugin generates the list of files to cache on each build (A-11); the worker's logic is our own code. What an update does, stated as it really behaves:
   - While the app is open, a new version downloads in the background and waits. The app shows "update ready" in Settings and on the new-run sheet. Tapping it on the new-run sheet applies the update and starts the run on the new version. Nothing reloads during a battle or anywhere else on its own.
   - If the app is fully closed, by a force-quit or by iOS reclaiming it, the waiting version takes over at the next launch without a tap. A browser gives no way to prevent that. This is why each record carries `buildId` and `contentVersion`, and why loading can repair a run (section 7.3).
   - The app asks for an update check each time it returns to the foreground, so one that is only ever resumed still learns of new versions.
@@ -424,7 +424,7 @@ Proposed at the Phase 2 gate. Architecture decisions are logged here; design dec
 | A-08 | Display names live in one strings file; content files are hidden in diffs, but `balance.json`, `content-spec.json` and `ids.lock.json` are not | Names change without touching structure; spoilers stay sealed; systems and opaque IDs stay reviewable |
 | A-09 | The hook is a plain script behind `core.hooksPath`, and every check it runs is also in CI | One less dependency; no check depends on a hook that can be skipped |
 | A-10 | A content security policy on the built page | Enforces "no ads, no third parties" by machine. Not in the kickoff's stack list |
-| A-11 | Four tools beyond the kickoff's stack list: typescript-eslint, a fake IndexedDB for tests, a TypeScript runner for the simulator, and a Vite PWA plugin | The first three are development-only. The fourth is gate question A1 |
+| A-11 | Four tools beyond the kickoff's stack list: typescript-eslint, a fake IndexedDB for tests, a TypeScript runner for the simulator, and a Vite PWA plugin | The first three are development-only. Michael chose the plugin over a fully hand-written worker in gate question A1 (2026-10-12): it supplies the list of files to cache on each build, and the worker's update logic stays our own code |
 
 To settle in Phase 3a, by testing on the phone or reading current documentation:
 
