@@ -491,11 +491,10 @@ Settled on the phone, by Michael's Phase 3a acceptance run on his iPhone 16 Pro,
 - `navigator.storage.persist()` was granted in the installed app. Nothing relies on it.
 - The database connection survived the app being backgrounded and force-quit in that run: the diagnostics log held no `save-retry` entry. One run is not proof, so the retry in section 7.2 stays.
 - The update flow behaved as section 9 describes: a deployed change waited as "update ready" while the app stayed open, and was applied from the new-run sheet. The diagnostics log's one entry was the app's own note that it was applying the waiting version.
+- Sharing a file from the installed app works: the export sheet offered "Share the file", the file was saved on the phone, and it imported after the app had been deleted and reinstalled. The text code also copied into a note. So both export routes work on the phone, and the text code stays as the fallback it was designed to be.
+- The phone's arithmetic matches Node's: the engine self-test read 9 of 9.
 
-Still to record. Michael reported these steps as passing but did not state the readout:
-
-- whether the export went out as a file through the share sheet or only as the text code;
-- the engine self-test count on the phone (9 of 9 is expected).
+Nothing from the list of points to settle in Phase 3a is still open.
 
 ## 14. Phase 3a as built
 

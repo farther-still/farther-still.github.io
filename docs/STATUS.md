@@ -13,7 +13,6 @@ Re-read this file at the start of every session and every work cycle. Update it 
 ### PENDING
 
 - [ ] Phase 3a: wait for "approved" on the gate report. Michael intends to give it as the first line of the new session's prompt
-- [ ] Get two readouts from Michael that his report did not state, and record them in `docs/ARCHITECTURE.md` section 13: whether the export went out as a file or only as the text code, and the self-test count on the phone
 - [ ] Phase 3b: vertical slice ⛔. First: save version 2 with its migration and fixture, removing the dummy state and `data/dummy.json`; then `check-content`, the reference-name test, battle replays and `npm run sim`
 - [ ] Phase 3b gate: report what one zone cost to author, so the DV-6 condition can be judged on evidence
 - [ ] Phase 4: balance simulator ⛔
@@ -44,7 +43,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 - [x] Phase 3a: separate verifier pass (failed, one way to lose a save) and re-check (passed); findings fixed
 - [x] Phase 3a: first push, CI green, site live; gate report posted ⛔ (2026-10-12)
 - [x] Phase 3a: gate questions answered (1 a, 2 a); third verifier pass and its fixes
-- [x] Phase 3a: Michael's phone acceptance run, every step reported as passing (2026-10-12)
+- [x] Phase 3a: Michael's phone acceptance run, every step reported as passing (2026-10-12); all phone readouts recorded in `docs/ARCHITECTURE.md` section 13
 
 ## Phase 3a working record
 
@@ -115,7 +114,7 @@ He also said not to move on in the same session: Phase 3b starts in a new one, f
 
 ### Phone acceptance run (Michael, 2026-10-12)
 
-Done on his iPhone 16 Pro from the Home Screen icon, with Spotify playing, following a 24-step checklist given in chat. The LAN layout check was skipped. He reported in three messages: the two Settings readouts, "everything through step 19 is good", and "steps 20 to 24 all worked".
+Done on his iPhone 16 Pro from the Home Screen icon, with Spotify playing, following a 24-step checklist given in chat. The LAN layout check was skipped. He reported in four messages: the two Settings readouts, "everything through step 19 is good", "steps 20 to 24 all worked", and then the self-test count and how the export went.
 
 | What | Result | Evidence |
 |---|---|---|
@@ -125,13 +124,11 @@ Done on his iPhone 16 Pro from the Home Screen icon, with Spotify playing, follo
 | Background, then force-quit: state kept, including a step not yet saved | PASS | His report |
 | Launch and play in Airplane mode | PASS | His report |
 | Spotify never paused | PASS | His report |
-| Export, delete the icon, reinstall, import | PASS | His report. He did not say whether the file or the text code carried it |
+| Export, delete the icon, reinstall, import | PASS | The sheet offered "Share the file"; he saved the file on the phone and it imported after the reinstall. The text code also copied into a note |
 | A deployed change waited, then applied from the new-run sheet | PASS | He pushed an empty commit, `a4f89db`; "update ready" appeared, nothing reloaded, and the update applied from the new-run sheet |
 | Diagnostics log | One entry | "applying the waiting version from the new-run-sheet", which is the app's own note and not an error. No `save-retry` entry |
-| Engine self-test | Reported as passing | The count was not stated |
+| Engine self-test | PASS | 9 of 9 |
 | Layout on the LAN dev server | NOT CHECKED | Skipped by agreement; he used the installed app's layout throughout without complaint |
-
-Two readouts are still to get from him; they are in the todo list.
 
 ### Carried forward to Phase 3b
 
@@ -403,4 +400,4 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 - **Done:** Phases 0 to 2 approved. Phase 3a built: `src/`, `data/`, `tests/`, `scripts/`, the hook and the CI workflow, with `CLAUDE.md`, `docs/ARCHITECTURE.md` (decisions A-12 to A-22 and section 14) and this file brought in line. The built app was run in a browser on the laptop. A separate verifier failed the first build, passed the second, and passed a third, narrow look at the fixes made after that.
 - **Worked:** Asking the verifier to prove a suspected hole with a throwaway test through the real entry point. That is how it found the lost save, which no unit test of mine could have: each function was right and the wiring was wrong. Tests that lint or compile a deliberate violation, so a check that stops firing fails the build. Building labelled versions with `FS_BUILD_ID` and serving them with `npm run preview` to try the update flow on the laptop. Closing the last tab in the browser pane to stand in for a force-quit.
 - **Failed:** The first build lost a save on the recovery screen after an unreadable start. The rule for absurd `seq` values took four attempts: the verifier caught two of the wrong ones and I caught one. Two of my tests could not fail for the reason in their titles. Traps: shell heredocs break on apostrophes here, so write patch scripts with the Write tool and run the file; `cd` inside a Bash call moves the session's working directory; Python prints in cp1252 unless run with `-X utf8`; `CLAUDE.md` has 13 characters to spare; a scratch script must sit inside the repo for `node_modules` to resolve; `happy-dom` 21 and TypeScript 7 were days and months old on 2026-10-12 and were passed over for that reason; the first word on the recovery screen's list ("Run 2") can match a test that is waiting for the game screen.
-- **Next:** Wait for "approved", which Michael intends to give in the new session's prompt. Record the two readouts still missing. Then Phase 3b, starting with save version 2 and its migration. His phone holds a version 1 save from the acceptance run, at run 2 or later, so the first 3b deploy is the first real migration; tell him what he should see.
+- **Next:** Wait for "approved", which Michael intends to give in the new session's prompt. Then Phase 3b, starting with save version 2 and its migration. His phone holds a version 1 save from the acceptance run, at run 2 or later, so the first 3b deploy is the first real migration; tell him what he should see.
