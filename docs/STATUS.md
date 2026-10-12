@@ -4,13 +4,13 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Current phase
 
-**Phase 0 gate ⛔.** The interview is complete (3 batches, 15 questions). The gate report was posted 2026-10-12. Waiting for Michael to reply "approved"; questions or silence are not approval. Do not start Phase 1 before that.
+**Phase 0 gate ⛔.** The interview is complete (3 batches, 15 questions). The gate report was posted 2026-10-12 and Michael answered its three questions the same day, but his reply did not contain "approved". Still waiting for that word; answers, questions or silence are not approval. Do not start Phase 1 before it.
 
 ## Todo
 
 ### PENDING
 
-- [ ] Phase 0: wait for "approved" on the gate report; record answers to its three questions
+- [ ] Phase 0: wait for "approved" on the gate report
 - [ ] Phase 1: `docs/GDD.md` + 5 original names ⛔
 - [ ] Phase 2: expand `CLAUDE.md` (<8,000 chars) + `docs/ARCHITECTURE.md` ⛔
 - [ ] Phase 3a: walking skeleton (PWA, save system, CI, Pages deploy) ⛔
@@ -25,7 +25,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 - [x] Phase 0: batch 1 posted and answered
 - [x] Phase 0: batch 2 posted and answered (permanent-energy ruling, run end, map model, respawn, shop)
 - [x] Phase 0: batch 3 posted and answered (clarity additions, spoiler policy, why RH beat the two other games, pacing, v1 size)
-- [x] Phase 0: gate report posted ⛔
+- [x] Phase 0: gate report posted ⛔; its three questions answered (G1 a, G2 a, G3 a)
 
 ## Phase 0 working record
 
@@ -101,13 +101,13 @@ These move to the GDD decisions log in Phase 1, each with the frustration fixed,
 - Gems come from enemy drops only; there is no store (Q4, hard rule 3).
 - Real time per run is about a third of RH's for the same number of runs per wall (Q14).
 
-### Gate report questions (posted 2026-10-12, awaiting answers)
+### Gate report questions (answered 2026-10-12: G1 a, G2 a, G3 a)
 
-| # | Question | My default | Michael's answer |
+| # | Question | Michael's answer | Recorded as |
 |---|---|---|---|
-| G1 | Do the ten standing assumptions match his memory of RH? | b (keep them tagged [ASSUMPTION]) | |
-| G2 | How much of the zone and enemy-family section of the GDD may he read under the spoiler policy? | a (structure only; themes and names go in a sealed appendix) | |
-| G3 | Anything from the two other games to never copy, beyond the kickoff's hard rules? | a (nothing beyond the hard rules) | |
+| G1 | Do the ten standing assumptions match his memory of RH? | a | **Confirmed by Michael.** The ten items listed as standing assumptions under batches 2 and 3 are no longer [ASSUMPTION]: the hero strikes first; every fight starts at full life and survive-death charges reset per fight; a new run can be started at any time; a fight the player cannot afford cannot be started; `*` after an enemy's level marks a bonus enemy; base crit is 10% chance and 150% damage; no set bonuses; no rarity tiers; "doesn't stack" means the highest equipped value wins; v1 uses the kickoff's stat list. |
+| G2 | How much of the GDD's zone and enemy-family section may he read? | a | **Ruling.** Structure only in the GDD: level bands, counts, element and type mechanics, gate types. Zone themes and all names go in a sealed appendix he does not open. |
+| G3 | Anything from the two other games to never copy? | a | Nothing beyond the kickoff's hard rules. |
 
 ### Open items carried into Phase 1
 
@@ -118,7 +118,7 @@ These move to the GDD decisions log in Phase 1, each with the frustration fixed,
 - [OPEN] Base starting energy in RH: a review cited in the recap says 20 [GPT]; Michael reported 25 before using the permanent-energy tool, which may include an accessory.
 - [OPEN] Whether RH's energy-granting accessories apply at run start only or on equip.
 - [OPEN] Total hours Michael spent in RH (30 days elapsed; hours not asked).
-- Decision due before Phase 3a's first install: repo name and whether to use a custom subdomain, because the install URL is permanent and every github.io project site shares one origin (which matters for the Phase 5 backup token).
+- Decision due before Phase 3a's first install: the install address. Michael asked how a custom subdomain works and said he is open on names (2026-10-12). Recommendation given: skip a bought domain (yearly cost, and a lapsed domain hands the installed app's address to whoever buys it) and instead create a free GitHub organization named after the game, which gives the app its own `<org>.github.io` origin, separate from his other project sites. Not yet decided. The name follows from the five proposals in Phase 1.
 - Decision for Phase 1: whether the vertical slice gets a small shop as well as archaeology, since RH's early gold sink is buying, not archaeology.
 - Engine rule to write into Phase 1 and enforce in Phase 3a: keep `Math.pow`, `Math.log` and similar out of battle resolution, because they are not guaranteed bit-identical between Node and Safari.
 
@@ -155,7 +155,7 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 
 ## Handoff
 
-- **Done:** Step 0 committed. All of `reference/` read as described under "Reading coverage". Interview complete: 15 questions in 3 batches, all answered. Phase 0 gate report posted.
+- **Done:** Step 0 committed. All of `reference/` read as described under "Reading coverage". Interview complete: 15 questions in 3 batches, all answered. Phase 0 gate report posted and its three questions answered.
 - **Worked:** Extracting only Michael's own turns from the transcripts gave the first-hand evidence in about 50 KB. His screenshots settled the pre-fight screen, the archaeology screen, and the stat screen layout. Running Python with `-I` against the data files in `reference/`.
 - **Failed:** Nothing. One trap to avoid: `cd` inside a Bash call moves the session's working directory, so use absolute paths for git.
 - **Next:** Wait for "approved". Then Phase 1: write `docs/GDD.md` from the tables in this file plus the reference material, and propose 5 original names. A fresh session can start from this file plus `docs/KICKOFF.md`; the screenshots and data files in `reference/` only need re-opening for exact numbers.
