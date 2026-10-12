@@ -791,7 +791,7 @@ All dated 2026-10-12.
 | DV-5 | Gems come from enemy drops only; there is no store (Q4) | None of Michael's; hard rule 3 forbids monetization | None; it removes a feature | Gem supply rests on drop tuning alone, with no purchase to fall back on |
 | DV-6 | A run takes about a third of RH's real time for the same number of runs per wall (Q14) | Rebuilding the run was the cost that hurt (C15, C23, C26) | Depends on DV-3, DV-4 and waypoints all working well | Content is used up about three times faster in real time: v1's "week" is 8–13 hours of play, which is two to three days at the more than 4 hours a day Michael played RH (P5) |
 
-Two more deviations come from fitting RH's order into v1, not from the interview. DV-7 was ruled on in P2. DV-8 has had no explicit ruling; approving this gate approves it:
+Two more deviations come from fitting RH's order into v1, not from the interview. DV-7 was ruled on in P2 and DV-8 on 2026-10-12 (section 13.4):
 
 | ID | Deviation | Reason | Cost | Risk |
 |---|---|---|---|---|
@@ -838,6 +838,14 @@ All dated 2026-10-12. Michael's reply was `P1 a, P2 a, P3 a, P4 a, P5 d`.
 | P5 | d | **Confirmed.** Michael played RH more than 4 hours a day, so more than 120 hours over the 30 days. The earlier [ASSUMPTION] of 2–4 hours is withdrawn | 5.9, O-07 |
 | F1 | c | **Confirmed.** Follow-up to P5: he started 10–20 runs on a typical early RH day. v1's run target rises from 53–76 to 70–140 and its play time from 5–9 hours to 8–13. The gem drop rate drops from 12% to 8% to match the longer v1 | 5.9, 7.8 |
 | F2 | Keep 8 | **Ruling.** Follow-up to P5: v1 stays at 8 zones (Q15 reaffirmed), knowing it is two to three days of his play | 7.5, 10 |
+
+After the deviations were laid out again, also on 2026-10-12:
+
+| ID | Michael's reply | Recorded as | Where it lives |
+|---|---|---|---|
+| DV-8 | Fine | **Ruling.** Waypoints start at Z3 | 7.5 |
+| DV-6 | Uncertain. He liked some of RH's grind, and accepts the change if the game can be expanded easily enough to give him sufficient play | **Accepted on a condition.** What DV-6 cuts is seconds per fight and walking, not the number of runs, which section 5.9 now matches to his own RH count. If there is too little to do, the levers are, cheapest first: his own playback setting; runs per wall and drop rates in `data/balance.json`; more zones. The cost of adding a zone is not known until the Phase 3b slice has built one, so that gate reports it | 5.9, DV-6 |
+| DV-4 | Not sure. He enjoyed RH's free walking, expects tapping tiles to be slower for getting around, and asked for a way to switch, or else a joystick | **Reopened, pending his pick.** Proposed: both at once with no mode switch. A tap on a tile or enemy walks the hero there; a press-and-drag anywhere on the map steers the hero in that direction for as long as it is held, sliding along walls, which is also how hidden paths get found. Section 8.3 and DV-4 change once he picks | 8.3, DV-4 |
 
 ## 14. Names
 
