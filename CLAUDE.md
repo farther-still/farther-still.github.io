@@ -25,7 +25,7 @@ Michael approves systems and never sees content. Sealed: `docs/sealed/` and ever
 
 ## Folder map
 
-None of `src/`, `data/`, `tests/`, `scripts/` exists until Phase 3a. File-level roles: ARCHITECTURE section 3.
+File-level roles: ARCHITECTURE section 3. Not built until Phase 3b: `src/sim/` and the content files.
 
 | Path | Role |
 |---|---|
@@ -50,8 +50,8 @@ Give Michael exact PowerShell commands; recommend, don't list options.
 | `npm run dev` | Vite dev server; `-- --host` for the phone on LAN (layout only) |
 | `npm run check` | Typecheck, lint, tests, content, repo and prose checks. Must pass before a commit |
 | `npm run build`, `npm run check:dist`, `npm run preview` | Build; scan `dist/`; serve it on localhost to try the service worker |
-| `npm run sim -- --runs 50` | Simulator against the GDD 5.9 pacing targets |
-| `npm run refnames:build` | Local only: rebuild the hashed RH-name list |
+| `npm run sim -- --runs 50` | From 3b: simulator against the GDD 5.9 pacing targets |
+| `npm run refnames:build` | From 3b, local only: rebuild the hashed RH-name list |
 
 ## Conventions
 
@@ -83,7 +83,7 @@ Give Michael exact PowerShell commands; recommend, don't list options.
 
 ## Enforcement map
 
-Built in Phase 3a (`.gitignore` and `.gitattributes` exist now). All but `check:dist` run in `npm run check`, run by both the pre-commit hook and CI.
+All but `check:dist` run in `npm run check`, run by the pre-commit hook and CI; `tests/enforcement.test.ts` proves each ban fires. From 3b: content checks, RH-name test, battle replays.
 
 | Rule | Check |
 |---|---|

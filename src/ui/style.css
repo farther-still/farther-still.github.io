@@ -1,0 +1,326 @@
+/* iPhone portrait, one hand: safe-area insets, controls low, tap targets of at least 44 points, no hover rules. */
+
+:root {
+  --bg: #14181f;
+  --panel: #1e2530;
+  --line: #2f3a4a;
+  --text: #e8ecf1;
+  --muted: #9aa7b8;
+  --accent: #e9a23b;
+  --danger: #d9534f;
+  --ok: #6fbf73;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+  background: var(--bg);
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text);
+  font: 16px/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior: none;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+.host {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.screen {
+  max-width: 34rem;
+  margin: 0 auto;
+  /* The recovery and save-failed screens have no tab bar under them, so the screen keeps clear of the home bar itself. */
+  padding: 12px 16px calc(24px + env(safe-area-inset-bottom));
+}
+
+h1 {
+  margin: 8px 0 4px;
+  font-size: 1.5rem;
+}
+
+h2 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+
+h3 {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+}
+
+p {
+  margin: 0 0 8px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.flash {
+  color: var(--accent);
+}
+
+.ok {
+  color: var(--ok);
+}
+
+.card,
+.notice,
+.callout {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.notice,
+.callout {
+  border-color: var(--accent);
+}
+
+.line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.label {
+  color: var(--muted);
+}
+
+.value {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.item {
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+
+.item-name {
+  margin: 0;
+}
+
+.btn {
+  min-width: 44px;
+  min-height: 44px;
+  margin: 4px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #283242;
+  color: var(--text);
+  font: inherit;
+  touch-action: manipulation;
+}
+
+.card > .btn,
+.sheet > .btn,
+.callout > .btn {
+  display: block;
+  width: 100%;
+}
+
+.btn:active {
+  background: #35435a;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+}
+
+.btn.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #1a1408;
+  font-weight: 600;
+}
+
+.btn.danger {
+  border-color: var(--danger);
+  color: #ffd9d7;
+}
+
+.btn.grow {
+  flex: 1 1 0;
+}
+
+.btn.square {
+  width: 48px;
+  padding: 10px 0;
+}
+
+.btn.small {
+  width: auto;
+}
+
+.bar-host {
+  flex: 0 0 auto;
+}
+
+.tabbar {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.tab {
+  flex: 1 1 0;
+  min-height: 48px;
+  margin: 0;
+}
+
+.tab.current {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.sheet-layer {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.sheet-layer[hidden] {
+  display: none;
+}
+
+.sheet {
+  width: 100%;
+  max-width: 34rem;
+  max-height: 88%;
+  overflow-y: auto;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  border-radius: 16px 16px 0 0;
+  background: var(--panel);
+}
+
+.code {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  /* 16px keeps iOS from zooming the page when the field takes focus. */
+  font: 16px/1.3 ui-monospace, Menlo, Consolas, monospace;
+  -webkit-user-select: text;
+  user-select: text;
+  overflow-wrap: anywhere;
+}
+
+.file {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin: 8px 0;
+  color: var(--text);
+  font: inherit;
+}
+
+.compare-row {
+  display: flex;
+  gap: 12px;
+}
+
+.compare {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.compare .line {
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 6px;
+}
+
+.compare .value {
+  text-align: left;
+}
+
+.log-entry {
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.log-head {
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+pre {
+  margin: 0;
+  overflow-x: auto;
+  color: var(--muted);
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* An installed web app cannot lock the phone's orientation, so landscape gets a panel instead (GDD 8.3). */
+.rotate {
+  display: none;
+}
+
+@media (orientation: landscape) and (pointer: coarse) and (max-height: 540px) {
+  .rotate {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: var(--bg);
+    font-size: 1.2rem;
+    text-align: center;
+  }
+}

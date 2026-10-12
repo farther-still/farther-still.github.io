@@ -4,7 +4,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Current phase
 
-**Phase 2 gate ⛔.** Phase 1 was approved on 2026-10-12 with the reply "a, approved", where "a" is the DV-4 ruling (both movement controls at once). Phase 2 is written: `CLAUDE.md` expanded to 7,919 characters and `docs/ARCHITECTURE.md` with a module diagram. The Phase 2 gate report was posted the same day with one question, which Michael answered the same day (A1 a: use the Vite PWA plugin). His reply did not contain "approved". Still waiting for that word; answers, questions or silence are not approval. Do not start Phase 3a before it.
+**Phase 3a: built and verified on the laptop; first push made, CI and the first deploy not yet confirmed.** Phase 2 was approved on 2026-10-12. The walking skeleton was built the same day and went through a separate verifier pass and a re-check. Michael created the organization `farther-still` and the repo `farther-still.github.io` during the build. The gate report has not been posted yet: it follows once CI and the deploy are confirmed. Do not open `docs/sealed/` or `reference/` in this phase: 3a has no game content.
 
 **Spoiler rule for every session.** `docs/sealed/` holds zone themes and all content names. Michael does not open it. Never quote anything from it in chat, gate reports, commit messages or this file. Refer to zones as Z1–Z8, elements as E1–E3 and enemy types as T1–T4.
 
@@ -12,11 +12,10 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ### PENDING
 
-- [ ] Before Phase 3a's first install: give Michael exact steps to create the free GitHub organization `farther-still` (he asked for this to be explained later), and settle the install address
+- [ ] 3a: confirm CI is green and the site is live after the first push
+- [ ] 3a: post the gate report ⛔ with the phone steps
+- [ ] Phase 3b: vertical slice ⛔. First: save version 2 with its migration and fixture, removing the dummy state and `data/dummy.json`; then `check-content`, the reference-name test, battle replays and `npm run sim`
 - [ ] Phase 3b gate: report what one zone cost to author, so the DV-6 condition can be judged on evidence
-- [ ] Phase 2: wait for "approved" on the gate report
-- [ ] Phase 3a: walking skeleton (PWA, save system, CI, Pages deploy) ⛔
-- [ ] Phase 3b: vertical slice ⛔
 - [ ] Phase 4: balance simulator ⛔
 - [ ] Phase 5: cloud backup, then content expansion
 
@@ -37,6 +36,71 @@ Re-read this file at the start of every session and every work cycle. Update it 
 - [x] Phase 2: `CLAUDE.md` expanded (7,919 characters) and `docs/ARCHITECTURE.md` written; content paths under `data/` sealed in `.gitattributes`
 - [x] Phase 2: script checks run; a separate verifier pass and a re-check run, and their findings fixed; gate report posted ⛔
 - [x] Phase 2: gate question answered (A1 a) and recorded in `docs/ARCHITECTURE.md` section 13
+- [x] Phase 2: approved by Michael, 2026-10-12
+- [x] Phase 3a: organization and repo steps given to Michael before anything was deployed (2026-10-12)
+
+## Phase 3a working record
+
+`docs/ARCHITECTURE.md` section 14 lists exactly what exists. This section records how it was checked and what is still unknown.
+
+### What Phase 3a built
+
+- An installable app, "Farther Still", with a dummy state: a counter, a step count and a fake inventory. No game rule exists yet.
+- The save system of `docs/ARCHITECTURE.md` section 7 except the cloud backend, as save version 1, with one frozen fixture.
+- A service worker with our own logic, an update controller, the persistence request, the share sheet, and the diagnostics log.
+- Settings, the new-run sheet, the recovery screen, the save-failed notice and the landscape panel.
+- The checks of the enforcement map that do not need game content, a pre-commit hook, and one CI workflow that checks, builds, scans and deploys.
+
+### Verified on the laptop (2026-10-12)
+
+- `npm run check`: PASS. Four TypeScript projects, lint, 329 tests in 18 files, repo check, prose check.
+- `npm run build` and `npm run check:dist`: PASS.
+- Each lint ban, the engine's no-DOM compile and each check script is run against a deliberate violation in `tests/enforcement.test.ts` and `tests/checks.test.ts`: PASS.
+- The built app, served by `npm run preview`, driven in a Chromium pane: PASS on each of the following.
+  - The service worker became active and cached all 8 files; a reload with the server stopped still launched and played.
+  - State survived a reload. A step taken without a save was written on `pagehide`.
+  - An exported text code, imported after further play, brought the earlier state back and set the replaced game aside.
+  - A second build waited: "update ready" showed, the old build kept running and both caches existed. It took over only from the new-run sheet, and the old cache was then gone.
+  - A third build, left waiting, took over when the only tab was closed and reopened. The run's aim pointed at an item the new content lacked; it was cleared, with a notice, and the profile was untouched.
+  - A fourth build whose content lacked an owned item gave the recovery screen. Nothing was written until "use anyway"; then all three records were set aside first.
+  - The self-test matched 9 of 9. The diagnostics log stayed empty in normal use and recorded a deliberate policy violation.
+- The dev server runs without a service worker and Settings says so.
+
+### Deploy
+
+- First push made 2026-10-12. CI and deploy: NOT CHECKED at the time of this commit; the result is recorded in the next one.
+
+### Verifier pass (2026-10-12)
+
+A separate agent was given the kickoff's save spec and Phase 3a section, the architecture and the code, with instructions to find faults. It was not shown this file's conclusions.
+
+The first pass failed the build on three of nine checks. Its one must-fix was a reproduced way to lose a save: when storage could not be read at startup, the recovery screen knew of no records, still offered "Restore", and wrote the hot slot as save 1 over a save 57 it had never read, with no copy kept. Every function underneath was correct; the fault was in the wiring between them. It also found that a media element made through the UI's own helper passed both lint and the build scan, that the export the app asks for after a skipped checkpoint could not be imported back, that a damaged record with an absurd `seq` could stop every later write, and several false negatives in the build scan.
+
+All of it was fixed. A recovery choice now reads the slots again before writing and changes nothing if it cannot; after an unreadable start only the two choices that write nothing are offered (`docs/ARCHITECTURE.md` A-19 to A-22).
+
+The re-check passed, with no new must-fix. It confirmed the original reproduction no longer works through the real `startApp` and found no other route that writes slots it has not just read. Its remaining findings were then fixed by the author and have not been re-verified: the build scan and the worker now resolve the page's file references the same way; the write sequence builds only on records whose checksum matches, which replaced a first fix the re-check showed had only moved the problem; a start that fails part-way has its own honest screen; and the startup and recovery wiring now has tests through the real `startApp` (`src/ui/app.test.ts`).
+
+Left as they are, by choice:
+
+- Importing a raw recovery export offers its newest good record even when a newer one in it fails a consistency check, and does not say a newer one was passed over.
+- A fallback is announced when the unreadable record is first set aside. If the app died between making that copy and storing the notice, the fallback would be silent.
+- The engine import rule would wrongly refuse a file two folders deep importing two levels up within the engine. No such folder exists.
+- The sheets and Settings have no automated tests of their own.
+
+It could not check: the app in a real browser or on the phone; GitHub Actions running; and the host serving a stale page just after a deploy, which the worker's new install check is there for.
+
+### Not checked yet
+
+- Everything on the iPhone: install, Spotify, background and force-quit, offline, export through the share sheet, delete and reinstall, import, and the update waiting. This is Michael's acceptance run.
+- The four open points in `docs/ARCHITECTURE.md` section 13, which only the phone can answer: strict durability, sharing a file from the installed app, the database connection after backgrounding, and the engine self-test.
+
+### Carried forward to Phase 3b
+
+- Save version 2: a migration that discards the dummy fields, a second fixture, the run-duration log, and the removal of `data/dummy.json`. This is the first real use of the migration path.
+- The three checks that need content: `scripts/check-content.ts`, the reference-name test with `scripts/build-refnames.ts`, and battle replays. Also the check that every ID in the data is in the lock.
+- Every push to `main` is a new version, documents included, so each one leads to an "update ready". If that becomes a nuisance, the deploy could skip pushes that change no shipped file.
+- The UI will grow past what the stand-in DOM in `tests/fake-dom.ts` can stand in for. Decide then whether to add a DOM library for tests.
+- Record Michael's phone readouts in `docs/ARCHITECTURE.md` section 13.
 
 ## Phase 2 working record
 
@@ -257,7 +321,7 @@ From the developer data files; approximate. For Phase 1 curve design, not for co
 
 ## Starting a fresh session
 
-For Phase 3a, read in order: `CLAUDE.md`, this file, `docs/ARCHITECTURE.md`, then the Phase 3a section, stack and save spec of `docs/KICKOFF.md`. `docs/GDD.md` sections 2.5, 6 and 8 are the parts 3a touches. `docs/sealed/` is needed only when authoring content (Phase 3b on). `reference/` is needed only to check a claim about RH; start with `reference/_claude_phase0/README.md`, which is private and gitignored.
+For Phase 3b, read in order: `CLAUDE.md`, this file, `docs/ARCHITECTURE.md` (section 14 first: it says what exists), then the Phase 3b section of `docs/KICKOFF.md` and `docs/GDD.md`. `docs/sealed/` is needed from Phase 3b on, for authoring content only. `reference/` is needed only to check a claim about RH; start with `reference/_claude_phase0/README.md`, which is private and gitignored.
 
 ## Judgment calls
 
@@ -284,10 +348,20 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 - 2026-10-12 (Phase 2): `CLAUDE.md` points to `docs/ARCHITECTURE.md` section 3 for file-level roles, because a file-by-file map would not fit under 8,000 characters and no source file exists yet.
 - 2026-10-12 (Phase 2): The "update ready" tap lives only on the new-run sheet, which is the kickoff's "apply it between runs". Settings shows that an update is waiting but does not apply it.
 - 2026-10-12 (Phase 1): After the verifier's re-check, a Claim was set to 3 energy against an unclaimed boss's surplus of 2, so that a Claim is never worthless. Both numbers are within what the sources give for RH (2 [WEB], 2–3 from Michael's notes).
+- 2026-10-12 (Phase 3a): Architecture decisions made without asking are `docs/ARCHITECTURE.md` A-12 to A-22, so they are not repeated here.
+- 2026-10-12 (Phase 3a): Three checks in the enforcement map were not built, because they need game content and this phase was told not to open `reference/` or the GDD outside sections 2.5, 6 and 8: `check-content`, the reference-name test, and battle replays. `CLAUDE.md` and `docs/ARCHITECTURE.md` section 14 say so. `npm run sim` is likewise Phase 3b.
+- 2026-10-12 (Phase 3a): The run-duration log is left out of save version 1 and arrives with real runs in version 2, which is a migration either way.
+- 2026-10-12 (Phase 3a): `data/dummy.json` sits on a sealed path, so it was committed on its own, as the rule for sealed content says, though it holds no spoiler.
+- 2026-10-12 (Phase 3a): The icon is placeholder art, three rising bars, drawn by a throwaway script that was not kept.
+- 2026-10-12 (Phase 3a): An export counts as made when the share sheet reports success, the file is downloaded, or the text code is copied. A cancelled share does not count.
+- 2026-10-12 (Phase 3a): The share sheet is offered the file as JSON first and as plain text second, since browsers differ in which types they take. Which one the phone takes is one of the open points.
+- 2026-10-12 (Phase 3a): Michael was told during the build that if the repo existed when the local build passed, it would be added as the remote and pushed. It did, and it was. He was told he could say he would rather push himself; he did not reply either way before the push.
+- 2026-10-12 (Phase 3a): `.claude/launch.json`, which starts the local preview for the browser pane, is gitignored.
+- 2026-10-12 (Phase 3a): No DOM library was added for tests. The startup and recovery wiring is tested against a small stand-in in `tests/fake-dom.ts`.
 
 ## Handoff
 
-- **Done:** Phases 0 and 1 approved. Phase 2 written and at its gate: `CLAUDE.md` (7,919 characters), `docs/ARCHITECTURE.md`, `.gitattributes` sealing content paths under `data/`, small GDD additions, and this file. Each phase's documents went through script checks and a separate verifier pass with a re-check.
-- **Worked:** Giving the verifier the source documents and asking it to find faults, never my conclusions. In both phases its first pass failed the draft on things my own scripts could not see: targets the formulas could not reach in Phase 1, and save paths that could lose data in Phase 2. Recovering exact batch posts from the earlier session's transcript. Keeping spoilers in separate files and separate commits.
-- **Failed:** First drafts in both phases. In Phase 2 the worst was a load path that could overwrite a save it had rejected. Michael has answered the questions at every gate so far without the word "approved", so each gate has needed an extra round trip: end every gate report with a ready-made reply line that includes the word. Traps: `cd` inside a Bash call moves the session's working directory; shell heredocs break on apostrophes here, so write scripts to a file first; Python prints in cp1252 unless run with `-X utf8`; `CLAUDE.md` has under 100 characters to spare.
-- **Next:** Wait for "approved"; A1 is recorded. Then Phase 3a, platform before game: give Michael the organization steps; scaffold Vite, TypeScript, ESLint, Vitest and the hook; build the save system with a dummy state exactly as `docs/ARCHITECTURE.md` section 7 describes, fixtures and all; the PWA shell, update flow, Settings and diagnostics; the checks in the enforcement map; CI and the Pages deploy; then exact phone test steps for his acceptance run.
+- **Done:** Phases 0 to 2 approved. Phase 3a built: `src/`, `data/`, `tests/`, `scripts/`, the hook and the CI workflow, with `CLAUDE.md`, `docs/ARCHITECTURE.md` (decisions A-12 to A-22 and section 14) and this file brought in line. The built app was run in a browser on the laptop. A separate verifier failed the first build and passed the second.
+- **Worked:** Asking the verifier to prove a suspected hole with a throwaway test through the real entry point. That is how it found the lost save, which no unit test of mine could have: each function was right and the wiring was wrong. Tests that lint or compile a deliberate violation, so a check that stops firing fails the build. Building labelled versions with `FS_BUILD_ID` and serving them with `npm run preview` to try the update flow on the laptop. Closing the last tab in the browser pane to stand in for a force-quit.
+- **Failed:** The first build lost a save on the recovery screen after an unreadable start. My first fix for absurd `seq` values only moved the problem and the re-check caught it. Two of my tests could not fail for the reason in their titles. Traps: shell heredocs break on apostrophes here, so write patch scripts with the Write tool and run the file; `cd` inside a Bash call moves the session's working directory; Python prints in cp1252 unless run with `-X utf8`; `CLAUDE.md` has 36 characters to spare; a scratch script must sit inside the repo for `node_modules` to resolve; `happy-dom` 21 and TypeScript 7 were days and months old on 2026-10-12 and were passed over for that reason; the first word on the recovery screen's list ("Run 2") can match a test that is waiting for the game screen.
+- **Next:** Confirm CI and the site, then post the gate report with the phone steps.

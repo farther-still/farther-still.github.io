@@ -1,0 +1,13 @@
+{
+  "vectors": {
+    "hash: empty text": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "hash: abc": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "hash: two blocks": "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1",
+    "hash: text beyond ASCII": "56945f54104e3051c4a4bbaaba143da34acc5d5baa329599986618f80fbb4ef4",
+    "generator: 1000 integers": "cfd2a0343b181e1709b6d58a5ae8b40572f19bc03b6de58810663173c66e7b70",
+    "generator: 200 rolls": "8be930a41ea9b12c3ab0b9984a8741f5b113b450e046fd856ee5d3a9e697c3a0",
+    "square roots: 400 values": "e30e19e1c785d15ad14cdcd1584ab6ec5b25e4df5e136da441050d4938bda28d",
+    "serialization: sorted keys and numbers": "01da9fd1ad00b2ff1849473d7366b2d5f71dd124aa292869575c88f7016bcaac",
+    "replay: dummy actions": "9efb8b2ca80529b56b451a148b0c9f965ef596d27807bb4bde97ca9c094c7c2c"
+  }
+}

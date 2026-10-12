@@ -1,0 +1,3 @@
+#!/bin/sh
+# Runs the same checks as CI before every commit (CLAUDE.md enforcement map). Set by `npm install`.
+exec npm run check

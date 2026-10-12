@@ -22,3 +22,6 @@ sim-out/
 Thumbs.db
 desktop.ini
 *.log
+
+# Local tool configuration
+.claude/launch.json
