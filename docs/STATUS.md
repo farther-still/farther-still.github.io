@@ -4,7 +4,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Current phase
 
-**Phase 3a gate ⛔.** Phase 2 was approved on 2026-10-12. Phase 3a, the walking skeleton, was built the same day: an installable app with a dummy state, the full save system less cloud backup, the update flow, Settings, the diagnostics log, the checks, CI and the Pages deploy. It is live at `https://farther-still.github.io/`. The gate report was posted with the steps for Michael's phone acceptance run, and he answered its two questions the same day (1 a, 2 a). His reply did not contain "approved", and the phone run had not been reported. Still waiting for that word; answers, questions or silence are not approval. Do not start Phase 3b before it. He asked for Phase 3b to start in a new session and was given a prompt for it.
+**Phase 3a gate ⛔.** Phase 2 was approved on 2026-10-12. Phase 3a, the walking skeleton, was built the same day: an installable app with a dummy state, the full save system less cloud backup, the update flow, Settings, the diagnostics log, the checks, CI and the Pages deploy. It is live at `https://farther-still.github.io/`. The gate report was posted with the steps for Michael's phone acceptance run, and he answered its two questions the same day (1 a, 2 a). He then did the phone acceptance run and reported every step as passing. No reply so far has contained "approved". Still waiting for that word; answers, questions or silence are not approval. Do not start Phase 3b before it. He asked for Phase 3b to start in a new session and was given a prompt for it, whose first line is his approval.
 
 **Spoiler rule for every session.** `docs/sealed/` holds zone themes and all content names. Michael does not open it. Never quote anything from it in chat, gate reports, commit messages or this file. Refer to zones as Z1–Z8, elements as E1–E3 and enemy types as T1–T4.
 
@@ -12,8 +12,8 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ### PENDING
 
-- [ ] Michael: Phase 3a phone acceptance run (steps in the gate report); report back the four readouts listed under "Still to settle" in `docs/ARCHITECTURE.md` section 13
-- [ ] Phase 3a: wait for "approved" on the gate report. If the phone run reports a failure, fix it inside Phase 3a first
+- [ ] Phase 3a: wait for "approved" on the gate report. Michael intends to give it as the first line of the new session's prompt
+- [ ] Get two readouts from Michael that his report did not state, and record them in `docs/ARCHITECTURE.md` section 13: whether the export went out as a file or only as the text code, and the self-test count on the phone
 - [ ] Phase 3b: vertical slice ⛔. First: save version 2 with its migration and fixture, removing the dummy state and `data/dummy.json`; then `check-content`, the reference-name test, battle replays and `npm run sim`
 - [ ] Phase 3b gate: report what one zone cost to author, so the DV-6 condition can be judged on evidence
 - [ ] Phase 4: balance simulator ⛔
@@ -43,6 +43,8 @@ Re-read this file at the start of every session and every work cycle. Update it 
 - [x] Phase 3a: the built app run in a browser on the laptop: offline launch, export and import, both update paths, run repair, recovery screen
 - [x] Phase 3a: separate verifier pass (failed, one way to lose a save) and re-check (passed); findings fixed
 - [x] Phase 3a: first push, CI green, site live; gate report posted ⛔ (2026-10-12)
+- [x] Phase 3a: gate questions answered (1 a, 2 a); third verifier pass and its fixes
+- [x] Phase 3a: Michael's phone acceptance run, every step reported as passing (2026-10-12)
 
 ## Phase 3a working record
 
@@ -111,10 +113,25 @@ He also said not to move on in the same session: Phase 3b starts in a new one, f
 - One more fault was found by the author, not the verifier, while re-reading the last fix: building the write sequence only on checksum-verified records would have brought the recovery screen back at every launch after the player went back past a record from a newer version. The rule is now the one in `docs/ARCHITECTURE.md` 7.1 and A-20: any record's `seq` counts unless the record is unusable and the `seq` is implausibly large.
 - A third, narrow verifier pass then looked only at what had changed since the re-check. It passed, with no must-fix. It confirmed by mutation that the new wiring tests fail if the recovery exit goes back to using what was read when the screen opened, or if a writing choice is offered after an unreadable start. It found one should-fix: junk that merely claimed a newer save version, sitting outside the hot slot with a `seq` the write sequence would not build on, brought the recovery screen back at every launch. Such a record now counts as damaged, and a real newer record is outranked by the next write. It also found a test that could not catch a missing second-tap guard, and three stale statements in this file. All fixed by the author; the fixes after this third pass have not been re-verified, and they are small: one classification rule with five tests, one stronger assertion, and wording.
 
-### Not checked yet
+### Phone acceptance run (Michael, 2026-10-12)
 
-- Everything on the iPhone: install, Spotify, background and force-quit, offline, export through the share sheet, delete and reinstall, import, and the update waiting. This is Michael's acceptance run.
-- The four open points in `docs/ARCHITECTURE.md` section 13, which only the phone can answer: strict durability, sharing a file from the installed app, the database connection after backgrounding, and the engine self-test.
+Done on his iPhone 16 Pro from the Home Screen icon, with Spotify playing, following a 24-step checklist given in chat. The LAN layout check was skipped. He reported in three messages: the two Settings readouts, "everything through step 19 is good", and "steps 20 to 24 all worked".
+
+| What | Result | Evidence |
+|---|---|---|
+| Install from the Pages address, use the dummy screen | PASS | His report |
+| Storage persistence | Granted | Settings read "Granted: the browser will not clear this save on its own" |
+| Write durability | strict | Settings read "strict" |
+| Background, then force-quit: state kept, including a step not yet saved | PASS | His report |
+| Launch and play in Airplane mode | PASS | His report |
+| Spotify never paused | PASS | His report |
+| Export, delete the icon, reinstall, import | PASS | His report. He did not say whether the file or the text code carried it |
+| A deployed change waited, then applied from the new-run sheet | PASS | He pushed an empty commit, `a4f89db`; "update ready" appeared, nothing reloaded, and the update applied from the new-run sheet |
+| Diagnostics log | One entry | "applying the waiting version from the new-run-sheet", which is the app's own note and not an error. No `save-retry` entry |
+| Engine self-test | Reported as passing | The count was not stated |
+| Layout on the LAN dev server | NOT CHECKED | Skipped by agreement; he used the installed app's layout throughout without complaint |
+
+Two readouts are still to get from him; they are in the todo list.
 
 ### Carried forward to Phase 3b
 
@@ -386,4 +403,4 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 - **Done:** Phases 0 to 2 approved. Phase 3a built: `src/`, `data/`, `tests/`, `scripts/`, the hook and the CI workflow, with `CLAUDE.md`, `docs/ARCHITECTURE.md` (decisions A-12 to A-22 and section 14) and this file brought in line. The built app was run in a browser on the laptop. A separate verifier failed the first build, passed the second, and passed a third, narrow look at the fixes made after that.
 - **Worked:** Asking the verifier to prove a suspected hole with a throwaway test through the real entry point. That is how it found the lost save, which no unit test of mine could have: each function was right and the wiring was wrong. Tests that lint or compile a deliberate violation, so a check that stops firing fails the build. Building labelled versions with `FS_BUILD_ID` and serving them with `npm run preview` to try the update flow on the laptop. Closing the last tab in the browser pane to stand in for a force-quit.
 - **Failed:** The first build lost a save on the recovery screen after an unreadable start. The rule for absurd `seq` values took four attempts: the verifier caught two of the wrong ones and I caught one. Two of my tests could not fail for the reason in their titles. Traps: shell heredocs break on apostrophes here, so write patch scripts with the Write tool and run the file; `cd` inside a Bash call moves the session's working directory; Python prints in cp1252 unless run with `-X utf8`; `CLAUDE.md` has 13 characters to spare; a scratch script must sit inside the repo for `node_modules` to resolve; `happy-dom` 21 and TypeScript 7 were days and months old on 2026-10-12 and were passed over for that reason; the first word on the recovery screen's list ("Run 2") can match a test that is waiting for the game screen.
-- **Next:** Wait for "approved". Michael's phone run may come back with failures: treat each as a Phase 3a fix, not Phase 3b work. Then Phase 3b, starting with save version 2 and its migration, so the first real migration runs on a phone whose save does not matter yet.
+- **Next:** Wait for "approved", which Michael intends to give in the new session's prompt. Record the two readouts still missing. Then Phase 3b, starting with save version 2 and its migration. His phone holds a version 1 save from the acceptance run, at run 2 or later, so the first 3b deploy is the first real migration; tell him what he should see.

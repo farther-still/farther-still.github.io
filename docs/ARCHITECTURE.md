@@ -485,12 +485,17 @@ Settled in Phase 3a:
 - The zod version: A-13.
 - The steps for creating the GitHub organization: given to Michael on 2026-10-12, before anything was deployed.
 
-Still to settle, on the phone, during the Phase 3a acceptance run. Each has a place in the app that reports it:
+Settled on the phone, by Michael's Phase 3a acceptance run on his iPhone 16 Pro, 2026-10-12:
 
-- whether IndexedDB's strict durability option is honoured on the phone's Safari: Settings, "Write durability";
-- whether sharing a file from the installed app works on the phone, or only the text code: the export sheet says which it used and what happened;
-- whether the database connection survives the app being backgrounded: a write that had to be retried appears in the diagnostics log as `save-retry`;
-- whether the phone's arithmetic matches Node's: Settings, "Engine self-test".
+- IndexedDB's strict durability option is honoured in the installed app: Settings showed "Write durability: strict".
+- `navigator.storage.persist()` was granted in the installed app. Nothing relies on it.
+- The database connection survived the app being backgrounded and force-quit in that run: the diagnostics log held no `save-retry` entry. One run is not proof, so the retry in section 7.2 stays.
+- The update flow behaved as section 9 describes: a deployed change waited as "update ready" while the app stayed open, and was applied from the new-run sheet. The diagnostics log's one entry was the app's own note that it was applying the waiting version.
+
+Still to record. Michael reported these steps as passing but did not state the readout:
+
+- whether the export went out as a file through the share sheet or only as the text code;
+- the engine self-test count on the phone (9 of 9 is expected).
 
 ## 14. Phase 3a as built
 
