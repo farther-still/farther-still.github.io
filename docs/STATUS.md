@@ -4,7 +4,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Current phase
 
-**Phase 3a: built and verified on the laptop; first push made, CI and the first deploy not yet confirmed.** Phase 2 was approved on 2026-10-12. The walking skeleton was built the same day and went through a separate verifier pass and a re-check. Michael created the organization `farther-still` and the repo `farther-still.github.io` during the build. The gate report has not been posted yet: it follows once CI and the deploy are confirmed. Do not open `docs/sealed/` or `reference/` in this phase: 3a has no game content.
+**Phase 3a gate ⛔.** Phase 2 was approved on 2026-10-12. Phase 3a, the walking skeleton, was built the same day: an installable app with a dummy state, the full save system less cloud backup, the update flow, Settings, the diagnostics log, the checks, CI and the Pages deploy. It is live at `https://farther-still.github.io/`. The gate report was posted with the steps for Michael's phone acceptance run. Waiting for the literal reply "approved"; answers, questions or silence are not approval. Do not start Phase 3b before it.
 
 **Spoiler rule for every session.** `docs/sealed/` holds zone themes and all content names. Michael does not open it. Never quote anything from it in chat, gate reports, commit messages or this file. Refer to zones as Z1–Z8, elements as E1–E3 and enemy types as T1–T4.
 
@@ -12,8 +12,8 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ### PENDING
 
-- [ ] 3a: confirm CI is green and the site is live after the first push
-- [ ] 3a: post the gate report ⛔ with the phone steps
+- [ ] Michael: Phase 3a phone acceptance run (steps in the gate report); report back the four readouts listed under "Still to settle" in `docs/ARCHITECTURE.md` section 13
+- [ ] Phase 3a: wait for "approved" on the gate report
 - [ ] Phase 3b: vertical slice ⛔. First: save version 2 with its migration and fixture, removing the dummy state and `data/dummy.json`; then `check-content`, the reference-name test, battle replays and `npm run sim`
 - [ ] Phase 3b gate: report what one zone cost to author, so the DV-6 condition can be judged on evidence
 - [ ] Phase 4: balance simulator ⛔
@@ -38,6 +38,11 @@ Re-read this file at the start of every session and every work cycle. Update it 
 - [x] Phase 2: gate question answered (A1 a) and recorded in `docs/ARCHITECTURE.md` section 13
 - [x] Phase 2: approved by Michael, 2026-10-12
 - [x] Phase 3a: organization and repo steps given to Michael before anything was deployed (2026-10-12)
+- [x] Phase 3a: Michael created the organization `farther-still` and the public repo `farther-still.github.io`, Pages enabled (2026-10-12)
+- [x] Phase 3a: scaffold, engine pieces, save system, platform, UI, checks, hook and CI workflow built (2026-10-12)
+- [x] Phase 3a: the built app run in a browser on the laptop: offline launch, export and import, both update paths, run repair, recovery screen
+- [x] Phase 3a: separate verifier pass (failed, one way to lose a save) and re-check (passed); findings fixed
+- [x] Phase 3a: first push, CI green, site live; gate report posted ⛔ (2026-10-12)
 
 ## Phase 3a working record
 
@@ -68,7 +73,10 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ### Deploy
 
-- First push made 2026-10-12. CI and deploy: NOT CHECKED at the time of this commit; the result is recorded in the next one.
+- First push, 2026-10-12: `main` at `2452ef0`. CI run 1 passed both jobs, `check` (install, `npm run check`, build, `npm run check:dist`) and `deploy`: `https://github.com/farther-still/farther-still.github.io/actions/runs/38262096743`. PASS.
+- `https://farther-still.github.io/` answered 200 for the page, `sw.js`, the manifest and the touch icon. The served bundle holds the commit it was built from, and the page carries the pinned content security policy. PASS.
+- The live site, opened in a Chromium pane on the laptop: the worker activated and cached 8 files, a tap was saved with strict durability, the self-test matched 9 of 9, the diagnostics log stayed empty, and the console showed no errors. PASS.
+- The commit that records this is itself a further deploy, of documents only. Its CI run is reported in the gate report, not here.
 
 ### Verifier pass (2026-10-12)
 
@@ -364,4 +372,4 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 - **Done:** Phases 0 to 2 approved. Phase 3a built: `src/`, `data/`, `tests/`, `scripts/`, the hook and the CI workflow, with `CLAUDE.md`, `docs/ARCHITECTURE.md` (decisions A-12 to A-22 and section 14) and this file brought in line. The built app was run in a browser on the laptop. A separate verifier failed the first build and passed the second.
 - **Worked:** Asking the verifier to prove a suspected hole with a throwaway test through the real entry point. That is how it found the lost save, which no unit test of mine could have: each function was right and the wiring was wrong. Tests that lint or compile a deliberate violation, so a check that stops firing fails the build. Building labelled versions with `FS_BUILD_ID` and serving them with `npm run preview` to try the update flow on the laptop. Closing the last tab in the browser pane to stand in for a force-quit.
 - **Failed:** The first build lost a save on the recovery screen after an unreadable start. My first fix for absurd `seq` values only moved the problem and the re-check caught it. Two of my tests could not fail for the reason in their titles. Traps: shell heredocs break on apostrophes here, so write patch scripts with the Write tool and run the file; `cd` inside a Bash call moves the session's working directory; Python prints in cp1252 unless run with `-X utf8`; `CLAUDE.md` has 36 characters to spare; a scratch script must sit inside the repo for `node_modules` to resolve; `happy-dom` 21 and TypeScript 7 were days and months old on 2026-10-12 and were passed over for that reason; the first word on the recovery screen's list ("Run 2") can match a test that is waiting for the game screen.
-- **Next:** Confirm CI and the site, then post the gate report with the phone steps.
+- **Next:** Wait for "approved". Michael's phone run may come back with failures: treat each as a Phase 3a fix, not Phase 3b work. Then Phase 3b, starting with save version 2 and its migration, so the first real migration runs on a phone whose save does not matter yet.
