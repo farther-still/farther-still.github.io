@@ -839,4 +839,4 @@ Five original names. None says anything about the world, so none is a spoiler. C
 
 **Recommendation: Farther Still.** It states the loop in two words, reads well under a home-screen icon, and its exact name is free, which would make the install address `farther-still.github.io`.
 
-Rejected during the search because a game already uses the name or something close: Last Drop, Everclimb, Waymark, Gaining Ground.
+Rejected because a game already uses the name or something close: Last Drop, Everclimb and Waymark, all found in the search, and Gaining Ground, which is too close to an older arcade title (from memory, not searched).
