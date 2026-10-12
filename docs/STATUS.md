@@ -4,7 +4,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Current phase
 
-**Phase 1 gate ⛔.** Phase 0 was approved on 2026-10-12. `docs/GDD.md` and the sealed appendix are written and the Phase 1 gate report was posted the same day. Michael answered its five questions the same day (P1 a, P2 a, P3 a, P4 a, P5 d), but his reply did not contain "approved". Still waiting for that word; answers, questions or silence are not approval. Do not start Phase 2 before it.
+**Phase 1 gate ⛔.** Phase 0 was approved on 2026-10-12. `docs/GDD.md` and the sealed appendix are written and the Phase 1 gate report was posted the same day. Michael answered its five questions the same day (P1 a, P2 a, P3 a, P4 a, P5 d) and then two follow-ups (F1 c, F2 keep 8 zones), and asked for the deviations to be explained again before going further. None of his replies contained "approved". Still waiting for that word; answers, questions or silence are not approval. Do not start Phase 2 before it.
 
 **Spoiler rule for every session.** `docs/sealed/` holds zone themes and all content names. Michael does not open it. Never quote anything from it in chat, gate reports, commit messages or this file. Refer to zones as Z1–Z8, elements as E1–E3 and enemy types as T1–T4.
 
@@ -31,6 +31,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 - [x] Phase 1: `docs/GDD.md` (eleven kickoff sections, backup comparison, five names) and `docs/sealed/` written
 - [x] Phase 1: script checks run; a separate verifier pass and a re-check run, and their findings fixed in the GDD and the sealed appendix; gate report posted ⛔
 - [x] Phase 1: gate questions answered (P1 a, P2 a, P3 a, P4 a, P5 d) and recorded in GDD section 13.4
+- [x] Phase 1: follow-ups answered (F1 c: 10–20 runs a day in early RH; F2: keep 8 zones) and recorded; deviations DV-1 to DV-8 explained again in chat
 
 ## Phase 1 working record
 
@@ -55,7 +56,14 @@ Re-read this file at the start of every session and every work cycle. Update it 
 | P4 | Did an energy accessory change his energy the moment he equipped or removed it? | a ("yes, or don't remember") | **Ruling.** Energy accessories count only while equipped. Not a confirmed fact about RH; O-06 stays open. |
 | P5 | About how long did he play RH on a typical day? | d | **Confirmed.** More than 4 hours a day, so over 120 hours in all. The 2–4 hour assumption is withdrawn. |
 
-What P5 changes: at more than 4 hours a day, v1's 5–9 hours is about two days of Michael's play, and a week of his RH play would be 9 hours or more at a third of the time. The GDD's run counts (53–76 for v1) may therefore be low. He was told this and offered two optional follow-ups, neither blocking: roughly how many runs he started on a typical early RH day, and whether he wants v1 larger than Q15's 8 zones (recommendation: keep 8, since v1's job is to prove the loop and content expansion is Phase 5).
+Two follow-ups to P5, answered 2026-10-12:
+
+| # | Question | Michael's answer | Recorded as |
+|---|---|---|---|
+| F1 | About how many runs did he start on a typical early RH day? | c | **Confirmed.** 10–20. v1's run target moves from 53–76 to 70–140 (aim 100) and its play time from 5–9 hours to 8–13, which is two to three days at his rate. Gem drop rate retuned from 12% to 8% for the longer v1. |
+| F2 | Should v1 be larger than 8 zones, given that? | Keep 8 | **Ruling.** Q15 stands. |
+
+Michael then asked to hear the deviations again. DV-1 to DV-8 were laid out in chat. Still without its own ruling: DV-8 (waypoints start at Z3). Flagged for a second look: the risk added to DV-1 (energy in steps of 3) and DV-3's retry problem.
 
 ### Verifier pass (2026-10-12)
 
@@ -227,4 +235,4 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 - **Done:** Phase 0 approved. Phase 1 written: `docs/GDD.md`, `docs/sealed/` (README plus the sealed appendix), a `.gitattributes` rule hiding sealed content in diffs, and this file. Script checks, a separate verifier pass and a re-check were run before the gate report. The must-fix findings were fixed; the re-check's nine further points were fixed afterwards without another verifier round. Results are in the report.
 - **Worked:** Recovering the exact batch posts from the Phase 0 session transcript instead of relying on this file's summaries. Writing each formula so it reproduces the calibration points, then checking that with a script. Keeping spoilers in a separate file and a separate commit.
 - **Failed:** The first draft of the GDD failed five of the verifier's nine checks (listed under "Verifier pass"). The author's own script checks had all passed, because they tested the formulas against calibration points and not the targets against the formulas. Three traps: `cd` inside a Bash call moves the session's working directory; plain-word GitHub names are nearly all taken, so only two of the five proposed names are free without a suffix; and Python on this machine prints in cp1252 unless run with `-X utf8`.
-- **Next:** Wait for "approved"; P1–P5 are already recorded. If Michael answers either optional follow-up (runs per RH day, v1 size), update GDD 5.9 or Q15 first. Then start Phase 2: expand `CLAUDE.md` to under 8,000 characters and write `docs/ARCHITECTURE.md`, using the "Carried forward" list above for the enforcement map.
+- **Next:** Wait for "approved"; P1–P5 and both follow-ups are recorded. If Michael rules differently on any deviation after the recap (DV-8 especially), update GDD 13.2 and the sections it touches first. Then start Phase 2: expand `CLAUDE.md` to under 8,000 characters and write `docs/ARCHITECTURE.md`, using the "Carried forward" list above for the enforcement map.

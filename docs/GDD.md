@@ -1,6 +1,6 @@
 # Steadfast: Game Design Document
 
-GDD v1.0, written 2026-10-12 for the Phase 1 gate. Michael answered the gate questions P1–P5 the same day (section 13.4). Not approved until he replies "approved".
+GDD v1.0, written 2026-10-12 for the Phase 1 gate. Michael answered the gate questions P1–P5 and two follow-ups the same day (section 13.4). Not approved until he replies "approved".
 
 ## 0. How to read this
 
@@ -408,11 +408,11 @@ These are what the Phase 3b and Phase 4 simulators report against.
 | Wins per run | 20–30 early, 40–60 by the end of v1 | Section 5.8; includes whatever boss surplus the player chooses to collect |
 | Seconds per fight | 3–6 at default playback, under 1 with skip | DV-3 |
 | Runs in Z1 | 4–6 | One wall, the Z1 gate boss (Q14) |
-| Runs per zone, Z2–Z8 | 7–10 | One or two walls each |
+| Runs per zone, Z2–Z8 | About 9–19 | The total below, less Z1, over seven zones. One or two walls each; the other runs go on collecting drops and Claims |
 | Walls in v1 | 10–14 | Derived |
-| Runs to finish v1 | 53–76, aiming at 65 | Runs in Z1 plus seven times runs per zone |
-| Play time to finish v1 | 5–9 hours | Run counts times run lengths. Michael played RH more than 4 hours a day (Confirmed, P5), so at that rate v1 is about two days of play. A week of his RH play was 28 hours or more, which is 9 hours or more at a third of the time, so the run counts above may be low; how many runs a day he did in RH is [OPEN] (O-07) |
-| Play time, full scope | 35–45 hours, about 300 runs | Projection from v1. In line with a third of the 120 hours or more Michael spent in RH (P5) |
+| Runs to finish v1 | 70–140, aiming at 100 | Michael started 10–20 runs on a typical early RH day (Confirmed, F1), and v1 is a week of that (Q15) |
+| Play time to finish v1 | 8–13 hours, aiming at 10 | Run counts times run lengths. Cross-check: a week of Michael's RH play was 28 hours or more (Confirmed, P5), which is 9 hours or more at a third of the time. At his rate of more than 4 hours a day, v1 is two to three days of play |
+| Play time, full scope | 40 hours or more, 300–500 runs | A third of the 120 hours or more Michael spent in RH (P5), at 10–20 runs a day or fewer as runs lengthen (F1) |
 | Runs with a persistent gain | At least 90%, and never three in a row without one | Pillar 2 |
 | Breakthrough run | Beats the wall and at least 3 enemies never beaten before | Pillar 1 |
 | Hero level ÷ strongest enemy beaten, at run end | Between 1 and 3 in v1 | RH: about 1 early, over 4 late (Michael's turns, C04 and C30) |
@@ -576,7 +576,7 @@ Out of v1: enemies that appear only when the player arrives with enough energy o
 | Gems | Permanent | Enemy drops only (DV-5) | Waypoints, the Salvage boost |
 | Energy | Run | Starting energy, boss paybacks, accessories | Wins |
 
-- **Gems.** A normal enemy has a 12% chance to drop 1 gem. A boss gives 3 gems in Z1–Z4 and 5 in Z5–Z8 the first time it is ever beaten and none after that, so there is no reason to tour bosses for gems. Drop Bonus does not affect gems, so supply stays predictable. Over v1 that comes to between about 330 and 440 gems, depending on how many runs v1 takes, against 270 for all six waypoints and 25 for each Salvage boost. Starting values; RH's rates are [OPEN].
+- **Gems.** A normal enemy has an 8% chance to drop 1 gem. A boss gives 3 gems in Z1–Z4 and 5 in Z5–Z8 the first time it is ever beaten and none after that, so there is no reason to tour bosses for gems. Drop Bonus does not affect gems, so supply stays predictable. Over v1 that comes to between about 300 and 520 gems, depending on how many runs v1 takes, against 270 for all six waypoints and 25 for each Salvage boost. Starting values; RH's rates are [OPEN].
 - **Stashes** pay gold once per run. Finding one is remembered.
 - There are no other currencies and no store (hard rules 3 and 10).
 
@@ -680,7 +680,7 @@ Michael named nothing further from the two other games to avoid (G3).
 |---|---|---|
 | Size | 8 zones, 100 enemies, 160 items (Q15) | RH's scale: about 36 zone sections, 460 enemies, 700 items [WEB] |
 | Level range | 1 to about 1.2 million | To about 5 billion |
-| Play time | 5–9 hours | 35–45 hours |
+| Play time | 8–13 hours | 40 hours or more |
 | Core systems | Run loop, energy, Claim, shop, Salvage, gems and waypoints, loadouts, Auto-assign, bestiary, forecast, loss summary | The same |
 | Stats | Sections 4.1–4.3 | Adds everything listed at the end of 4.3 |
 | Enemy traits | Multi-attack, regeneration, damage reduction, tags | Adds the puzzle traits |
@@ -728,7 +728,7 @@ Unknowns about RH. None blocks the build: each has a Steadfast rule in the secti
 | O-04 | Gem drop rates and waypoint prices | Own starting values | 5.7, 7.8 |
 | O-05 | Base starting energy, 20 or 25 | 20 | 5.8 |
 | O-06 | Whether energy accessories count at run start or while equipped | While equipped; kept in P4, which did not settle RH's rule | 2.2 |
-| O-07 | Michael's total hours in RH: answered in P5, more than 4 a day, so over 120 in all. Still unknown: how many runs a day he did | Run targets in 5.9 stand until the simulator or Michael says otherwise | 5.9 |
+| O-07 | Michael's total hours in RH. Answered: more than 4 hours a day, so over 120 in all (P5), at 10–20 runs on a typical early day (F1) | Closed; section 5.9's run and time targets are built on it | 5.9 |
 | O-08 | Whether a claimed boss still pays its per-run surplus; one review says it need not be beaten again [WEB] | It refunds its cost only; kept in P3, which did not settle RH's rule | 2.3 |
 | O-09 | Defense's apparent second multiplier layer in late screenshots | One layer in v1 | 4.1 |
 | O-10 | Whether item accuracy and evasion are percentage modifiers on a base of 100 plus Dexterity | Yes | 4.2 |
@@ -789,7 +789,7 @@ All dated 2026-10-12.
 | DV-3 | Player-controlled battle speed and skip (kickoff) | Michael asked whether battles could be sped up (C27); that RH has no speed control is [GPT]. Also the real time a run takes (C15, C23) | None in the engine, since battles already resolve instantly; one setting | Less tension watching a close fight. Because losses are free, skip also makes retrying a long-shot fight nearly free in real time, so a wall can be brute-forced at low odds. Section 5.9 sets a target to measure this. If the target is missed, the fix would be a rule change, for example a retry at unchanged stats replaying the same seed, and that would be a new deviation for Michael to rule on |
 | DV-4 | Tap-to-move with pathfinding as the main control, where RH has the hero walk freely (Q8) with a joystick option [WEB] | Navigation friction (C03, C09, C15, C23, C30); one-handed play | Pathfinding on the tile grid | Less wandering, so fewer accidental discoveries. Pathfinding must not route through unknown hidden tiles |
 | DV-5 | Gems come from enemy drops only; there is no store (Q4) | None of Michael's; hard rule 3 forbids monetization | None; it removes a feature | Gem supply rests on drop tuning alone, with no purchase to fall back on |
-| DV-6 | A run takes about a third of RH's real time for the same number of runs per wall (Q14) | Rebuilding the run was the cost that hurt (C15, C23, C26) | Depends on DV-3, DV-4 and waypoints all working well | Content is used up about three times faster in real time: v1's "week" is 5–9 hours of play, which is about two days at the more than 4 hours a day Michael played RH (P5) |
+| DV-6 | A run takes about a third of RH's real time for the same number of runs per wall (Q14) | Rebuilding the run was the cost that hurt (C15, C23, C26) | Depends on DV-3, DV-4 and waypoints all working well | Content is used up about three times faster in real time: v1's "week" is 8–13 hours of play, which is two to three days at the more than 4 hours a day Michael played RH (P5) |
 
 Two more deviations come from fitting RH's order into v1, not from the interview. DV-7 was ruled on in P2. DV-8 has had no explicit ruling; approving this gate approves it:
 
@@ -836,6 +836,8 @@ All dated 2026-10-12. Michael's reply was `P1 a, P2 a, P3 a, P4 a, P5 d`.
 | P3 | a | **Ruling.** A Claim adds 3 starting energy and a claimed boss then pays nothing extra (D-09 stands). The option read "no, or don't remember", so it is not a confirmed fact about RH | 2.3, 5.8, O-08 |
 | P4 | a | **Ruling.** Energy accessories count only while equipped (D-08 stands). The option read "yes, or don't remember", so it is not a confirmed fact about RH | 2.2, O-06 |
 | P5 | d | **Confirmed.** Michael played RH more than 4 hours a day, so more than 120 hours over the 30 days. The earlier [ASSUMPTION] of 2–4 hours is withdrawn | 5.9, O-07 |
+| F1 | c | **Confirmed.** Follow-up to P5: he started 10–20 runs on a typical early RH day. v1's run target rises from 53–76 to 70–140 and its play time from 5–9 hours to 8–13. The gem drop rate drops from 12% to 8% to match the longer v1 | 5.9, 7.8 |
+| F2 | Keep 8 | **Ruling.** Follow-up to P5: v1 stays at 8 zones (Q15 reaffirmed), knowing it is two to three days of his play | 7.5, 10 |
 
 ## 14. Names
 
