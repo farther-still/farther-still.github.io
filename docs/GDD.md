@@ -1,6 +1,6 @@
 # Steadfast: Game Design Document
 
-GDD v1.0, written 2026-10-12 for the Phase 1 gate. Michael answered the gate questions P1–P5 and two follow-ups the same day (section 13.4). Not approved until he replies "approved".
+GDD v1.0, written 2026-10-12 for the Phase 1 gate. Michael answered the gate questions P1–P5 and two follow-ups the same day (section 13.4). Approved by Michael on 2026-10-12.
 
 ## 0. How to read this
 
@@ -629,7 +629,7 @@ A tab bar at the bottom reaches Map, Hero, Gear, Items, Bestiary and the Run men
 
 | Screen | Shows | Actions |
 |---|---|---|
-| Map | A top-down tile map; enemies with their level, a marker if marked, a boss mark; doors, waypoints, Salvage sites. A status strip with level, gold, energy, gems and a "new item" badge. A row of loadout buttons. | Tap a tile to walk there by the shortest known path. Tap an enemy to walk to it and open the pre-fight sheet. Tap a loadout to switch. Open waypoint travel. |
+| Map | A top-down tile map; enemies with their level, a marker if marked, a boss mark; doors, waypoints, Salvage sites. A status strip with level, gold, energy, gems and a "new item" badge. A row of loadout buttons. | Tap a tile to walk there by the shortest known path. Tap an enemy to walk to it and open the pre-fight sheet. Press and drag to steer. Tap a loadout to switch. Open waypoint travel. |
 | Pre-fight sheet | Enemy level, tags and traits in plain words; energy cost and, for a boss, the payback; gate and Claim status; win chance and limiting factor; drops, with unfound ones hidden but counted; any marked bonus. | Fight, or back. |
 | Battle playback | The event log replayed: hits, crits, misses, dodges, life bars. | Speed 1×, 2×, 4×; skip to the end. The setting is remembered. |
 | Result sheet | Win: XP, levels gained, gold, drops, gems, any Claim, energy left. Loss: the one-line summary. | Fight again, or return to the map. |
@@ -642,12 +642,14 @@ A tab bar at the bottom reaches Map, Hero, Gear, Items, Bestiary and the Run men
 | Auto-assign | A percentage for each of the five stats. | Turn on or off; edit the split. Points that do not divide evenly go to the stat furthest behind its percentage, ties going to the earlier stat in the order Life, Damage, Defense, Dexterity, Luck. Unlocks permanently the first time the hero reaches level 250; RH's unlock is "shortly after level 250" [WEB]. |
 | Run menu | Run number, level, strongest enemy beaten this run and ever, energy. Progress counters: items, bestiary, bosses claimed, zones reached. | New run. Settings. |
 | New-run sheet | Section 2.4. | Confirm or cancel. |
-| Settings | Playback speed; storage persistence status; export and import; days since last export; save-fallback notices; the diagnostics log and engine self-test; "update ready". | As listed in the kickoff save spec. |
+| Settings | Playback speed; each movement control on or off; storage persistence status; export and import; days since last export; save-fallback notices; the diagnostics log and engine self-test; "update ready". | As listed in the kickoff save spec. |
 
 ### 8.3 Movement
 
-- Tap-to-move routes through ordinary walkable tiles, which are always visible, and through a hidden tile only once it has been found. So it never gives away a hidden path.
-- Walking is an animation. The engine treats a move as instant and only checks that the destination can be reached.
+- Two controls are live at once, with no mode switch (DV-4). A tap on a tile or an enemy walks the hero there by the shortest known path. A press-and-drag anywhere on the map steers: the hero walks in that direction, one of eight, for as long as the press is held, and slides along walls.
+- The game tells a tap from a drag by how far the finger moves. Settings can turn either control off.
+- Tap-to-move routes through ordinary walkable tiles, which are always visible, and through a hidden tile only once it has been found. So it never gives away a hidden path. Steering can walk onto a hidden tile, which is how hidden paths get found.
+- Walking is an animation. The engine sees every move as a step from one tile to a neighbouring tile and only checks that the step is allowed; a tapped route is a list of such steps.
 - Base walking speed and map size are set so that no enemy in Z3–Z8 is more than about 10 seconds' walk from its zone's waypoint, and nothing in Z1–Z2 is more than about 20 seconds from the run start. Move Speed shortens that.
 - A place name printed on the map is the same string the bestiary, the waypoint list and the locked-door message use (C03).
 
@@ -789,7 +791,7 @@ All dated 2026-10-12.
 | DV-1 | The permanent-energy tool is handed over by the first boss instead of being hidden (Q6) | Finding the system ten days late (C16) | One item and a bestiary marker | Nothing is left to discover about the system. Noticed in Phase 1: with the tool in hand from the first boss, energy arrives in steps of 3 as bosses are outgrown, not as the single jump from 25 to 97 that made C16 memorable |
 | DV-2 | A win chance with the limiting factor before a fight, a one-line summary after a loss, and the Salvage pool shown by level band (Q11) | Blind, expensive tests (C26); level not predicting outcomes (C24, C30); worry about paying a run's gold for a low-level item (C06) | Small: 1,000 trial battles per forecast, one line, one breakdown | Fights can feel decided beforehand; Salvage is less of a gamble |
 | DV-3 | Player-controlled battle speed and skip (kickoff) | Michael asked whether battles could be sped up (C27); that RH has no speed control is [GPT]. Also the real time a run takes (C15, C23) | None in the engine, since battles already resolve instantly; one setting | Less tension watching a close fight. Because losses are free, skip also makes retrying a long-shot fight nearly free in real time, so a wall can be brute-forced at low odds. Section 5.9 sets a target to measure this. If the target is missed, the fix would be a rule change, for example a retry at unchanged stats replaying the same seed, and that would be a new deviation for Michael to rule on |
-| DV-4 | Tap-to-move with pathfinding as the main control, where RH has the hero walk freely (Q8) with a joystick option [WEB] | Navigation friction (C03, C09, C15, C23, C30); one-handed play | Pathfinding on the tile grid | Less wandering, so fewer accidental discoveries. Pathfinding must not route through unknown hidden tiles |
+| DV-4 | Tap-to-move with pathfinding is added beside press-and-drag steering, where RH has the hero walk freely (Q8) with a joystick option [WEB]. Changed on 2026-10-12 from tap-only, at Michael's request (section 13.4) | Navigation friction (C03, C09, C15, C23, C30); one-handed play | Pathfinding on the tile grid, plus a second input path for steering | Steering is tile-stepped in eight directions, so it is close to RH's free walking but not the same. A tap can be read as a drag or the reverse. Pathfinding must not route through unknown hidden tiles |
 | DV-5 | Gems come from enemy drops only; there is no store (Q4) | None of Michael's; hard rule 3 forbids monetization | None; it removes a feature | Gem supply rests on drop tuning alone, with no purchase to fall back on |
 | DV-6 | A run takes about a third of RH's real time for the same number of runs per wall (Q14) | Rebuilding the run was the cost that hurt (C15, C23, C26) | Depends on DV-3, DV-4 and waypoints all working well | Content is used up about three times faster in real time: v1's "week" is 8–13 hours of play, which is two to three days at the more than 4 hours a day Michael played RH (P5) |
 
@@ -847,7 +849,7 @@ After the deviations were laid out again, also on 2026-10-12:
 |---|---|---|---|
 | DV-8 | Fine | **Ruling.** Waypoints start at Z3 | 7.5 |
 | DV-6 | Uncertain. He liked some of RH's grind, and accepts the change if the game can be expanded easily enough to give him sufficient play | **Accepted on a condition.** What DV-6 cuts is seconds per fight and walking, not the number of runs, which section 5.9 now matches to his own RH count. If there is too little to do, the levers are, cheapest first: his own playback setting; runs per wall and drop rates in `data/balance.json`; more zones. The cost of adding a zone is not known until the Phase 3b slice has built one, so that gate reports it | 5.9, DV-6 |
-| DV-4 | Not sure. He enjoyed RH's free walking, expects tapping tiles to be slower for getting around, and asked for a way to switch, or else a joystick | **Reopened, pending his pick.** Proposed: both at once with no mode switch. A tap on a tile or enemy walks the hero there; a press-and-drag anywhere on the map steers the hero in that direction for as long as it is held, sliding along walls, which is also how hidden paths get found. Section 8.3 and DV-4 change once he picks | 8.3, DV-4 |
+| DV-4 | Not sure. He enjoyed RH's free walking, expects tapping tiles to be slower for getting around, and asked for a way to switch, or else a joystick | **Ruling: both at once, no mode switch** (his pick "a", given with the approval). A tap on a tile or enemy walks the hero there; a press-and-drag anywhere on the map steers the hero in that direction for as long as it is held, sliding along walls, which is also how hidden paths get found | 8.3, DV-4 |
 
 Three questions held for later phases, answered early on 2026-10-12:
 

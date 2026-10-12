@@ -4,7 +4,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Current phase
 
-**Phase 1 gate ⛔.** Phase 0 was approved on 2026-10-12. `docs/GDD.md` and the sealed appendix are written and the Phase 1 gate report was posted the same day. Michael answered its five questions the same day (P1 a, P2 a, P3 a, P4 a, P5 d) and then two follow-ups (F1 c, F2 keep 8 zones), and asked for the deviations to be explained again before going further. After the recap he ruled DV-8 fine, accepted DV-6 on a condition, and reopened DV-4. He then answered the three later-phase questions but not the DV-4 pick. None of his replies contained "approved". Still waiting for that word; answers, questions or silence are not approval. Do not start Phase 2 before it.
+**Phase 2 in progress.** Phase 1 was approved on 2026-10-12 with the reply "a, approved", where "a" is the DV-4 ruling (both movement controls at once). Phase 2 is `CLAUDE.md` expanded to under 8,000 characters plus `docs/ARCHITECTURE.md` with a module diagram. It ends at a ⛔ gate.
 
 **Spoiler rule for every session.** `docs/sealed/` holds zone themes and all content names. Michael does not open it. Never quote anything from it in chat, gate reports, commit messages or this file. Refer to zones as Z1–Z8, elements as E1–E3 and enemy types as T1–T4.
 
@@ -12,8 +12,6 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ### PENDING
 
-- [ ] Phase 1: get Michael's pick on DV-4 (movement control), then update GDD 8.3 and DV-4
-- [ ] Phase 1: wait for "approved" on the gate report
 - [ ] Before Phase 3a's first install: give Michael exact steps to create the free GitHub organization `farther-still` (he asked for this to be explained later), and settle the install address
 - [ ] Phase 3b gate: report what one zone cost to author, so the DV-6 condition can be judged on evidence
 - [ ] Phase 2: expand `CLAUDE.md` (<8,000 chars) + `docs/ARCHITECTURE.md` ⛔
@@ -35,6 +33,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 - [x] Phase 1: script checks run; a separate verifier pass and a re-check run, and their findings fixed in the GDD and the sealed appendix; gate report posted ⛔
 - [x] Phase 1: gate questions answered (P1 a, P2 a, P3 a, P4 a, P5 d) and recorded in GDD section 13.4
 - [x] Phase 1: follow-ups answered (F1 c: 10–20 runs a day in early RH; F2: keep 8 zones) and recorded; deviations DV-1 to DV-8 explained again in chat
+- [x] Phase 1: DV-4 ruled (both controls at once) and Phase 1 approved by Michael, 2026-10-12
 
 ## Phase 1 working record
 
@@ -79,7 +78,7 @@ Three questions held for later phases were offered as optional and answered the 
 - **Which grind did he like?** Both farming drops and the climb, but not indefinitely: some is good, not to the point of annoyance. Two ceilings were added to GDD 5.9: no wall over 8 runs, and no drop over 80 expected kills.
 - **GitHub organization for the install address:** deferred at his request. He wants the steps explained later. It is on the todo list for before Phase 3a.
 
-Still outstanding from him: the DV-4 pick (a both, b steering only, c tap only) and the word "approved".
+He then replied "a, approved": DV-4 is both controls at once (GDD 8.3 and 13.2 updated), and Phase 1 is approved.
 
 ### Verifier pass (2026-10-12)
 
