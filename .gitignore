@@ -1,0 +1,24 @@
+# Personal reference material (ChatGPT history, RH research). NEVER commit. See docs/KICKOFF.md hard rule 7.
+reference/
+
+# Dependencies and build output
+node_modules/
+dist/
+dev-dist/
+coverage/
+.vite/
+
+# Simulator output
+sim-out/
+
+# Secrets and local overrides (hard rule 7: no secrets in the repo)
+.env
+.env.*
+!.env.example
+*.local
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log

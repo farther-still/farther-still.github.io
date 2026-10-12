@@ -1,0 +1,2 @@
+# Force LF everywhere: checksummed save fixtures and golden replay hashes must be byte-identical on Windows and Linux CI.
+* text=auto eol=lf
