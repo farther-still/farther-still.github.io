@@ -1,6 +1,6 @@
 # Steadfast: Game Design Document
 
-GDD v1.0, written 2026-10-12 for the Phase 1 gate. Not approved until Michael replies "approved".
+GDD v1.0, written 2026-10-12 for the Phase 1 gate. Michael answered the gate questions P1–P5 the same day (section 13.4). Not approved until he replies "approved".
 
 ## 0. How to read this
 
@@ -86,7 +86,7 @@ Each pillar names the feel to protect, the evidence, and what it obliges the des
 
 **Remaining energy** = starting energy + energy from equipped accessories + boss paybacks this run − energy spent this run, shown as 0 if that is negative. Starting energy = base + permanent energy claimed. A fight can start only if remaining energy covers its cost.
 
-An energy accessory counts only while it is equipped, so taking it off lowers remaining energy at once. This needs no start-of-run ritual, but it has one trick in it: a player can fight in a combat loadout until energy is gone and put the energy accessories on for the last few fights, so the slot is only given up at the end of a run. That is accepted. RH's rule is [OPEN] (gate question P4).
+An energy accessory counts only while it is equipped, so taking it off lowers remaining energy at once. This needs no start-of-run ritual, but it has one trick in it: a player can fight in a combat loadout until energy is gone and put the energy accessories on for the last few fights, so the slot is only given up at the end of a run. That is accepted. Michael kept this rule in P4. RH's own rule is still [OPEN], because his answer covered both "yes" and "don't remember".
 
 ### 2.3 Permanent starting energy
 
@@ -97,10 +97,10 @@ Confirmed (Q6), a deviation from RH (DV-1).
 - An unclaimed boss pays back its fight cost plus a surplus of 2 energy each run it is beaten.
 - The first time a boss dies with the tool equipped, it is claimed: starting energy rises by 3 for good, at once, which also counts for the current run. That win pays no surplus, and from then on the boss refunds only its fight cost. Each boss can be claimed once, ever.
 - So a Claim is worth 3 energy on every run that would have skipped that boss, and 1 on a run that would have beaten it anyway. Once a boss is claimed there is nothing to gain from beating it again, so nobody needs to tour old bosses, and a waypoint can skip them at no loss.
-- The alternative is that a claimed boss keeps paying its surplus, so every Claim is a full gain on every run but beating every boss every run stays the best play. Gate question P3 puts that choice to Michael.
+- Michael chose this rule in P3 over the alternative, in which a claimed boss keeps paying its surplus: every Claim would then be a full gain on every run, but beating every boss every run would stay the best play.
 - The bestiary and the pre-fight sheet mark every boss as claimed or unclaimed.
 - Because the tool guts damage, the player claims a boss after outgrowing it. That is the intended "come back and collect" decision. Reflect does not depend on the hero's Damage, so a Reflect build can claim earlier; section 5.6 limits how much Reflect v1 gear carries.
-- What RH does after a claim is [OPEN]. One reviewer says the tool means bosses need not be beaten again each run [WEB], which is the rule above. Michael's notes #1 and #2 describe the payback and the permanent bonus separately and do not say. Gate question P3.
+- What RH does after a claim is [OPEN]. One reviewer says the tool means bosses need not be beaten again each run [WEB], which is the rule above. Michael's notes #1 and #2 describe the payback and the permanent bonus separately and do not say. P3 did not settle it, because his answer covered both "no" and "don't remember".
 
 ### 2.4 Run end and new run
 
@@ -411,8 +411,8 @@ These are what the Phase 3b and Phase 4 simulators report against.
 | Runs per zone, Z2–Z8 | 7–10 | One or two walls each |
 | Walls in v1 | 10–14 | Derived |
 | Runs to finish v1 | 53–76, aiming at 65 | Runs in Z1 plus seven times runs per zone |
-| Play time to finish v1 | 5–9 hours | Run counts times run lengths. Whether that equals "a week at Michael's RH pace" rests on the [ASSUMPTION] that he played RH 2–4 hours a day; gate question P5 |
-| Play time, full scope | 35–45 hours, about 300 runs | Projection from v1 |
+| Play time to finish v1 | 5–9 hours | Run counts times run lengths. Michael played RH more than 4 hours a day (Confirmed, P5), so at that rate v1 is about two days of play. A week of his RH play was 28 hours or more, which is 9 hours or more at a third of the time, so the run counts above may be low; how many runs a day he did in RH is [OPEN] (O-07) |
+| Play time, full scope | 35–45 hours, about 300 runs | Projection from v1. In line with a third of the 120 hours or more Michael spent in RH (P5) |
 | Runs with a persistent gain | At least 90%, and never three in a row without one | Pillar 2 |
 | Breakthrough run | Beats the wall and at least 3 enemies never beaten before | Pillar 1 |
 | Hero level ÷ strongest enemy beaten, at run end | Between 1 and 3 in v1 | RH: about 1 early, over 4 late (Michael's turns, C04 and C30) |
@@ -697,7 +697,7 @@ The Phase 3b vertical slice is Z1 plus the first two or three enemies of Z2: abo
 - **Breakthrough:** the run that beats the boss and receives the tool.
 - **Next destination:** Z2's first enemies with their levels showing. The Z1 boss is also now marked unclaimed, but in the slice that is a small prize: the boss has to be beaten every run anyway, so claiming it is worth 1 energy.
 
-Whether the slice gets the shop as well as Salvage is gate question P2.
+The slice gets the shop as well as Salvage (Confirmed, P2).
 
 ## 11. Save backup comparison
 
@@ -714,7 +714,7 @@ The kickoff's save spec is the specification. This section only settles the Phas
 
 **Proposal: (a).**
 
-One problem to solve first: every project site on a personal `github.io` address shares one browser origin, so any of Michael's other sites could read a token stored on the phone. The fix recommended in Phase 0 stands: a free GitHub organization named after the game, which gives the app its own origin and a root address. This must be settled before the first install in Phase 3a, because the install address is permanent. It follows from the name chosen in section 14.
+One problem to solve first: every project site on a personal `github.io` address shares one browser origin, so any of Michael's other sites could read a token stored on the phone. The fix recommended in Phase 0 stands: a free GitHub organization named after the game, which gives the app its own origin and a root address. This must be settled before the first install in Phase 3a, because the install address is permanent. With the name chosen in P1, the proposed address is `farther-still.github.io`. Michael has not yet decided on the organization, and nothing has been created.
 
 ## 12. Open-questions log
 
@@ -727,9 +727,9 @@ Unknowns about RH. None blocks the build: each has a Steadfast rule in the secti
 | O-03 | The Salvage chance formula (one data point) | Own formula, set to give 66% at that point | 7.4 |
 | O-04 | Gem drop rates and waypoint prices | Own starting values | 5.7, 7.8 |
 | O-05 | Base starting energy, 20 or 25 | 20 | 5.8 |
-| O-06 | Whether energy accessories count at run start or while equipped | While equipped; gate question P4 | 2.2 |
-| O-07 | Michael's total hours in RH | Assumed 2–4 a day; gate question P5 | 5.9 |
-| O-08 | Whether a claimed boss still pays its per-run surplus; one review says it need not be beaten again [WEB] | It refunds its cost only; gate question P3 | 2.3 |
+| O-06 | Whether energy accessories count at run start or while equipped | While equipped; kept in P4, which did not settle RH's rule | 2.2 |
+| O-07 | Michael's total hours in RH: answered in P5, more than 4 a day, so over 120 in all. Still unknown: how many runs a day he did | Run targets in 5.9 stand until the simulator or Michael says otherwise | 5.9 |
+| O-08 | Whether a claimed boss still pays its per-run surplus; one review says it need not be beaten again [WEB] | It refunds its cost only; kept in P3, which did not settle RH's rule | 2.3 |
 | O-09 | Defense's apparent second multiplier layer in late screenshots | One layer in v1 | 4.1 |
 | O-10 | Whether item accuracy and evasion are percentage modifiers on a base of 100 plus Dexterity | Yes | 4.2 |
 | O-11 | Whether the hit roll is per attack or per hit | Per attack | 3.2 |
@@ -789,13 +789,13 @@ All dated 2026-10-12.
 | DV-3 | Player-controlled battle speed and skip (kickoff) | Michael asked whether battles could be sped up (C27); that RH has no speed control is [GPT]. Also the real time a run takes (C15, C23) | None in the engine, since battles already resolve instantly; one setting | Less tension watching a close fight. Because losses are free, skip also makes retrying a long-shot fight nearly free in real time, so a wall can be brute-forced at low odds. Section 5.9 sets a target to measure this. If the target is missed, the fix would be a rule change, for example a retry at unchanged stats replaying the same seed, and that would be a new deviation for Michael to rule on |
 | DV-4 | Tap-to-move with pathfinding as the main control, where RH has the hero walk freely (Q8) with a joystick option [WEB] | Navigation friction (C03, C09, C15, C23, C30); one-handed play | Pathfinding on the tile grid | Less wandering, so fewer accidental discoveries. Pathfinding must not route through unknown hidden tiles |
 | DV-5 | Gems come from enemy drops only; there is no store (Q4) | None of Michael's; hard rule 3 forbids monetization | None; it removes a feature | Gem supply rests on drop tuning alone, with no purchase to fall back on |
-| DV-6 | A run takes about a third of RH's real time for the same number of runs per wall (Q14) | Rebuilding the run was the cost that hurt (C15, C23, C26) | Depends on DV-3, DV-4 and waypoints all working well | Content is used up about three times faster in real time: v1's "week" is 5–9 hours of play |
+| DV-6 | A run takes about a third of RH's real time for the same number of runs per wall (Q14) | Rebuilding the run was the cost that hurt (C15, C23, C26) | Depends on DV-3, DV-4 and waypoints all working well | Content is used up about three times faster in real time: v1's "week" is 5–9 hours of play, which is about two days at the more than 4 hours a day Michael played RH (P5) |
 
-Two more deviations come from fitting RH's order into v1, not from the interview, and have not had an explicit ruling:
+Two more deviations come from fitting RH's order into v1, not from the interview. DV-7 was ruled on in P2. DV-8 has had no explicit ruling; approving this gate approves it:
 
 | ID | Deviation | Reason | Cost | Risk |
 |---|---|---|---|---|
-| DV-7 | Salvage exists from Z1; in RH it opens at about enemy level 35,000 [GPT] | The kickoff's slice needs gold to matter, and gold resets every run | None | An all-in gamble arrives before the player has learned the shop. Offering both in Z1 (gate question P2) lets the player choose the known payoff, as Michael did in C06 |
+| DV-7 | Salvage exists from Z1; in RH it opens at about enemy level 35,000 [GPT] | The kickoff's slice needs gold to matter, and gold resets every run | None | An all-in gamble arrives before the player has learned the shop. Offering both in Z1 (ruled in P2) lets the player choose the known payoff, as Michael did in C06 |
 | DV-8 | Waypoints start at Z3; RH's teleports come "later in the game" (notes #7), exact point [OPEN] | Q15 puts waypoints in v1, and Q14's shorter runs depend on them | None | Less walking through early zones, where Michael also enjoyed finding things (C02, C14) |
 
 ### 13.3 Phase 1 design decisions
@@ -812,7 +812,7 @@ Proposed at this gate; each stands once the gate is approved.
 | D-06 | Element and type names are sealed with the zone themes | A tag's name gives away a zone's theme |
 | D-07 | Content IDs carry no theme | Display names can change freely (hard rule 5) |
 | D-08 | Energy accessories count only while equipped | No start-of-run ritual; the end-of-run trick in section 2.2 is accepted; RH's rule is unknown |
-| D-09 | A Claim adds 3 starting energy; a claimed boss then refunds only its cost and pays no surplus | Matches the one [WEB] account; removes any reason to tour every boss each run (pillar 5); keeps waypoints from costing energy. The price is that a Claim on a boss the run would beat anyway is worth 1, not 3. Gate question P3 |
+| D-09 | A Claim adds 3 starting energy; a claimed boss then refunds only its cost and pays no surplus | Matches the one [WEB] account; removes any reason to tour every boss each run (pillar 5); keeps waypoints from costing energy. The price is that a Claim on a boss the run would beat anyway is worth 1, not 3. Kept by Michael in P3 |
 | D-10 | Combat choices where RH is unknown: hit roll per attack, Defense before crit, chances stop at 100%, Reflect reduced by damage reduction, Resistances summed across an enemy's tags, loss at 200 rounds | Each is the simpler rule; section 12 lists them |
 | D-11 | Shop stock is visible from the start | A known payoff beats a lottery (C06) |
 | D-12 | Salvage picks with equal odds from items with no copy owned; a failed attempt uses the gold; the gem boost is kept | Q3 as recorded; C04 screenshot |
@@ -824,6 +824,18 @@ Proposed at this gate; each stands once the gate is approved.
 | D-18 | v1's level range is 1 to about 1.2 million | Section 7.5 |
 | D-19 | Each screen explains itself in one line on first open, and every stat has a tap-for-explanation line | Recorded confusions (C02, C06, C07, C10); no tutorial or dialogue system is added |
 | D-20 | Item lines are hand-authored inside a per-zone budget; every item has an item level for prices and checks | Section 5.6 |
+
+### 13.4 Phase 1 gate answers
+
+All dated 2026-10-12. Michael's reply was `P1 a, P2 a, P3 a, P4 a, P5 d`.
+
+| ID | Answer | Recorded as | Where it lives |
+|---|---|---|---|
+| P1 | a | **Ruling.** The game's name is Farther Still. "Steadfast" stays the codename for the repo and the docs until the install address is settled before Phase 3a | 11, 14 |
+| P2 | a | **Ruling.** The vertical slice gets a small shop as well as Salvage. This is also the ruling on DV-7 | 10, DV-7 |
+| P3 | a | **Ruling.** A Claim adds 3 starting energy and a claimed boss then pays nothing extra (D-09 stands). The option read "no, or don't remember", so it is not a confirmed fact about RH | 2.3, 5.8, O-08 |
+| P4 | a | **Ruling.** Energy accessories count only while equipped (D-08 stands). The option read "yes, or don't remember", so it is not a confirmed fact about RH | 2.2, O-06 |
+| P5 | d | **Confirmed.** Michael played RH more than 4 hours a day, so more than 120 hours over the 30 days. The earlier [ASSUMPTION] of 2–4 hours is withdrawn | 5.9, O-07 |
 
 ## 14. Names
 
@@ -837,6 +849,6 @@ Five original names. None says anything about the world, so none is a spoiler. C
 | One More Wall | The wall-and-breakthrough loop | None | `one-more-wall` is free |
 | Carryover | What you keep between runs | None | `carryover` is taken; `carryover-rpg` is free |
 
-**Recommendation: Farther Still.** It states the loop in two words, reads well under a home-screen icon, and its exact name is free, which would make the install address `farther-still.github.io`.
+**Chosen: Farther Still** (P1, 2026-10-12). It states the loop in two words, reads well under a home-screen icon, and its exact name is free, which would make the install address `farther-still.github.io`.
 
 Rejected because a game already uses the name or something close: Last Drop, Everclimb and Waymark, all found in the search, and Gaining Ground, which is too close to an older arcade title (from memory, not searched).

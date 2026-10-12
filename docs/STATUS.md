@@ -4,7 +4,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Current phase
 
-**Phase 1 gate ⛔.** Phase 0 was approved on 2026-10-12. `docs/GDD.md` and the sealed appendix are written and the Phase 1 gate report was posted the same day with five questions (P1–P5, listed under "Phase 1 working record"). Waiting for the literal reply "approved"; answers, questions or silence are not approval. Do not start Phase 2 before it.
+**Phase 1 gate ⛔.** Phase 0 was approved on 2026-10-12. `docs/GDD.md` and the sealed appendix are written and the Phase 1 gate report was posted the same day. Michael answered its five questions the same day (P1 a, P2 a, P3 a, P4 a, P5 d), but his reply did not contain "approved". Still waiting for that word; answers, questions or silence are not approval. Do not start Phase 2 before it.
 
 **Spoiler rule for every session.** `docs/sealed/` holds zone themes and all content names. Michael does not open it. Never quote anything from it in chat, gate reports, commit messages or this file. Refer to zones as Z1–Z8, elements as E1–E3 and enemy types as T1–T4.
 
@@ -12,7 +12,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ### PENDING
 
-- [ ] Phase 1: wait for "approved" on the gate report; record the answers to P1–P5 in the GDD decisions log
+- [ ] Phase 1: wait for "approved" on the gate report
 - [ ] Phase 2: expand `CLAUDE.md` (<8,000 chars) + `docs/ARCHITECTURE.md` ⛔
 - [ ] Phase 3a: walking skeleton (PWA, save system, CI, Pages deploy) ⛔
 - [ ] Phase 3b: vertical slice ⛔
@@ -30,6 +30,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 - [x] Phase 0: approved by Michael, 2026-10-12
 - [x] Phase 1: `docs/GDD.md` (eleven kickoff sections, backup comparison, five names) and `docs/sealed/` written
 - [x] Phase 1: script checks run; a separate verifier pass and a re-check run, and their findings fixed in the GDD and the sealed appendix; gate report posted ⛔
+- [x] Phase 1: gate questions answered (P1 a, P2 a, P3 a, P4 a, P5 d) and recorded in GDD section 13.4
 
 ## Phase 1 working record
 
@@ -44,15 +45,17 @@ Re-read this file at the start of every session and every work cycle. Update it 
 - One risk was added to DV-1 after Michael's Q6 ruling: with the tool in hand from the first boss, permanent energy arrives in steps of 3, not as one large jump. It is flagged in the gate report.
 - Pacing targets for the simulators (GDD 5.9).
 
-### Gate questions (posted 2026-10-12, not yet answered)
+### Gate questions (answered 2026-10-12: P1 a, P2 a, P3 a, P4 a, P5 d)
 
-| # | Question | Recommended default |
-|---|---|---|
-| P1 | Which of the five names? | Farther Still |
-| P2 | Does the vertical slice get a small shop as well as Salvage? | Yes, both |
-| P3 | In RH, did a boss you had already collected permanent energy from still pay extra energy in later runs? This is also a design choice. (a) No: a Claim adds 3 starting energy and the boss then pays nothing extra, so there is no reason to tour old bosses, but a Claim on a boss the run would beat anyway is worth only 1. (b) Yes: every Claim is a full gain on every run, but beating every boss every run stays the best play | (a), which matches the one [WEB] account and is what the GDD describes |
-| P4 | In RH, did an energy accessory change your energy the moment you equipped or removed it? | Steadfast's rule is "counts only while equipped"; keep it if he does not remember |
-| P5 | About how long did he play RH on a typical day? | 2–4 hours. v1 is 5–9 hours of play either way; the answer only says whether that is "a week" |
+| # | Question | Michael's answer | Recorded as |
+|---|---|---|---|
+| P1 | Which of the five names? | a | **Ruling.** Farther Still. "Steadfast" stays the codename for the repo and docs until the install address is settled before Phase 3a. Proposed address: `farther-still.github.io`, through a free GitHub organization. Not yet decided or created. |
+| P2 | Does the vertical slice get a small shop as well as Salvage? | a | **Ruling.** Both. Also the ruling on DV-7. |
+| P3 | Did a boss he had already collected permanent energy from still pay extra in later runs? | a ("no, or don't remember") | **Ruling.** A Claim adds 3 starting energy and a claimed boss then pays nothing extra. Not a confirmed fact about RH; O-08 stays open. |
+| P4 | Did an energy accessory change his energy the moment he equipped or removed it? | a ("yes, or don't remember") | **Ruling.** Energy accessories count only while equipped. Not a confirmed fact about RH; O-06 stays open. |
+| P5 | About how long did he play RH on a typical day? | d | **Confirmed.** More than 4 hours a day, so over 120 hours in all. The 2–4 hour assumption is withdrawn. |
+
+What P5 changes: at more than 4 hours a day, v1's 5–9 hours is about two days of Michael's play, and a week of his RH play would be 9 hours or more at a third of the time. The GDD's run counts (53–76 for v1) may therefore be low. He was told this and offered two optional follow-ups, neither blocking: roughly how many runs he started on a typical early RH day, and whether he wants v1 larger than Q15's 8 zones (recommendation: keep 8, since v1's job is to prove the loop and content expansion is Phase 5).
 
 ### Verifier pass (2026-10-12)
 
@@ -224,4 +227,4 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 - **Done:** Phase 0 approved. Phase 1 written: `docs/GDD.md`, `docs/sealed/` (README plus the sealed appendix), a `.gitattributes` rule hiding sealed content in diffs, and this file. Script checks, a separate verifier pass and a re-check were run before the gate report. The must-fix findings were fixed; the re-check's nine further points were fixed afterwards without another verifier round. Results are in the report.
 - **Worked:** Recovering the exact batch posts from the Phase 0 session transcript instead of relying on this file's summaries. Writing each formula so it reproduces the calibration points, then checking that with a script. Keeping spoilers in a separate file and a separate commit.
 - **Failed:** The first draft of the GDD failed five of the verifier's nine checks (listed under "Verifier pass"). The author's own script checks had all passed, because they tested the formulas against calibration points and not the targets against the formulas. Three traps: `cd` inside a Bash call moves the session's working directory; plain-word GitHub names are nearly all taken, so only two of the five proposed names are free without a suffix; and Python on this machine prints in cp1252 unless run with `-X utf8`.
-- **Next:** Wait for "approved". Then record P1–P5 in the GDD decisions log (and change sections 2.2, 2.3, 5.9 or 10 if an answer differs from the default), and start Phase 2: expand `CLAUDE.md` to under 8,000 characters and write `docs/ARCHITECTURE.md`, using the "Carried forward" list above for the enforcement map.
+- **Next:** Wait for "approved"; P1–P5 are already recorded. If Michael answers either optional follow-up (runs per RH day, v1 size), update GDD 5.9 or Q15 first. Then start Phase 2: expand `CLAUDE.md` to under 8,000 characters and write `docs/ARCHITECTURE.md`, using the "Carried forward" list above for the enforcement map.
