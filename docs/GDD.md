@@ -46,7 +46,7 @@ Each pillar names the feel to protect, the evidence, and what it obliges the des
 2. **Every run buys something lasting.** Evidence: C24 (what is the point of pushing farther if the next run is no better), C06 and C21 (it feels like grinding). Obligation: gold always has a lasting use, and section 5.9 sets a target for how often a run must produce a persistent gain.
 3. **You choose every fight.** Evidence: Q13a; [WEB] reviews praise planning over luck. Obligation: no random encounters, enemies stand on the map with their levels shown, backing out is free, and a loss costs nothing (Q2).
 4. **Loot is finite, fixed and visible.** Evidence: Q13b; notes #3. Obligation: no random stats, no rarity tiers, no set bonuses (G1). An enemy shows how many drops it still holds, and collecting has an end.
-5. **The climb is quick; the decision is the point.** Evidence: C15, C23 and C26, where rebuilding the run was the cost that hurt, not the fight; C27 asked for faster battles; Q14. Obligation: battle skip, tap-to-move and waypoints, with the run-time targets in section 5.9.
+5. **The climb is quick; the decision is the point.** Evidence: C15, C23 and C26, where rebuilding the run was the cost that hurt, not the fight; C27 asked for faster battles; Q14. He also liked some of RH's grind, both farming drops and the climb, as long as it stops short of annoyance (section 13.4), so the aim is to cut waiting, not to cut repetition to nothing. Obligation: battle skip, tap-to-move and waypoints, with the run-time targets and the two ceilings in section 5.9.
 6. **Level is not power.** Evidence: C24 and C30 (several times the boss's level and still losing), and C26 (the win came from swapping two accessories); Q13e. Obligation: builds and loadouts decide fights, enemy traits are visible before the fight, and the forecast names what is limiting you.
 7. **Systems are signposted; content is discovered.** Evidence: C16 (he found the energy system about ten days in and was annoyed not to have known sooner); gates that looked like level walls but were knowledge gates (C15, C20, C22, C30); on the other side he liked finding a stash (C02) and a shortcut (C14). Obligation: every system is introduced in plain sight, the required path is never hidden, every lock says what opens it, and optional secrets stay secret.
 8. **The game tells you what it knows before you spend.** Evidence: C26 (could not afford to test and test), C06 (worry about paying a run's gold for a low-level item); Q11. Obligation: the pre-fight forecast, the loss summary, the Salvage pool breakdown, and a one-line explanation behind every stat.
@@ -417,6 +417,8 @@ These are what the Phase 3b and Phase 4 simulators report against.
 | Breakthrough run | Beats the wall and at least 3 enemies never beaten before | Pillar 1 |
 | Hero level ÷ strongest enemy beaten, at run end | Between 1 and 3 in v1 | RH: about 1 early, over 4 late (Michael's turns, C04 and C30) |
 | Wins that needed more than 3 tries | Under 15% | Guards the risk in DV-3 |
+| Longest wall | No wall takes more than 8 runs | Some grind is wanted, but "not to the point of annoyance" (section 13.4). Starting value |
+| Expected kills to get one drop | 10–20 for a typical item, never over 80, at the Drop Bonus a player has by then | Same. Starting value |
 
 Definitions for the simulator:
 
@@ -478,7 +480,7 @@ Rules that follow from the decision:
 - Every item has fixed stats. No random rolls, no rarity tiers, no set bonuses, no level requirements (Confirmed Q13b, G1; [WEB]).
 - An item has base lines (flat and % Life, Damage, Defense; Accuracy %; Evasion %) and up to four effects from section 4.3 [WEB].
 - Trade-off items with a negative line are allowed [WEB].
-- Slots: 1 weapon, 12 armor slot types and 5 accessory slots. The 12 types are [WEB], from the data files and the store listing; the 5 are from Michael's turns. The Phase 0 notes on his equipment screenshot count 14 cells including the weapon, which would mean one armor type has two cells [OPEN]. Steadfast has one cell per type. All five accessory slots are open from the start.
+- Slots: 1 weapon, 12 armor slot types and 5 accessory slots. The 12 types are [WEB], from the data files and the store listing; the 5 are from Michael's turns. Michael confirmed that RH has one of each armor type (section 13.4), so the 14 cells counted in the Phase 0 notes on his equipment screenshot were a misreading. Steadfast has one cell per type. All five accessory slots are open from the start.
 - Copy caps: 1 for weapons and armor, 3 for most accessories, 1 for special accessories. Every owned copy can be equipped at once (Confirmed, Q1).
 - Content IDs are opaque codes with no theme in them, so display names can change without touching saves (hard rule 5).
 
@@ -746,7 +748,7 @@ Unknowns about RH. None blocks the build: each has a Steadfast rule in the secti
 | O-22 | What the journal holds | Out of v1 | 10 |
 | O-23 | The exact Auto-assign unlock level ("shortly after 250" [WEB]) | Level 250 | 8.2 |
 | O-24 | Stat points per level and the value of a Life point | 5, and 3 | 4.1 |
-| O-25 | Whether one armor slot type has two cells (14 cells counted on one screenshot against 12 types in the data) | One cell per type | 7.1 |
+| O-25 | Whether one armor slot type has two cells. Answered 2026-10-12: no, one of each | Closed; one cell per type | 7.1 |
 | O-26 | When teleports first become available ("later in the game", notes #7) | From Z3 (DV-8) | 7.5 |
 | O-27 | When Salvage first becomes available (level 35,000 is [GPT]) | From Z1 (DV-7) | 7.4 |
 | O-28 | Whether Resistances to two tags on one enemy add or multiply | They add | 3.1 |
@@ -846,6 +848,14 @@ After the deviations were laid out again, also on 2026-10-12:
 | DV-8 | Fine | **Ruling.** Waypoints start at Z3 | 7.5 |
 | DV-6 | Uncertain. He liked some of RH's grind, and accepts the change if the game can be expanded easily enough to give him sufficient play | **Accepted on a condition.** What DV-6 cuts is seconds per fight and walking, not the number of runs, which section 5.9 now matches to his own RH count. If there is too little to do, the levers are, cheapest first: his own playback setting; runs per wall and drop rates in `data/balance.json`; more zones. The cost of adding a zone is not known until the Phase 3b slice has built one, so that gate reports it | 5.9, DV-6 |
 | DV-4 | Not sure. He enjoyed RH's free walking, expects tapping tiles to be slower for getting around, and asked for a way to switch, or else a joystick | **Reopened, pending his pick.** Proposed: both at once with no mode switch. A tap on a tile or enemy walks the hero there; a press-and-drag anywhere on the map steers the hero in that direction for as long as it is held, sliding along walls, which is also how hidden paths get found. Section 8.3 and DV-4 change once he picks | 8.3, DV-4 |
+
+Three questions held for later phases, answered early on 2026-10-12:
+
+| Question | Michael's reply | Recorded as | Where it lives |
+|---|---|---|---|
+| In RH, could you wear two of any armor type, such as two rings? | No, one of each | **Confirmed.** Closes O-25 | 7.1 |
+| Which grind did you like: farming an enemy for its last drops, the climb each run, or both? | Both, "but not indefinitely": some is good, not to the point of annoyance | **Confirmed.** Both stay in the game at RH's run counts. Two ceilings are added to the pacing targets so the simulator can catch the annoying end | 1 (pillar 5), 5.9 |
+| The GitHub organization for the install address | Explain how later, or note it and return | **Deferred.** Still due before the first install in Phase 3a | 11 |
 
 ## 14. Names
 

@@ -4,7 +4,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Current phase
 
-**Phase 1 gate ⛔.** Phase 0 was approved on 2026-10-12. `docs/GDD.md` and the sealed appendix are written and the Phase 1 gate report was posted the same day. Michael answered its five questions the same day (P1 a, P2 a, P3 a, P4 a, P5 d) and then two follow-ups (F1 c, F2 keep 8 zones), and asked for the deviations to be explained again before going further. After the recap he ruled DV-8 fine, accepted DV-6 on a condition, and reopened DV-4. None of his replies contained "approved". Still waiting for that word; answers, questions or silence are not approval. Do not start Phase 2 before it.
+**Phase 1 gate ⛔.** Phase 0 was approved on 2026-10-12. `docs/GDD.md` and the sealed appendix are written and the Phase 1 gate report was posted the same day. Michael answered its five questions the same day (P1 a, P2 a, P3 a, P4 a, P5 d) and then two follow-ups (F1 c, F2 keep 8 zones), and asked for the deviations to be explained again before going further. After the recap he ruled DV-8 fine, accepted DV-6 on a condition, and reopened DV-4. He then answered the three later-phase questions but not the DV-4 pick. None of his replies contained "approved". Still waiting for that word; answers, questions or silence are not approval. Do not start Phase 2 before it.
 
 **Spoiler rule for every session.** `docs/sealed/` holds zone themes and all content names. Michael does not open it. Never quote anything from it in chat, gate reports, commit messages or this file. Refer to zones as Z1–Z8, elements as E1–E3 and enemy types as T1–T4.
 
@@ -14,6 +14,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 - [ ] Phase 1: get Michael's pick on DV-4 (movement control), then update GDD 8.3 and DV-4
 - [ ] Phase 1: wait for "approved" on the gate report
+- [ ] Before Phase 3a's first install: give Michael exact steps to create the free GitHub organization `farther-still` (he asked for this to be explained later), and settle the install address
 - [ ] Phase 3b gate: report what one zone cost to author, so the DV-6 condition can be judged on evidence
 - [ ] Phase 2: expand `CLAUDE.md` (<8,000 chars) + `docs/ARCHITECTURE.md` ⛔
 - [ ] Phase 3a: walking skeleton (PWA, save system, CI, Pages deploy) ⛔
@@ -72,7 +73,13 @@ Michael then asked to hear the deviations again. DV-1 to DV-8 were laid out in c
 - **DV-4:** reopened. He enjoyed RH's free walking and asked for a toggle, or else a joystick. Proposed: tap-to-walk and press-and-drag steering both active at once. Awaiting his pick: (a) both, (b) steering only, (c) tap only as written.
 - **DV-1 and DV-3:** he raised no objection to either flag. They stand as written; no objection is not a new ruling.
 
-Questions held for later phases, offered to him now as optional: whether RH lets you wear two of one armor type, such as two rings (O-25, needed before Phase 3a's save schema); which part of RH's grind he liked, farming drops or the climb (needed before Phase 3b tuning); and the GitHub organization for the install address (before Phase 3a).
+Three questions held for later phases were offered as optional and answered the same day (GDD 13.4):
+
+- **Two of one armor type in RH?** No, one of each. Confirmed; O-25 closed.
+- **Which grind did he like?** Both farming drops and the climb, but not indefinitely: some is good, not to the point of annoyance. Two ceilings were added to GDD 5.9: no wall over 8 runs, and no drop over 80 expected kills.
+- **GitHub organization for the install address:** deferred at his request. He wants the steps explained later. It is on the todo list for before Phase 3a.
+
+Still outstanding from him: the DV-4 pick (a both, b steering only, c tap only) and the word "approved".
 
 ### Verifier pass (2026-10-12)
 
@@ -244,4 +251,4 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 - **Done:** Phase 0 approved. Phase 1 written: `docs/GDD.md`, `docs/sealed/` (README plus the sealed appendix), a `.gitattributes` rule hiding sealed content in diffs, and this file. Script checks, a separate verifier pass and a re-check were run before the gate report. The must-fix findings were fixed; the re-check's nine further points were fixed afterwards without another verifier round. Results are in the report.
 - **Worked:** Recovering the exact batch posts from the Phase 0 session transcript instead of relying on this file's summaries. Writing each formula so it reproduces the calibration points, then checking that with a script. Keeping spoilers in a separate file and a separate commit.
 - **Failed:** The first draft of the GDD failed five of the verifier's nine checks (listed under "Verifier pass"). The author's own script checks had all passed, because they tested the formulas against calibration points and not the targets against the formulas. Three traps: `cd` inside a Bash call moves the session's working directory; plain-word GitHub names are nearly all taken, so only two of the five proposed names are free without a suffix; and Python on this machine prints in cp1252 unless run with `-X utf8`.
-- **Next:** Record Michael's pick on DV-4 in GDD 8.3, 13.2 and 13.4, plus any answers to the optional questions. Wait for "approved". Then start Phase 2: expand `CLAUDE.md` to under 8,000 characters and write `docs/ARCHITECTURE.md`, using the "Carried forward" list above for the enforcement map.
+- **Next:** Record Michael's pick on DV-4 in GDD 8.3, 13.2 and 13.4. Wait for "approved". Then start Phase 2: expand `CLAUDE.md` to under 8,000 characters and write `docs/ARCHITECTURE.md`, using the "Carried forward" list above for the enforcement map.
