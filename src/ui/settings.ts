@@ -1,6 +1,8 @@
 // Settings (GDD 8.2): playback, the two movement controls, the install's facts, backup, set-aside saves, the
 // run-duration log, the engine self-test and the diagnostics log.
 
+import { bandBelow } from '../platform';
+import type { ScreenReading } from '../platform';
 import { SAVE_VERSION, checkImport, daysSinceExport } from '../save';
 import type { AppState } from '../save';
 import golden from '../../tests/golden/golden.json';
@@ -25,8 +27,12 @@ const UPDATE_TEXT = {
   ready: 'Update ready. Apply it from the New run sheet',
 } as const;
 
+/** The numbers behind the short-page check (ARCHITECTURE A-32). The phone has no Web Inspector to read them with. */
+const screenText = (reading: ScreenReading): string =>
+  `${reading.screenHeight} high, page ${reading.pageHeight}, insets ${reading.insetTop} and ${reading.insetBottom}${bandBelow(reading) ? ': the page stops short of the screen' : ''}`;
+
 export const settingsScreen = (session: Session): HTMLElement => {
-  const { controller, content, backend, build, updates, diagnostics, persist, shell, view, standalone } = session;
+  const { controller, content, backend, build, updates, diagnostics, persist, shell, view, standalone, screen } = session;
   const saved = controller.lastSaved;
   const { settings, runLog } = controller.app;
   const settingsView = view.settings;
@@ -123,6 +129,7 @@ export const settingsScreen = (session: Session): HTMLElement => {
       line('Storage persistence', PERSIST_TEXT[persist.status]),
       line('Last write', saved === null ? 'None yet' : `save ${saved.seq} at ${formatTime(saved.writtenAt)}`),
       line('Write durability', backend.lastDurability),
+      line('Screen', screenText(screen.reading)),
     ),
     section(
       'Update',

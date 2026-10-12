@@ -1,5 +1,6 @@
 // The Salvage sheet (GDD 7.4, 8.2): spend all gold on hand for one chance at a drop you have missed. The chance,
-// the pool and its split by level band are shown before anything is paid (DV-2).
+// the pool and its split by level band are shown before anything is paid (DV-2). It opens from the Run menu, from
+// the spent-run notice and from a Salvage site on the map, wherever the hero stands (DV-9).
 
 import { salvageBands, salvageChance, salvagePool } from '../engine';
 import { hintLine } from './fight';
@@ -46,7 +47,8 @@ const salvageSheet = (session: Session, close: () => void): HTMLElement => {
         { class: 'sheet', attrs: { role: 'dialog', 'aria-label': title } },
         el('h2', { text: title }),
         el('p', { class: event.item === null ? 'flash' : 'ok', text: event.item === null ? `Nothing turned up. ${formatNumber(event.goldSpent)} gold is gone.` : `Found: ${text.item(event.item)}.` }),
-        button('Back to the map', closeResult, { class: 'primary' }),
+        // Not "Back to the map": the sheet is also opened from the Run menu (DV-9).
+        button('Done', closeResult, { class: 'primary' }),
       ),
     );
   };

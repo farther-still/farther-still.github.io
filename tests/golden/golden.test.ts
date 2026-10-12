@@ -47,7 +47,7 @@ describe('what the replays reach', () => {
   const rewards = (trail: Step[]): Array<Extract<GameEvent, { type: 'Rewards' }>> => events(trail).filter((event) => event.type === 'Rewards');
   const isBoss = (enemy: string): boolean => CONTENT.enemies[enemy]?.boss === true;
 
-  it('the run replay wins, loses, levels, finds a drop, buys, tries Salvage at a site and starts a second run', () => {
+  it('the run replay wins, loses, levels, finds a drop, buys, asks for Salvage and starts a second run', () => {
     const trail = trailOf('run replay: two runs of the real game');
     expect(battles(trail).filter((battle) => battle.win).length).toBeGreaterThan(10);
     expect(battles(trail).some((battle) => !battle.win)).toBe(true);
@@ -57,8 +57,8 @@ describe('what the replays reach', () => {
     expect(events(trail).some((event) => event.type === 'Equipped' && event.item !== null)).toBe(true);
     expect(events(trail).some((event) => event.type === 'Allocated')).toBe(true);
     expect(events(trail).some((event) => event.type === 'RunStarted')).toBe(true);
-    // Salvage is reached at a site: it is either tried or turned away for a reason other than where the hero stands.
-    expect(rejections(trail)).not.toContain('Salvage:not-at-site');
+    // Salvage is asked for once, at the end of the first run: it is either tried or turned away with a reason.
+    expect(events(trail).filter((event) => event.type === 'Salvaged').length + rejections(trail).filter((entry) => entry.startsWith('Salvage:')).length).toBe(1);
     expect(rejections(trail).filter((entry) => entry.startsWith('Fight:not-adjacent'))).toEqual([]);
   });
 

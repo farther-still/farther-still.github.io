@@ -141,6 +141,65 @@ Measured on Z1, for the DV-6 condition.
 
 A status line in chat during this phase named the kind of optional secret the slice holds. It did not say where. The same phrase was in this file's todo list and was removed. Nothing else sealed was put in chat, a commit message or an unsealed file; the content verifier searched 140 unsealed files and the second verifier 151.
 
+### Phone review (Michael, 2026-10-12, in progress)
+
+A review session after the gate report, on his iPhone 16 Pro from the Home Screen icon. Before it began, CI for `663583d` was read as green and the live site as serving the new build. Results are written here as he reports them and pushed once, at the end.
+
+| Step | What | Result | Evidence |
+|---|---|---|---|
+| 1 | The update applied and the version 1 save migrated | PASS | His screenshots, taken after two fights: Settings reads Build `663583d`, Save version 2, Home Screen app, storage persistence granted, write durability strict, last write save 17 at 15:13. The map shows the hero at the bottom with Level 3, Energy 18, Gold 68, Gems 0. The Run tab heading reads "Run 1", with starting energy 20, Items 0 of 25, Bestiary 1 of 12. No recovery screen. Set-aside saves lists the version 1 hot slot (save 10) and three version 1 checkpoints (saves 9, 7 and 2), each "before-migration (routine)", and the Phase 3a "replaced-by-import (kept)" record. He saw both notices and dismissed them. Two fights later the Run tab read 4 wins, 1 loss and 16 energy left, which is the "only wins are charged" rule on the phone |
+| 2 | Self-test in Safari | PASS | He reported "13 of 13". Safari's arithmetic matches Node's and Chromium's on every golden value and replay |
+| 3 | Layout | PASS, with the findings below | Two screen recordings, 36 and 28 seconds, read frame by frame: Map with a tap-to-walk route, Hero (both tabs), Gear with its picker, Items with its filters, Bestiary, Run, the pre-fight sheet, two battles at 2× and the loss sheet. His own words: "Nothing really has bothered me. I mean the graphics and design are very basic but it's fine for now." A win's result sheet was not in either recording |
+| 4 | Playtest and rubric | PASS on all four rubric points | He played through the Z1 gate: "That was very fun." His screenshots show the win sheet for the gate boss (level 44 to 51, the tool dropped with its line and its explanation, energy "−1, +3 back, 6 left"), the map beyond the gate with a Z2 enemy in view, a full loadout but for one armor slot, and the bestiary with the boss beaten once and unclaimed. He raised four points, P1 to P4 below. The rubric and the rest are in the table after this one |
+| 5 | Gate questions | In progress: 1 of 3 answered | Question 1, the first Claim: "a", leave it and let Phase 4 measure (GDD R-06). Questions 2 and 3 not yet asked |
+| 6 | Decisions made without asking | Not yet walked through | |
+
+The playtest, as he scored and reported it:
+
+| What | Result | Evidence |
+|---|---|---|
+| Rubric 1: did the wall feel real | PASS | "Pass to All" |
+| Rubric 2: did the gear he kept change his options | PASS | "Pass to All" |
+| Rubric 3: did the breakthrough land | PASS | "Pass to All" |
+| Rubric 4: did he want another run | PASS | "Pass to All" |
+| The run the Z1 gate fell on | Run 10 by the app's record; he recalled "about 8" | The win sheet's screenshot shows the export reminder counting 10 runs from a count that starts at 0, and Settings lists runs 2 to 9 as finished with a tenth under way. The simulator gave 4 to 11 with a median of 6, and GDD 5.9 asks for no wall over 8 runs, so the one real player came out in the simulator's tail |
+| Tries at the boss on that run | "I think 4 or 5" | His reply. He did not give the win chance shown. With free losses that is DV-3's long-shot retry, in a mild form |
+| Run times (target 2 to 4 minutes) | PASS, one run 10 seconds under | Settings, Run times: runs 2 to 9 took 3:13, 2:28, 3:24, 3:18, 2:03, 2:42, 1:50 and 2:39, a mean of 2:42. The model said 2.6 minutes at default playback. Run 1 has scrolled off the list of eight |
+| Wins per run (target 20 to 30 early) | At the bottom of the range | The same list: 20 wins in every run from 2 to 8, and 19 in run 9. Levels reached: 13, 15, 20, 32, 40, 45, 53, 51 |
+| Spotify never paused | PASS | "No" |
+| The two controls | Tap-to-walk used almost throughout | "I found myself using tap to walk, but that's a result of the game's layout and design (tiles, rather than RH open map)." Not a complaint he asked to have fixed; it bears on DV-4, and on P2 |
+
+His rulings on P1 to P4, given with the scores: yes to P1, P2 and P3 as proposed; on P4, RH charges energy when a fight is joined, win or lose (a correction to the record), and this game's rule is to be decided in Phase 4 with both simulated. They are GDD 13.6, R-01 to R-05, with DV-9, DV-10, D-32 and D-33. P1 to P3 were built on the laptop by a separate agent from a written brief, and Claude then read its diff and ran the checks again.
+
+- **P1, the reminder.** A "Later" button hides it until the app is next started; it is kept in memory and in no save. The sentence names only what is overdue.
+- **P2, zoom.** A button at the end of the loadout row switches the map between nine tiles across and fourteen. The level is in the `device` store, outside the save. Taps and drawing go through one viewport at either level.
+- **P3, Salvage.** The engine no longer asks where the hero stands, and the `not-at-site` refusal is gone. A "Salvage…" button is on the Run menu and on the spent-run notice; the map site still opens the same sheet. A test compares a Salvage made at eight places with the one made at a site and finds them equal, which is why no golden value moved.
+- Verified on the laptop: `npm run check` PASS with 1,159 tests in 35 files; `npm run build` and `npm run check:dist` PASS; nothing changed under `data/`, `docs/sealed/`, `src/sim/`, `src/save/`, the golden values or the fixtures. The agent took out four behaviours in turn and each failed a test. Seen by eye: NOT CHECKED, on the laptop or the phone.
+- Left as they are: `CLAUDE.md` still says "44 pt tap targets … no zoom" with no exception, because it has one byte to spare and the exception for the map at far zoom is in GDD 8.3 and `docs/ARCHITECTURE.md` section 8; the Salvage sheet's title still carries the site's name; tapping a site on the map still walks the hero to it first; the loadout row does not wrap, so long loadout names will crowd the zoom button.
+
+Layout findings, all seen by Claude in his screenshots and recordings; Michael raised none himself. L1 and L2 are to be fixed. L3 to L5 are left for the screen's real design pass, since he called the design basic but fine for now and did not ask for a change to Gear.
+
+- L1: a dead band below the tab bar on every screen, and below every bottom sheet, about 62 points tall, which is the height of the top safe-area inset on this phone. The page is that much shorter than the screen. It cannot be reproduced in the laptop browser, so a fix has to be confirmed on the phone.
+- L2: a place label on the map is clipped when its tile sits at the edge of the canvas. Captions are centred on their tile and not kept inside the canvas.
+- L3: Gear is one column of 18 full-width rows, about three screens of scrolling, with the five accessory cells last. A question for Michael, not a defect: whether to lay armor out two to a row.
+- L4: on Items, an item with three stat lines wraps so that the last digit of "owned 0 of 1" sits alone on a second line.
+- L5: on Gear, the Weapon section holds one slot that is also labelled "Weapon".
+
+Michael's four points after the playtest, in his order. Each waits for his ruling on what to build.
+
+- P1: the export reminder on the map has no way to close it. The kickoff asks for a reminder that does not block play, and it does not, but it takes about three rows of the map until an export is made.
+- P2: he wants to zoom the map out, to walk or steer farther in one go. The map shows nine tiles across.
+- P3: he wants Salvage reachable from the bottom bar or a tab, not only by walking back to the site beside the run start. GDD 7.4 and D-26 require the hero at a site, as RH does at its own (his screenshot, C04). A change is a deviation from RH that he is asking for.
+- P4: he recalls that RH charges a fight's energy when it is joined, win or lose, and again on a retry. The GDD has "only wins are charged" as Confirmed (Q2). That rests on his one-letter reply "a" to all five batch 1 questions, and on his own line in a September RH chat, which speaks of wins and is silent on losses. The two statements are both his; which is the fact about RH is his to say, and so is the rule for this game. Every Phase 3b balance number was tuned with free losses. The save already stores energy spent as a counter, so either rule needs no migration.
+
+What was done about L1 and L2, on the laptop while he played. Neither is pushed yet, and neither has been seen on the phone.
+
+- **L1 is an iOS fault, not ours.** His phone's numbers, a screen of 874 points with a page of 812 and a top inset of 62, are the ones in WebKit bug 301994, open since iOS 26.1 and reopened in August 2026 on iOS 26.5.2 and the iOS 27 beta. Its reports say the band cannot be reached from the page, and no workaround is documented. So the band is not filled. What the app now does is in `docs/ARCHITECTURE.md` A-32: it detects that exact shape, stops keeping 34 points clear for a home bar that lies below the page anyway, and carries the tab bar's colour on below the page as a shadow. That wins back 34 of the 96 points being wasted, and the shadow will show on his phone whether the band can be drawn in at all. Settings, This install, has a new "Screen" line with the four numbers. Verified on the laptop: PASS for the detection at his numbers and at seven shapes it must not answer to, through the real `startApp` and on the recovery screen; PASS in a Chromium pane that the normal layout is unchanged, that forcing the attribute moves nothing and adds nothing to scroll to, and that Settings shows the line. On the phone: NOT CHECKED.
+- **L2 is fixed.** A caption on the outermost column in view is pulled in to stay on the canvas. A test that draws the sample map through the real map view put the caption's left edge 12.5 points off the canvas before the fix and 3 points inside it after. On the phone: NOT CHECKED.
+- `npm run check` PASS with 1,126 tests in 34 files, up from 1,097 in 32; `npm run build` and `npm run check:dist` PASS.
+
+Checked in the recordings and found in order: every button is at least 44 points tall; nothing overlaps; the six tabs fit; the pre-fight sheet, the battle and the loss sheet each fit one screen with their buttons in thumb reach; the Hero screen read "No stat points to spend" at level 4 with Life at 105, which is all 15 points in Life at 3 a point from a start of 60. The win chance for one unchanged fight read 17%, 19% and 18% on three openings, which is the forecast's stated precision of about 2 points (GDD 3.5) and not a fault.
+
 ### Carried forward to Phase 4
 
 - Configurable strategies: one that retries a boss at poor odds, which is DV-3's risk and which the Phase 3b strategy cannot show, and a cautious one.
@@ -148,6 +207,9 @@ A status line in chat during this phase named the kind of optional secret the sl
 - `goldAt` at zone edges.
 - A first Claim: the tool cannot claim the Z1 boss until about level 300, which is Z2's end or Z3. Michael is asked about this at the gate.
 - CSV output and the markdown summary against every row of GDD 5.9, whose targets are now in `data/balance.json` under `pacing`.
+- **Energy on a loss (GDD R-01, R-02, DV-10).** RH charges a fight's energy when it is joined; this game charges only wins. Michael wants both rules simulated to the same pacing targets before he rules. It is the first decision of Phase 4, because every other number hangs on it.
+- One real playthrough to set beside the simulator: the Z1 gate fell on run 10, where the simulator's median is 6 and GDD 5.9 allows 8; runs took 1:50 to 3:24; 20 wins a run; four or five tries at the boss on the last run.
+- The dead band under the tab bar on his phone (A-32): what his phone shows after the workaround, and whether the band can be drawn in.
 
 ## Phase 3a working record
 

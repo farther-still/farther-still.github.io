@@ -21,7 +21,7 @@ import { startApp } from './app';
 import { GameController } from './controller';
 import { formatNumber, formatPair } from './format';
 import { REJECTIONS, SLOT_NAME } from './labels';
-import { pointOfTile, viewportFor } from './mapview';
+import { COLUMNS, pointOfTile, viewportFor } from './mapview';
 import { MapScreen } from './screens';
 
 const OPTIONS = { ...BUILD, serviceWorker: false, baseUrl: '/' };
@@ -220,19 +220,22 @@ const mapCanvas = (): FakeCanvas => {
   return canvas;
 };
 
-/** Where on the page a tile is drawn while the camera follows a hero standing at `hero`, or null if it is off the canvas. */
-const pagePoint = (hero: Position, tile: Point): FakePoint | null => {
+/**
+ * Where on the page a tile is drawn while the camera follows a hero standing at `hero`, or null if it is off the
+ * canvas. `columns` is how many tiles the map shows across: nine unless the test has zoomed out.
+ */
+const pagePoint = (hero: Position, tile: Point, columns: number = COLUMNS.near): FakePoint | null => {
   const map = WORLD.zones[hero.zone]?.map;
   if (map === undefined) throw new Error(`no map for ${hero.zone}`);
-  const at = pointOfTile(viewportFor(PHONE_CANVAS.width, PHONE_CANVAS.height, map, hero), tile.x, tile.y);
+  const at = pointOfTile(viewportFor(PHONE_CANVAS.width, PHONE_CANVAS.height, map, hero, columns), tile.x, tile.y);
   if (at.x < 0 || at.x >= PHONE_CANVAS.width || at.y < 0 || at.y >= PHONE_CANVAS.height) return null;
   return { clientX: PHONE_CANVAS.left + at.x, clientY: PHONE_CANVAS.top + at.y };
 };
 
 /** A finger down and up on a tile of the map, as the player standing at `hero` sees it. */
-const tapTile = (hero: Position, tile: Point): void => {
+const tapTile = (hero: Position, tile: Point, columns: number = COLUMNS.near): void => {
   const canvas = mapCanvas();
-  const point = pagePoint(hero, tile);
+  const point = pagePoint(hero, tile, columns);
   // A player can only tap what is on the screen.
   if (point === null) throw new Error(`tile ${tile.x},${tile.y} is not on screen from ${hero.x},${hero.y}`);
   canvas.fire('pointerdown', point);
@@ -798,8 +801,11 @@ describe('faults the verifier found', () => {
   const HALT_BUTTONS = ['Copy the text code', 'Reload the app'];
   const TEST_BUILD_WARNING = 'The incoming save is from the test build.';
 
-  /** A canvas context that takes every call and draws nothing, so that walking is animated and takes time. */
-  const paintless = (): unknown => new Proxy({}, { get: () => () => undefined, set: () => true });
+  /**
+   * A canvas context that takes every call and draws nothing, so that walking is animated and takes time. A
+   * caption is measured before it is placed, so that one call has an answer.
+   */
+  const paintless = (): unknown => new Proxy({}, { get: (_target, name) => (name === 'measureText' ? () => ({ width: 0 }) : () => undefined), set: () => true });
 
   describe('a halt while a battle plays back', () => {
     it('stops the playback, and never opens the result sheet over the save-failed screen', async () => {
@@ -1205,5 +1211,413 @@ describe('faults the verifier found', () => {
       await settle(50);
       expect(await storage()).toEqual(before);
     });
+  });
+});
+
+// iOS can hand the installed app a page that ends above the bottom of the screen (ARCHITECTURE A-32). The app
+// reads what it is told at launch, leaves word for the style sheet on the page's root, and shows the numbers in
+// Settings, since the phone has nothing else to read them with.
+describe('a page that stops short of the screen', () => {
+  // Michael's iPhone 16 Pro on 2026-10-12: the page is short by the 62 points of the status bar.
+  const SHORT = { standalone: true, screenHeight: 874, pageHeight: 812, pageWidth: 402, insetTop: 62, insetBottom: 34 };
+  const WHOLE = { ...SHORT, pageHeight: 874 };
+
+  const screenLine = (): string | undefined => {
+    dom.tap('Run');
+    dom.tap('Settings');
+    const all = lines();
+    const value = all[all.indexOf('Screen') + 1];
+    dom.tap('Back to the Run menu');
+    dom.tap('Map');
+    return all.includes('Screen') ? value : undefined;
+  };
+
+  it('is told to the style sheet at launch, and Settings shows the numbers', async () => {
+    dom.setScreen(SHORT);
+    await startApp(dom.root, OPTIONS);
+    await mapShows();
+    expect(dom.rootAttribute('data-band-below')).toBe('yes');
+    expect(screenLine()).toBe('874 high, page 812, insets 62 and 34: the page stops short of the screen');
+  });
+
+  it('is not claimed for a page that fills the screen', async () => {
+    dom.setScreen(WHOLE);
+    await startApp(dom.root, OPTIONS);
+    await mapShows();
+    expect(dom.rootAttribute('data-band-below')).toBe('no');
+    expect(screenLine()).toBe('874 high, page 874, insets 62 and 34');
+  });
+
+  it('is not claimed in a browser tab, nor where the browser reports nothing', async () => {
+    dom.setScreen({ ...SHORT, standalone: false });
+    await startApp(dom.root, OPTIONS);
+    await mapShows();
+    expect(dom.rootAttribute('data-band-below')).toBe('no');
+
+    dom = installFakeDom();
+    await startApp(dom.root, OPTIONS);
+    await mapShows();
+    expect(dom.rootAttribute('data-band-below')).toBe('no');
+    expect(screenLine()).toBe('0 high, page 0, insets 0 and 0');
+  });
+
+  it('is looked at again when the page is resized and when the app comes back to the front', async () => {
+    dom.setScreen(WHOLE);
+    await startApp(dom.root, OPTIONS);
+    await mapShows();
+    expect(dom.rootAttribute('data-band-below')).toBe('no');
+
+    dom.setScreen(SHORT);
+    dom.fire('resize');
+    expect(dom.rootAttribute('data-band-below')).toBe('yes');
+    expect(screenLine()).toBe('874 high, page 812, insets 62 and 34: the page stops short of the screen');
+
+    dom.setScreen(WHOLE);
+    dom.setVisibility('hidden');
+    dom.setVisibility('visible');
+    expect(dom.rootAttribute('data-band-below')).toBe('no');
+    // One game, with one listener of each kind: the reading added none of its own.
+    expect(dom.listenerCount('resize')).toBe(1);
+    expect(dom.listenerCount('visibilitychange')).toBe(1);
+  });
+
+  it('is settled before a save is read, so the recovery screen is laid out by it too', async () => {
+    dom.setScreen(SHORT);
+    await seed((backend) => putRaw(backend, 'hot', { junk: true }));
+    await startApp(dom.root, OPTIONS);
+    expect(shows('Save recovery')).toBe(true);
+    expect(dom.rootAttribute('data-band-below')).toBe('yes');
+    // The recovery screen draws once more when its list of set-aside saves arrives.
+    await settle(50);
+  });
+});
+
+// The reminder to export (ARCHITECTURE 7.5): after 10 runs or 7 days without an export it shows on the map. It
+// never blocked play, but it could not be closed. "Later" puts it off until the app is next started, and no
+// longer, because the phone holds the only copy of the save (GDD D-33).
+describe('the export reminder', () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const ONLY_COPY = 'The only copy of this save is on this phone.';
+
+  const reminderShowing = (): boolean => lines().some((line) => line.endsWith(ONLY_COPY));
+
+  /**
+   * A save at this run count, begun `startedDaysAgo`, whose last export, if there was one, was so many days ago
+   * and at such a run. The clock in these tests stands at FIXED_NOW.
+   */
+  const tracked = (runsStarted: number, lastExport: { daysAgo: number; atRun: number } | null, startedDaysAgo = 0): SlotRecord =>
+    sealRecord({
+      slot: 'hot',
+      saveVersion: SAVE_VERSION,
+      buildId: BUILD.buildId,
+      contentVersion: BUILD.contentVersion,
+      seq: 57,
+      writtenAt: FIXED_NOW + 57,
+      payload: {
+        game: realGame(runsStarted),
+        app: {
+          ...newAppState(FIXED_NOW),
+          exportTracking: {
+            trackingSince: FIXED_NOW - startedDaysAgo * DAY,
+            lastExportAt: lastExport === null ? null : FIXED_NOW - lastExport.daysAgo * DAY,
+            runsAtLastExport: lastExport === null ? 0 : lastExport.atRun,
+          },
+        },
+      },
+    });
+
+  beforeEach(() => {
+    vi.spyOn(Date, 'now').mockReturnValue(FIXED_NOW);
+  });
+
+  it('shows on the map with both buttons after 10 runs without an export, and "Later" puts it off until the app is next started', async () => {
+    await seed((backend) => putRaw(backend, 'hot', tracked(12, null)));
+    await startApp(dom.root, OPTIONS);
+    await mapShows();
+    const writes = watchWrites();
+    expect(shows(`No export for 12 runs. ${ONLY_COPY}`)).toBe(true);
+    expect(dom.buttons()).toEqual(expect.arrayContaining(['Export now', 'Later']));
+
+    dom.tap('Later');
+    expect(reminderShowing()).toBe(false);
+    expect(dom.buttons()).not.toContain('Later');
+    expect(dom.buttons()).not.toContain('Export now');
+    // It was put off, not answered: nothing was written.
+    await settle(50);
+    expect(writes.asked).toEqual([]);
+
+    // It stays away on every screen, and on the map when the player comes back to it.
+    for (const tab of ['Hero', 'Gear', 'Items', 'Bestiary', 'Run', 'Map']) {
+      dom.tap(tab);
+      expect(reminderShowing(), tab).toBe(false);
+    }
+    expect(onMap()).toBe(true);
+
+    // And through a new run, which is one more run without an export.
+    dom.tap('Run');
+    dom.tap('New run…');
+    dom.tap('Start the run');
+    await gameShowsRun(13);
+    expect(reminderShowing()).toBe(false);
+    // The save knows nothing of the putting off: it still says that no export was ever made.
+    expect((await hot()).payload.app.exportTracking).toEqual({ trackingSince: FIXED_NOW, lastExportAt: null, runsAtLastExport: 0 });
+
+    // The app is closed and opened again. The reminder is back, counting the run that was added.
+    dom = installFakeDom();
+    await startApp(dom.root, OPTIONS);
+    await mapShows();
+    expect(shows(`No export for 13 runs. ${ONLY_COPY}`)).toBe(true);
+    expect(dom.buttons()).toEqual(expect.arrayContaining(['Export now', 'Later']));
+  });
+
+  it.each([
+    { what: 'the days alone', runs: 25, last: { daysAgo: 8, atRun: 20 }, started: 30, words: 'No export for 8 days.' },
+    { what: 'the days since the save began, when it has never been exported', runs: 3, last: null, started: 9, words: 'No export for 9 days.' },
+    { what: 'the runs alone, counted from the last export', runs: 32, last: { daysAgo: 1, atRun: 20 }, started: 30, words: 'No export for 12 runs.' },
+    { what: 'both', runs: 32, last: { daysAgo: 8, atRun: 20 }, started: 30, words: 'No export for 8 days and 12 runs.' },
+  ])('names $what when that is what is overdue', async ({ runs, last, started, words }) => {
+    await seed((backend) => putRaw(backend, 'hot', tracked(runs, last, started)));
+    await startApp(dom.root, OPTIONS);
+    await mapShows();
+    expect(shows(`${words} ${ONLY_COPY}`)).toBe(true);
+    expect(dom.buttons()).toEqual(expect.arrayContaining(['Export now', 'Later']));
+  });
+
+  it('does not show, and offers nothing to put off, while neither limit is reached', async () => {
+    // Nine runs and six days since the last export: one short of each.
+    await seed((backend) => putRaw(backend, 'hot', tracked(29, { daysAgo: 6, atRun: 20 }, 30)));
+    await startApp(dom.root, OPTIONS);
+    await mapShows();
+    expect(reminderShowing()).toBe(false);
+    expect(dom.buttons()).not.toContain('Later');
+    expect(dom.buttons()).not.toContain('Export now');
+  });
+
+  it('still opens the export sheet from "Export now", and is still there when the sheet is closed with nothing exported', async () => {
+    await seed((backend) => putRaw(backend, 'hot', tracked(12, null)));
+    await startApp(dom.root, OPTIONS);
+    await mapShows();
+    dom.tap('Export now');
+    await vi.waitFor(() => expect(shows('Nothing has been shared or copied yet.'), 'the export sheet is showing').toBe(true));
+    dom.tap('Done');
+    expect(reminderShowing()).toBe(true);
+    expect(dom.buttons()).toEqual(expect.arrayContaining(['Export now', 'Later']));
+  });
+});
+
+// The map's two zoom levels (GDD 8.3, D-32): nine tiles across, or fourteen to see and tap farther. The choice is
+// a fact about this device and is kept in its store, not in the save.
+describe('the zoom button on the map', () => {
+  const heroAt = async (): Promise<Position> => (await hot()).payload.game.run.position;
+  const at = (tile: Point): Position => ({ zone: WORLD.start.zone, ...tile });
+
+  /** Closes the app and opens it again: a fresh page on the same database. */
+  const relaunch = async (): Promise<void> => {
+    dom = installFakeDom();
+    await startApp(dom.root, OPTIONS);
+    await mapShows();
+  };
+
+  /** Taps a tile as it is drawn with this many tiles across, and waits until the save has the hero standing on it. */
+  const walkByTap = async (from: Position, tile: Point, columns: number): Promise<void> => {
+    tapTile(from, tile, columns);
+    await settle();
+    dom.fire('pagehide');
+    await vi.waitFor(async () => expect(await heroAt()).toEqual(at(tile)));
+  };
+
+  it('stands at the end of the loadout row, switches the map at a tap, and the choice is remembered at the next launch', async () => {
+    await startApp(dom.root, OPTIONS);
+    const writes = watchWrites();
+    // Near is where a new install starts, so the button offers the way out. It comes after the loadouts.
+    const loadouts = Array.from({ length: WORLD.balance.loadouts.free }, (_, index) => String(index + 1));
+    const shown = dom.buttons();
+    expect(shown.slice(shown.indexOf('1'), shown.indexOf('Map'))).toEqual([...loadouts, 'Zoom out']);
+    expect(await device('mapZoom')).toBeUndefined();
+
+    dom.tap('Zoom out');
+    // At once, before anything is stored: the button now offers the way back.
+    expect(dom.buttons()).toContain('Zoom in');
+    expect(dom.buttons()).not.toContain('Zoom out');
+    await vi.waitFor(async () => expect(await device('mapZoom')).toBe('far'));
+
+    // The map is fourteen tiles across: a tap where a tile is drawn at that size walks the hero onto that tile.
+    const target = quietTile();
+    expect(pagePoint(WORLD.start, target, COLUMNS.far)).not.toEqual(pagePoint(WORLD.start, target));
+    await walkByTap(WORLD.start, target, COLUMNS.far);
+    // The zoom is no part of the save. The one write is the walk.
+    expect(writes.asked).toEqual(['hot:2']);
+
+    // The next launch opens far, and its map is drawn that way, not only its button.
+    await relaunch();
+    expect(dom.buttons()).toContain('Zoom in');
+    expect(dom.buttons()).not.toContain('Zoom out');
+    await walkByTap(at(target), WORLD.start, COLUMNS.far);
+
+    // Back to near, and that is remembered too.
+    dom.tap('Zoom in');
+    expect(dom.buttons()).toContain('Zoom out');
+    await vi.waitFor(async () => expect(await device('mapZoom')).toBe('near'));
+    await walkByTap(WORLD.start, target, COLUMNS.near);
+    await relaunch();
+    expect(dom.buttons()).toContain('Zoom out');
+  });
+
+  it('opens near when the device store holds something no build wrote, or cannot be read', async () => {
+    await seed((backend) => backend.setDevice('mapZoom', 'closer'));
+    await startApp(dom.root, OPTIONS);
+    await mapShows();
+    expect(dom.buttons()).toContain('Zoom out');
+
+    await seed((backend) => backend.setDevice('mapZoom', 'far'));
+    vi.spyOn(LocalBackend.prototype, 'getDevice').mockRejectedValue(new Error('simulated: the device store would not read'));
+    await relaunch();
+    expect(dom.buttons()).toContain('Zoom out');
+    // The game is not held up by it: the map takes a tap as usual.
+    await walkByTap(WORLD.start, quietTile(), COLUMNS.near);
+  });
+
+  it('still switches on screen when the choice cannot be stored, and the next launch opens as the store last had it', async () => {
+    await startApp(dom.root, OPTIONS);
+    const refused = vi.spyOn(LocalBackend.prototype, 'setDevice').mockRejectedValue(new Error('simulated: the device store would not write'));
+    dom.tap('Zoom out');
+    expect(dom.buttons()).toContain('Zoom in');
+    await vi.waitFor(() => expect(refused).toHaveBeenCalledWith('mapZoom', 'far'));
+    await settle();
+    // Still far, and drawn that way.
+    expect(dom.buttons()).toContain('Zoom in');
+    await walkByTap(WORLD.start, quietTile(), COLUMNS.far);
+
+    refused.mockRestore();
+    expect(await device('mapZoom')).toBeUndefined();
+    await relaunch();
+    expect(dom.buttons()).toContain('Zoom out');
+  });
+});
+
+// Salvage from anywhere (GDD 7.4, DV-9). The engine no longer asks where the hero stands, and the sheet opens
+// from the Run menu and from the spent-run notice as well as from a Salvage site on the map.
+describe('Salvage away from its site', () => {
+  const GOLD = 600;
+  const PUT_IN = `Put in ${formatNumber(GOLD)} gold`;
+
+  const sheetShowing = (): boolean => dom.buttons().some((label) => label.startsWith('Put in '));
+  const resultOfSalvageShowing = (): boolean => showsStart('Found: ') || showsStart('Nothing turned up.');
+
+  const sites = (): readonly Point[] => WORLD.zones[WORLD.start.zone]?.map.salvageSites ?? [];
+  const reach = (a: Point, b: Point): number => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+
+  /** A floor tile of the starting zone that the hero can walk to, three tiles or more from every Salvage site. */
+  const awayFromSites = (): Position => {
+    const state = newGame(1, WORLD);
+    const { zone } = WORLD.start;
+    const map = WORLD.zones[zone]?.map;
+    if (map === undefined || sites().length === 0) throw new Error('the starting zone has no map, or no Salvage site to be away from');
+    for (let y = 0; y < map.height; y += 1) {
+      for (let x = 0; x < map.width; x += 1) {
+        if (WORLD.index.exitAt[tileKey(zone, x, y)] !== undefined || sites().some((site) => reach(site, { x, y }) < 3)) continue;
+        if (findPath(state, WORLD, WORLD.start, { x, y }) !== null) return { zone, x, y };
+      }
+    }
+    throw new Error('every tile the hero can reach in the starting zone is within two tiles of a Salvage site');
+  };
+
+  /**
+   * A run with something to salvage and gold to put in: one enemy beaten, none of its drops owned, and nothing
+   * stronger beaten this run. The hero stands at `position`.
+   */
+  const withSomethingToSalvage = (position: Position): GameState => {
+    const base = realGame();
+    const enemy = WORLD.enemyOrder.map((id) => WORLD.enemies[id]).find((candidate) => candidate !== undefined && !candidate.boss && candidate.drops.length > 0);
+    if (enemy === undefined) throw new Error('the real content has no enemy with a drop');
+    return {
+      profile: { ...base.profile, bestiary: { [enemy.id]: { timesBeaten: 1 } }, strongestEverBeaten: enemy.level },
+      run: { ...base.run, position, gold: GOLD, battleCount: 1, strongestBeaten: enemy.level, lastEnemy: enemy.id, tallies: { ...base.run.tallies, wins: 1 } },
+    };
+  };
+
+  it('opens from the Run menu with the hero nowhere near a site, and saves an attempt made there before its result shows', async () => {
+    const position = awayFromSites();
+    expect(sites().every((site) => reach(site, position) >= 3)).toBe(true);
+    await seed((backend) => putRaw(backend, 'hot', realRecord('hot', 5, withSomethingToSalvage(position))));
+    const writes = watchWrites(resultOfSalvageShowing);
+    await startApp(dom.root, OPTIONS);
+    await mapShows();
+
+    dom.tap('Run');
+    expect(shows('Not used yet')).toBe(true);
+    dom.tap('Salvage…');
+    expect(sheetShowing()).toBe(true);
+    expect(dom.buttons()).toContain(PUT_IN);
+    const before = await hot();
+    const asked = writes.asked.length;
+
+    const open = writes.hold();
+    dom.tap(PUT_IN);
+    dom.tap(PUT_IN);
+    await settle();
+    // The attempt is made and on its way to storage, once. Nothing shows it yet.
+    expect(writes.asked.slice(asked)).toEqual([`hot:${before.seq + 1}`]);
+    expect(writes.committed.length).toBe(asked);
+    expect(resultOfSalvageShowing()).toBe(false);
+    expect((await hot()).payload.game.run).toMatchObject({ salvageUsed: false, gold: GOLD });
+
+    open();
+    await vi.waitFor(() => expect(resultOfSalvageShowing(), 'the result of the attempt is showing').toBe(true));
+    // It is in storage by the time it shows, and it was not showing at the moment it was committed.
+    const saved = await hot();
+    expect(saved.seq).toBe(before.seq + 1);
+    expect(saved.payload.game.run).toMatchObject({ salvageUsed: true, gold: 0, position });
+    expect(writes.seenAtCommit.slice(asked)).toEqual([false]);
+    // The sheet says what the saved game says: an item found, or nothing.
+    const found = Object.keys(saved.payload.game.profile.items).length;
+    expect([0, 1]).toContain(found);
+    expect(showsStart('Found: ')).toBe(found === 1);
+    expect(showsStart('Nothing turned up.')).toBe(found === 0);
+
+    // Closing the result leaves the Run menu, which now says the attempt is used and offers no second one.
+    dom.tap('Done');
+    expect(sheetShowing()).toBe(false);
+    expect(shows('Used')).toBe(true);
+    expect(shows('Not used yet')).toBe(false);
+    dom.tap('Salvage…');
+    expect(sheetShowing()).toBe(false);
+    await settle(50);
+    expect(writes.asked.slice(asked)).toEqual([`hot:${before.seq + 1}`]);
+  });
+
+  it('is offered beside "New run…" on the map when the run is spent, for as long as the attempt is unused', async () => {
+    const ready = withSomethingToSalvage(awayFromSites());
+    const spent: GameState = { ...ready, run: { ...ready.run, energySpent: remainingEnergy(ready, WORLD) } };
+    await seed((backend) => putRaw(backend, 'hot', realRecord('hot', 5, spent)));
+    await startApp(dom.root, OPTIONS);
+    await mapShows();
+    expect(shows(`The run is spent. Still unused: ${formatNumber(GOLD)} gold, and the Salvage attempt.`)).toBe(true);
+    const shown = dom.buttons();
+    expect(shown.slice(shown.indexOf('New run…'), shown.indexOf('New run…') + 2)).toEqual(['New run…', 'Salvage…']);
+
+    dom.tap('Salvage…');
+    expect(sheetShowing()).toBe(true);
+    dom.tap(PUT_IN);
+    await vi.waitFor(() => expect(resultOfSalvageShowing(), 'the result of the attempt is showing').toBe(true));
+    dom.tap('Done');
+
+    // Back on the map: the notice still offers the new run, and no longer the attempt that has been used.
+    expect(onMap()).toBe(true);
+    expect(shows('The run is spent. Still unused: 0 gold.')).toBe(true);
+    expect(dom.buttons()).toContain('New run…');
+    expect(dom.buttons()).not.toContain('Salvage…');
+    expect((await hot()).payload.game.run).toMatchObject({ salvageUsed: true, gold: 0 });
+  });
+
+  it('still opens when a Salvage site on the map is tapped, once the hero has walked onto it', async () => {
+    const [site] = [...sites()].sort((a, b) => reach(a, WORLD.start) - reach(b, WORLD.start));
+    if (site === undefined) throw new Error('the starting zone has no Salvage site');
+    await startApp(dom.root, OPTIONS);
+    expect(sheetShowing()).toBe(false);
+    tapTile(WORLD.start, site);
+    await vi.waitFor(() => expect(sheetShowing(), 'the Salvage sheet is showing').toBe(true));
+    dom.fire('pagehide');
+    await vi.waitFor(async () => expect((await hot()).payload.game.run.position).toEqual({ zone: WORLD.start.zone, x: site.x, y: site.y }));
   });
 });

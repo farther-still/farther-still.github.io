@@ -4,7 +4,7 @@ import { newGame, repairRun } from '../engine';
 import type { Content } from '../engine';
 import { loadBundled } from '../content';
 import type { GameText } from '../content';
-import { UpdateController, browserContainer, captureGlobalErrors, createDiagnostics, isStandalone, requestPersistence } from '../platform';
+import { UpdateController, bandBelow, browserContainer, captureGlobalErrors, createDiagnostics, isStandalone, readScreen, requestPersistence } from '../platform';
 import { LocalBackend, SaveWriter, buildExport, checkImport, loadSave, newAppState, prepareRecoveryExit } from '../save';
 import type { BuildInfo, Classified, LoadResult, QuarantineEntry, SavePayload, SlotRecord, WriteCursor } from '../save';
 import { GameController } from './controller';
@@ -13,7 +13,7 @@ import { gearScreen, itemsScreen } from './gear';
 import { haltScreen, recoveryScreen } from './recovery';
 import type { RecoveryReason, RecoveryView } from './recovery';
 import { MapScreen, bestiaryScreen, heroScreen, runScreen, tabBar } from './screens';
-import { Notices, newViewState } from './session';
+import { MapZoom, Notices, newViewState } from './session';
 import type { Platform, ScreenName, Session, SheetBuilder } from './session';
 import { settingsScreen } from './settings';
 import { exportFileName, exportSheet } from './sheets';
@@ -49,9 +49,19 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
   const barHost = el('div', { class: 'bar-host' });
   const sheetHost = el('div', { class: 'sheet-layer' });
   const toastHost = el('div', { class: 'toast' });
+  const insetProbe = el('div', { class: 'inset-probe' });
   sheetHost.hidden = true;
   toastHost.hidden = true;
-  root.replaceChildren(screenHost, barHost, sheetHost, toastHost);
+  root.replaceChildren(screenHost, barHost, sheetHost, toastHost, insetProbe);
+
+  // iOS can hand the installed app a page that stops short of the screen (ARCHITECTURE A-32). The style sheet is
+  // told through an attribute, so that the room kept clear for the home bar is not kept twice.
+  const screen = { reading: readScreen(window, insetProbe) };
+  const measureScreen = (): void => {
+    screen.reading = readScreen(window, insetProbe);
+    document.documentElement.setAttribute('data-band-below', bandBelow(screen.reading) ? 'yes' : 'no');
+  };
+  measureScreen();
 
   const closeSheet = (): void => {
     sheetHost.hidden = true;
@@ -107,8 +117,10 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
     updates,
     diagnostics,
     notices: new Notices(backend, log),
+    zoom: new MapZoom(backend, log),
     persist: { status: 'asking' },
     standalone: isStandalone(window),
+    screen,
   };
 
   // ---- the game, once a save has been chosen ----
@@ -184,6 +196,8 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
     // failed, and nothing of this half-built game may be left subscribed to draw itself over the failed-start
     // screen later.
     if (commitNow) await controller.updateApp((app) => app);
+    // The map's zoom is read here, where every way into the game passes, so the first draw is at the remembered level.
+    await platform.zoom.restore();
     render();
 
     controller.subscribe(render);
@@ -195,11 +209,13 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
         void controller.flush();
       } else {
         controller.resume();
+        measureScreen();
         void updates.check();
       }
     });
     window.addEventListener('pagehide', () => void controller.flush());
     window.addEventListener('resize', () => {
+      measureScreen();
       if (mapMounted) map.update();
     });
 

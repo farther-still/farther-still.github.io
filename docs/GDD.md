@@ -70,7 +70,7 @@ Each pillar names the feel to protect, the evidence, and what it obliges the des
 | Rule | Detail | Source |
 |---|---|---|
 | Energy cost | Each fight has a cost set by its zone (section 5.8). | Confirmed (Q2) |
-| Only wins are charged | A loss costs no energy; the player is back on the map and can retry. | Confirmed (Q2) |
+| Only wins are charged | A loss costs no energy; the player is back on the map and can retry. | Ruling (Q2), and not RH's rule. RH charges a fight's energy when it is joined, win or lose, and again on a retry: Confirmed by Michael on 2026-10-12 (R-01, section 13.6). This game's rule is an undecided deviation, DV-10, until Phase 4 has simulated both |
 | Boss payback | An unclaimed boss pays back its cost plus a surplus when beaten, once per run (sections 2.3 and 5.8). | Confirmed (notes #1, Q2) |
 | Free actions | Walking, waypoint travel, buying and Salvage cost no energy. | Confirmed (Q2) |
 | Affordability | A fight cannot be started if its cost exceeds remaining energy. | Confirmed (G1) |
@@ -525,7 +525,7 @@ Not in v1: RH's "random piece of a family" group drops [WEB].
 
 Confirmed (notes #6, Q3), built to Michael's C04 screenshot.
 
-- Used at a Salvage site on the map, any time during a run, once per run. There is one beside the run start and one beside every waypoint.
+- Used any time during a run, once per run, from the Run menu or by tapping a Salvage site on the map, wherever the hero stands (DV-9). RH's is used at its own place on the map (C04). There is a site beside the run start and one beside every waypoint.
 - It takes all gold on hand.
 - **Pool:** items the player owns no copy of, dropped by an enemy the player has beaten at least once ever, where that enemy's level is at or below the strongest enemy beaten this run.
 - **Chance:** `gold ÷ (gold + 36 × goldAt(strongest enemy beaten this run))`. So the same chance needs more gold as the run goes higher, which is what notes #6 describes. RH's formula is [OPEN]. Its one known point, 3.75 million gold at a strongest kill of level 42,000 showing 65.20% (Michael's screenshot, C04), comes out at 66% here.
@@ -534,7 +534,6 @@ Confirmed (notes #6, Q3), built to Michael's C04 screenshot.
 - **Pool breakdown (DV-2):** the screen shows how many pool items sit in each of three bands: over half of this run's strongest kill, from a tenth to a half, and under a tenth.
 - A failed attempt still uses up the gold and the run's one attempt.
 - An empty pool takes no gold and uses no attempt. Nor does an attempt with no gold on hand, which would be a certain miss (D-26).
-- The hero must be standing on a Salvage site or beside it.
 - An item's band is set by the strongest enemy that drops it among those that count for the pool.
 
 Salvage is present from Z1 because the kickoff's slice needs gold to matter. In RH it opens after a boss at about enemy level 35,000 [GPT]; Michael's C04 screenshot shows him using it at about level 40,000. This is logged as DV-7.
@@ -660,7 +659,7 @@ A tab bar at the bottom reaches Map, Hero, Gear, Items, Bestiary and the Run men
 
 | Screen | Shows | Actions |
 |---|---|---|
-| Map | A top-down tile map; enemies with their level, a marker if marked, a boss mark; doors, waypoints, Salvage sites. A status strip with level, gold, energy, gems and a "new item" badge. A row of loadout buttons. | Tap a tile to walk there by the shortest known path. Tap an enemy to walk to it and open the pre-fight sheet. Press and drag to steer. Tap a loadout to switch. Open waypoint travel. |
+| Map | A top-down tile map; enemies with their level, a marker if marked, a boss mark; doors, waypoints, Salvage sites. A status strip with level, gold, energy, gems and a "new item" badge. A row of loadout buttons, with a zoom button at its end. | Tap a tile to walk there by the shortest known path. Tap an enemy to walk to it and open the pre-fight sheet. Press and drag to steer. Tap a loadout to switch. Switch between the two zoom levels. Tap a Salvage site to open Salvage. Open waypoint travel. |
 | Pre-fight sheet | Enemy level, tags and traits in plain words; energy cost and, for a boss, the payback; gate and Claim status; win chance and limiting factor; drops, with unfound ones hidden but counted; any marked bonus. | Fight, or back. |
 | Battle playback | The event log replayed: hits, crits, misses, dodges, life bars. | Speed 1×, 2×, 4×; skip to the end. The setting is remembered. |
 | Result sheet | Win: XP, levels gained, gold, drops, gems, any Claim, energy left. Loss: the one-line summary. | Fight again, or return to the map. |
@@ -671,7 +670,7 @@ A tab bar at the bottom reaches Map, Hero, Gear, Items, Bestiary and the Run men
 | Salvage | Gold on hand, the chance, pool size, the three-band breakdown, the gem boost and its price. | Attempt, with or without the boost. |
 | Waypoints | Each waypoint: locked with its gem price, or unlocked. | Unlock a visited waypoint. Travel. |
 | Auto-assign | A percentage for each of the five stats. | Turn on or off; edit the split. Points that do not divide evenly go to the stat furthest behind its percentage, ties going to the earlier stat in the order Life, Damage, Defense, Dexterity, Luck. If points spent by hand have left too few to bring every stat up to its share, each point goes to whichever stat is furthest behind at that moment. Unlocks permanently the first time the hero reaches level 250; RH's unlock is "shortly after level 250" [WEB]. |
-| Run menu | Run number, level, strongest enemy beaten this run and ever, energy. Progress counters: items, bestiary, bosses claimed, zones reached. | New run. Settings. |
+| Run menu | Run number, level, strongest enemy beaten this run and ever, energy. Progress counters: items, bestiary, bosses claimed, zones reached. | New run. Salvage. Settings. |
 | New-run sheet | Section 2.4. | Confirm or cancel. |
 | Settings | Playback speed; each movement control on or off; storage persistence status; export and import; days since last export; save-fallback notices; the diagnostics log and engine self-test; "update ready". | As listed in the kickoff save spec. Importing shows the two saves side by side and asks before replacing anything. |
 | Recovery | Shown at startup only if the newest save cannot be used as it is: what was found, and the choices in `docs/ARCHITECTURE.md` section 7.3. | Export everything; try again; use a save anyway; use an older save; restore a set-aside save; start a new game. |
@@ -681,6 +680,7 @@ A tab bar at the bottom reaches Map, Hero, Gear, Items, Bestiary and the Run men
 
 - Two controls are live at once, with no mode switch (DV-4). A tap on a tile or an enemy walks the hero there by the shortest known path. A press-and-drag anywhere on the map steers: the hero walks in that direction, one of eight, for as long as the press is held, and slides along walls.
 - The game tells a tap from a drag by how far the finger moves. Settings can turn either control off.
+- The map has two zoom levels, nine tiles across and fourteen. A button on the map switches between them, and the choice is remembered on the device, outside the save (D-32). At fourteen across a tile is 28 points on the phone, under the 44-point tap size the rest of the game keeps. That is accepted on the map alone: a tap there only walks, and nothing starts a fight but the Fight button. Whether RH's map zooms is [OPEN].
 - Tap-to-move routes through ordinary walkable tiles, which are always visible, and through a hidden tile only once it has been found. So it never gives away a hidden path. Steering can walk onto a hidden tile, which is how hidden paths get found.
 - Walking is an animation. The engine sees every move as a step from one tile to a neighbouring tile and only checks that the step is allowed; a tapped route is a list of such steps.
 - An enemy's tile cannot be entered: the hero stops beside it. A beaten boss's tile is open for the rest of the run, which is what makes a boss on a one-tile path a gate. A diagonal step needs both tiles beside it to be open, so nothing can be slipped past at a corner (D-24).
@@ -802,7 +802,7 @@ All dated 2026-10-12.
 | ID | Ruling | Where it lives |
 |---|---|---|
 | Q1 | Copy caps: 1 for weapons and armor, 3 for most accessories, 1 for special ones; drops stop at the cap; all copies can be equipped | 7.1, 7.3 |
-| Q2 | Fight cost rises by zone; only wins are charged; bosses pay energy back; walking, travel and Salvage are free | 2.2, 5.8 |
+| Q2 | Fight cost rises by zone; only wins are charged; bosses pay energy back; walking, travel and Salvage are free. "Only wins are charged" is a ruling for this game and was wrongly recorded as RH's rule: see R-01 in section 13.6 | 2.2, 5.8 |
 | Q3 | Salvage follows the screenshot: all gold, a shown chance, once per run, pool limited to enemies beaten | 7.4 |
 | Q4 | Waypoints are bought with gems and kept; gems persist and come from drops only | 2.2, 7.8, DV-5 |
 | Q5 | Gate bosses reset each run; keys and waypoints persist; the reset ledger stands | 2.2, 2.5 |
@@ -837,6 +837,13 @@ Two more deviations come from fitting RH's order into v1, not from the interview
 |---|---|---|---|---|
 | DV-7 | Salvage exists from Z1; in RH it opens at about enemy level 35,000 [GPT] | The kickoff's slice needs gold to matter, and gold resets every run | None | An all-in gamble arrives before the player has learned the shop. Offering both in Z1 (ruled in P2) lets the player choose the known payoff, as Michael did in C06 |
 | DV-8 | Waypoints start at Z3; RH's teleports come "later in the game" (notes #7), exact point [OPEN] | Q15 puts waypoints in v1, and Q14's shorter runs depend on them | None | Less walking through early zones, where Michael also enjoyed finding things (C02, C14) |
+
+Two more came out of Michael's Phase 3b playtest on 2026-10-12 (section 13.6):
+
+| ID | Deviation | Frustration fixed | Cost | Risk |
+|---|---|---|---|---|
+| DV-9 | Salvage can be used from the Run menu, wherever the hero stands. RH's is used at its own place on the map (C04). Asked for by Michael | Walking back to the run start at the end of every run, when gold is at its highest, to use the one attempt | One button on the Run menu and one on the spent-run notice; the rule that the hero must be at a site goes | Salvage sites become decoration, and the route home stops being part of a run. It is one more step away from RH |
+| DV-10 | A loss costs no energy. RH charges the cost when a fight is joined, win or lose, and again on a retry (R-01). **Not yet ruled on:** the rule was built on a misreading of Q2, and Michael chose on 2026-10-12 to decide in Phase 4, with both rules simulated to the same pacing targets | None of Michael's on record; it came from the misreading | Nothing to keep. To change: the cost is charged in the loss branch as well, every number in section 5.9 is tuned again, and the golden replays change. The save already counts energy spent, so no migration either way | As DV-3 says, a long-shot fight can be retried until it lands, which softens every wall; on the run the Z1 gate fell he tried the boss four or five times. Against that, every Phase 3b number was tuned with free losses, and he passed all four points of the playtest rubric under this rule |
 
 ### 13.3 Phase 1 design decisions
 
@@ -908,7 +915,7 @@ Design decisions made while building. None changes an approved rule; each fills 
 | D-23 | The tool's 90% cut is taken from final Damage, after Base and Mult | As a negative % line it would be added to other % bonuses, and a loadout with +50% Damage would turn "cut by 90%" into "cut by 40%" | 2.3 |
 | D-24 | An enemy's tile cannot be entered; a beaten boss's tile can; a diagonal step needs both tiles beside it open | A gate boss has to block a one-tile path, and must not be passable at a corner | 8.3 |
 | D-25 | Steering into an enemy opens its pre-fight sheet | Walking into an enemy would otherwise do nothing. Only the Fight button starts a fight, so pillar 3 holds | 8.3 |
-| D-26 | Salvage cannot be attempted with no gold, and needs the hero at or beside a site | A zero-gold attempt is a certain miss that would use up the run's one attempt | 7.4 |
+| D-26 | Salvage cannot be attempted with no gold. As first written it also needed the hero at or beside a site; Michael withdrew that half on 2026-10-12 (DV-9) | A zero-gold attempt is a certain miss that would use up the run's one attempt | 7.4 |
 | D-27 | A stash may sit on a hidden tile, so that nothing of it shows until the way in is found | A lone floor tile behind a wall would give the secret away | 7.7 |
 | D-28 | Battle playback has a "skip every battle" setting beside the three speeds | The Skip button alone means one more tap per fight when farming a drop. Section 5.9's "under 1 second with skip" needs it | 8.2 |
 | D-29 | The run-duration log counts time actually played: the gaps between actions, each capped at one minute | A run left open over lunch would otherwise read as an hour. It is still read by no mechanic | 2.5 |
@@ -943,6 +950,24 @@ What the simulator found. Two sets of 100 simulated players, 14 runs each, one s
 | Claims | None in any playthrough. See section 10 | n/a |
 
 The two misses are the same thing seen twice: a player who has everything but one or two late drops, and a strategy that climbs back to the wall each run before it goes looking for them. They are left for Phase 4, which has the strategies to tell a content problem from a simulated player's habit.
+
+### 13.6 Phase 3b review: Michael's rulings
+
+All dated 2026-10-12, given after he played the slice on his phone through the Z1 gate. His replies are in `docs/STATUS.md` under "Phone review".
+
+| ID | Question or request | Michael's reply | Recorded as | Where it lives |
+|---|---|---|---|---|
+| R-01 | In RH, is a fight's energy charged when it is joined, win or lose, or only on a win? | a: when it is joined, win or lose, and a retry is charged again | **Confirmed.** This corrects the record. Q2 was marked Confirmed for "only wins are charged" on the strength of a one-letter reply covering five questions and one line of his from September that speaks of wins and is silent on losses | 2.2, DV-10 |
+| R-02 | Which rule should this game have? | a: decide in Phase 4, with both simulated | **Deferred.** The slice keeps free losses until then, as an open deviation | 2.2, DV-10 |
+| R-03 | Salvage from the bottom bar or a tab, not only at its site | His request; "yes" to the form proposed | **Ruling.** A deviation from RH | 7.4, 8.2, DV-9 |
+| R-04 | Zoom the map out, to walk or steer farther | His request; "yes" to the form proposed | **Ruling.** Two levels and a button. Logged as D-32 | 8.2, 8.3 |
+| R-05 | A way to close the export reminder | His request; "yes" to the form proposed | **Ruling.** A "Later" button hides it until the app is next opened, and it names only what is overdue. Logged as D-33. The kickoff asks for a reminder that does not block play, which this still is | `docs/ARCHITECTURE.md` 7.5 |
+| R-06 | Gate question 1, the first Claim: the tool cannot claim the Z1 boss until about level 300. Leave it for Phase 4 to measure, or soften the 90% cut now? | a: leave it | **Ruling.** The cut stays at 90%, as RH's data has it [WEB]. Phase 4 measures when Claims land across Z2 and Z3 | 2.3, 10 |
+
+| ID | Decision | Reason | Where it lives |
+|---|---|---|---|
+| D-32 | The map has two zoom levels, nine tiles across and fourteen, remembered on the device and not in the save | R-04. Outside the save because it is a fact about a screen, not about a game, and a save change needs a migration that this does not earn | 8.3 |
+| D-33 | The export reminder can be put off until the next launch, and no longer | R-05. Until Phase 5's backup exists the phone holds the only copy, so the reminder must come back | `docs/ARCHITECTURE.md` 7.5 |
 
 ## 14. Names
 

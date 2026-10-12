@@ -87,7 +87,6 @@ export type RejectReason =
   | 'no-gems'
   | 'loadouts-full'
   | 'bad-name'
-  | 'not-at-site'
   | 'salvage-used'
   | 'empty-pool'
   | 'unknown-secret'
@@ -304,9 +303,7 @@ const equip = (state: GameState, index: number, slot: SlotId, itemId: ItemId | n
 
 const salvage = (state: GameState, boost: boolean, content: Content): StepResult => {
   const { balance } = content;
-  const { position } = state.run;
-  const atSite = (content.zones[position.zone]?.map.salvageSites ?? []).some((site) => isAdjacent(position, position.zone, site.x, site.y));
-  if (!atSite) return reject('not-at-site');
+  // Where the hero stands is not asked: Salvage can be used from anywhere (GDD 7.4, DV-9).
   if (state.run.salvageUsed) return reject('salvage-used');
   const pool = salvagePool(state, content);
   // An empty pool takes no gold and uses no attempt (GDD 7.4).

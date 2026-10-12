@@ -4,6 +4,7 @@
 import type { Balance, HintId, ItemDef, ItemKind, LineKey, RejectReason, SlotId, StatKey, Tag } from '../engine';
 import { TAGS } from '../engine';
 import type { GameText } from '../content';
+import { EXPORT_REMINDER_DAYS, EXPORT_REMINDER_RUNS } from '../save';
 import { formatNumber } from './format';
 
 export const STAT_NAME: Record<StatKey, string> = { life: 'Life', damage: 'Damage', defense: 'Defense', dexterity: 'Dexterity', luck: 'Luck' };
@@ -141,7 +142,6 @@ export const REJECTIONS: Record<RejectReason, string> = {
   'no-gems': 'Not enough gems.',
   'loadouts-full': 'There are no more loadouts to buy.',
   'bad-name': 'That name is too long.',
-  'not-at-site': 'Salvage is done at a Salvage site.',
   'salvage-used': 'Salvage has been used this run.',
   'empty-pool': 'There is nothing to salvage yet.',
   'unknown-secret': 'There is nothing there.',
@@ -149,6 +149,18 @@ export const REJECTIONS: Record<RejectReason, string> = {
   'unknown-hint': '',
   'unknown-action': 'That cannot be done in this version.',
   'count-limit': 'That number cannot go any higher.',
+};
+
+/**
+ * The export reminder's sentence. Either the days or the runs alone bring the reminder up, and it names only the
+ * one that is overdue, or both: a count still within its limit would read as a reason when it is not one.
+ */
+export const exportReminderWords = (daysSinceExport: number, runsSinceExport: number): string => {
+  const overdue = [
+    ...(daysSinceExport >= EXPORT_REMINDER_DAYS ? [`${formatNumber(daysSinceExport)} days`] : []),
+    ...(runsSinceExport >= EXPORT_REMINDER_RUNS ? [`${formatNumber(runsSinceExport)} runs`] : []),
+  ];
+  return `${overdue.length === 0 ? '' : `No export for ${overdue.join(' and ')}. `}The only copy of this save is on this phone.`;
 };
 
 /** The line a screen shows the first time it opens (GDD 8.4). There is no tutorial sequence. */

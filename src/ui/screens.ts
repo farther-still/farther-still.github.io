@@ -8,7 +8,7 @@ import { daysSinceExport, exportReminderDue } from '../save';
 import { button, el, line, section } from './dom';
 import { hintLine, openPrefight } from './fight';
 import { formatChance, formatNumber, formatPercent } from './format';
-import { REJECTIONS, STAT_NAME, derivedHelp, statHelp, tagList } from './labels';
+import { REJECTIONS, STAT_NAME, derivedHelp, exportReminderWords, statHelp, tagList } from './labels';
 import { MapView } from './mapview';
 import { openSalvage } from './salvage';
 import type { ScreenName, Session, SpendAmount } from './session';
@@ -26,15 +26,29 @@ export const noticeList = (session: Session): HTMLElement | null => {
   );
 };
 
+/** The reminder to export (ARCHITECTURE 7.5). It never blocks play, and "Later" puts it off until the app is next started (D-33). */
 const exportReminder = (session: Session): HTMLElement | null => {
-  const { controller } = session;
+  const { controller, shell, view } = session;
   const runs = controller.game.profile.counters.runsStarted;
-  if (!exportReminderDue(controller.app, runs, Date.now())) return null;
+  const now = Date.now();
+  if (view.exportReminderPutOff || !exportReminderDue(controller.app, runs, now)) return null;
   return el(
     'div',
     { class: 'notice' },
-    el('p', { text: `No export for ${daysSinceExport(controller.app, Date.now())} days and ${runs - controller.app.exportTracking.runsAtLastExport} runs. The only copy of this save is on this phone.` }),
-    button('Export now', () => void openSaveExport(session), { class: 'small' }),
+    el('p', { text: exportReminderWords(daysSinceExport(controller.app, now), runs - controller.app.exportTracking.runsAtLastExport) }),
+    el(
+      'div',
+      { class: 'row' },
+      button('Export now', () => void openSaveExport(session), { class: 'small' }),
+      button(
+        'Later',
+        () => {
+          view.exportReminderPutOff = true;
+          shell.rerender();
+        },
+        { class: 'small' },
+      ),
+    ),
   );
 };
 
@@ -63,7 +77,7 @@ export class MapScreen {
   }
 
   update(): void {
-    const { controller, content, shell, view } = this.session;
+    const { controller, content, shell, view, zoom } = this.session;
     const state = controller.game;
     const energy = remainingEnergy(state, content);
     const chip = (label: string, value: string): HTMLElement => el('span', { class: 'chip' }, el('span', { class: 'label', text: label }), el('span', { class: 'value', text: value }));
@@ -84,7 +98,13 @@ export class MapScreen {
             el('p', {
               text: `The run is spent. Still unused: ${formatNumber(state.run.gold)} gold${state.run.salvageUsed ? '' : ', and the Salvage attempt'}.`,
             }),
-            button('New run…', () => shell.openSheet((close) => newRunSheet(this.session, close)), { class: 'small' }),
+            el(
+              'div',
+              { class: 'row' },
+              button('New run…', () => shell.openSheet((close) => newRunSheet(this.session, close)), { class: 'small' }),
+              // Salvage needs no walk back to its site (DV-9), so the attempt is offered here, where the run ends.
+              state.run.salvageUsed ? null : button('Salvage…', () => openSalvage(this.session), { class: 'small' }),
+            ),
           )
         : null;
     const above = [
@@ -102,6 +122,15 @@ export class MapScreen {
         button(loadout.name === '' ? String(index + 1) : loadout.name, () => void controller.dispatch({ type: 'SwitchLoadout', index }), {
           class: index === state.profile.activeLoadout ? 'small current' : 'small',
         }),
+      ),
+      // The label says what a tap will do. The map is drawn again at once; a walk in hand carries on.
+      button(
+        zoom.level === 'near' ? 'Zoom out' : 'Zoom in',
+        () => {
+          zoom.toggle();
+          shell.rerender();
+        },
+        { class: 'small end' },
       ),
     );
     this.view.update();
@@ -324,6 +353,8 @@ export const runScreen = (session: Session): HTMLElement => {
       line('Wins and losses', `${formatNumber(run.tallies.wins)} and ${formatNumber(run.tallies.losses)}`),
       line('Gold', formatNumber(run.gold)),
       line('Salvage', run.salvageUsed ? 'Used' : 'Not used yet'),
+      // The same sheet a Salvage site on the map opens, from wherever the hero stands (GDD 7.4, DV-9).
+      button('Salvage…', () => openSalvage(session), { disabled: run.salvageUsed }),
       button('New run…', () => shell.openSheet((close) => newRunSheet(session, close)), { class: 'primary' }),
     ),
     section(

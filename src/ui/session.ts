@@ -2,7 +2,7 @@
 
 import type { Content, ItemId, SlotId, StatKey } from '../engine';
 import type { GameText } from '../content';
-import type { Diagnostics, PersistStatus, UpdateController } from '../platform';
+import type { Diagnostics, PersistStatus, ScreenReading, UpdateController } from '../platform';
 import type { BuildInfo, LocalBackend } from '../save';
 import type { GameController } from './controller';
 import type { SelfTestResult } from './selftest';
@@ -66,6 +66,44 @@ export class Notices {
   }
 }
 
+const ZOOM_KEY = 'mapZoom';
+
+/** How much of the map is in view: near, or far to see and tap farther (GDD 8.3, D-32). */
+export type ZoomLevel = 'near' | 'far';
+
+/**
+ * The map's zoom level. It is a fact about this screen, not about the game, so it is kept in the `device` store
+ * and in no save. Anything but a stored "far" opens near, and so does a store that cannot be read.
+ */
+export class MapZoom {
+  private current: ZoomLevel = 'near';
+
+  constructor(
+    private readonly backend: LocalBackend,
+    private readonly log: (kind: string, message: string) => void,
+  ) {}
+
+  get level(): ZoomLevel {
+    return this.current;
+  }
+
+  async restore(): Promise<void> {
+    try {
+      if ((await this.backend.getDevice(ZOOM_KEY)) === 'far') this.current = 'far';
+    } catch (error) {
+      this.log('device', `could not read the map zoom: ${String(error)}`);
+    }
+  }
+
+  /** Switches at once. The choice is then stored; if that fails the map still shows what was asked for. */
+  toggle(): void {
+    this.current = this.current === 'near' ? 'far' : 'near';
+    this.backend.setDevice(ZOOM_KEY, this.current).catch((error: unknown) => {
+      this.log('device', `could not store the map zoom: ${String(error)}`);
+    });
+  }
+}
+
 /** The tab bar's screens (GDD 8.1), and Settings, which is reached from the Run menu. */
 export type ScreenName = 'map' | 'hero' | 'gear' | 'items' | 'bestiary' | 'run' | 'settings';
 
@@ -94,6 +132,8 @@ export type ViewState = {
   items: { filter: ItemFilter };
   /** Items gained since the Items or Gear screen was last opened, for the status strip's badge. */
   unseenItems: ItemId[];
+  /** True once "Later" has been tapped on the export reminder. It is back the next time the app is started (D-33). */
+  exportReminderPutOff: boolean;
 };
 
 export type Platform = {
@@ -104,8 +144,11 @@ export type Platform = {
   updates: UpdateController;
   diagnostics: Diagnostics;
   notices: Notices;
+  zoom: MapZoom;
   persist: { status: PersistStatus | 'asking' };
   standalone: boolean;
+  /** Refreshed in place on a resize, so a screen drawn later shows the latest reading. */
+  screen: { reading: ScreenReading };
 };
 
 export type Session = Platform & {
@@ -120,4 +163,5 @@ export const newViewState = (): ViewState => ({
   gear: { open: null },
   items: { filter: 'all' },
   unseenItems: [],
+  exportReminderPutOff: false,
 });

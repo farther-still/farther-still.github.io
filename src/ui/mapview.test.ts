@@ -2,7 +2,7 @@
 // steers. A tap lands on the wrong tile if any of it is off by one. Then the two controls themselves (GDD 8.3),
 // driven by pointer events on a stand-in canvas in the sample world.
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeCanvas } from '../../tests/fake-dom';
 import type { FakePoint } from '../../tests/fake-dom';
 import { BUILD, CONTENT, FIXED_NOW, dump, freshIndexedDb, game, payload } from '../../tests/helpers';
@@ -10,7 +10,8 @@ import type { DoorDef, GameState, Point } from '../engine';
 import { LocalBackend, SaveWriter, cursorFor } from '../save';
 import type { AppState, SlotRecord } from '../save';
 import { GameController } from './controller';
-import { COLUMNS, MapView, pointOfTile, steerDirection, tileAtPoint, viewportFor } from './mapview';
+import { COLUMNS, MapView, captionCentre, pointOfTile, steerDirection, tileAtPoint, viewportFor } from './mapview';
+import { MapZoom } from './session';
 import type { Session } from './session';
 
 // A phone-sized canvas and a map larger than it both ways: 15 by 34 tiles of 44 points is 660 by 1,496.
@@ -20,15 +21,56 @@ const TALL = { width: 15, height: 34 };
 
 describe('viewportFor', () => {
   it('fits nine tiles across the canvas, which on a phone makes a tile 44 points', () => {
-    expect(COLUMNS).toBe(9);
+    expect(COLUMNS.near).toBe(9);
     expect(viewportFor(WIDTH, HEIGHT, TALL, { x: 7, y: 17 }).tile).toBe(44);
     expect(viewportFor(396, 528, TALL, { x: 7, y: 17 }).tile).toBe(44);
     expect(viewportFor(820, 1100, TALL, { x: 7, y: 17 }).tile).toBe(91);
+    // Near is what it is given when it is told nothing.
+    expect(viewportFor(WIDTH, HEIGHT, TALL, { x: 7, y: 17 }, COLUMNS.near)).toEqual(viewportFor(WIDTH, HEIGHT, TALL, { x: 7, y: 17 }));
+  });
+
+  it('fits fourteen tiles across at far zoom, which on a phone makes a tile 28 points', () => {
+    expect(COLUMNS.far).toBe(14);
+    expect(viewportFor(WIDTH, HEIGHT, TALL, { x: 7, y: 17 }, COLUMNS.far).tile).toBe(28);
+    expect(viewportFor(396, 528, TALL, { x: 7, y: 17 }, COLUMNS.far).tile).toBe(28);
+    expect(viewportFor(820, 1100, TALL, { x: 7, y: 17 }, COLUMNS.far).tile).toBe(58);
   });
 
   it('never makes a tile smaller than 24 points, however narrow the canvas', () => {
     expect(viewportFor(100, 300, TALL, { x: 7, y: 17 }).tile).toBe(24);
     expect(viewportFor(0, 0, TALL, { x: 7, y: 17 }).tile).toBe(24);
+    // 320 points across fourteen tiles would be 22 each.
+    expect(viewportFor(320, 500, TALL, { x: 7, y: 17 }, COLUMNS.far).tile).toBe(24);
+    expect(viewportFor(0, 0, TALL, { x: 7, y: 17 }, COLUMNS.far).tile).toBe(24);
+  });
+
+  it('at far zoom still centres the focus tile, stops at each edge of the map and keeps the hero wholly in view', () => {
+    const far = COLUMNS.far;
+    const focus = { x: 7, y: 17 };
+    const view = viewportFor(WIDTH, HEIGHT, TALL, focus, far);
+    expect(pointOfTile(view, focus.x, focus.y)).toEqual({ x: WIDTH / 2, y: HEIGHT / 2 });
+    // 15 tiles of 28 are 420 points, 18 more than the canvas: the camera has that much to move across.
+    const span = { x: TALL.width * 28, y: TALL.height * 28 };
+    expect(viewportFor(WIDTH, HEIGHT, TALL, { x: 0, y: 0 }, far)).toMatchObject({ originX: 0, originY: 0 });
+    expect(viewportFor(WIDTH, HEIGHT, TALL, { x: 14, y: 33 }, far)).toMatchObject({ originX: WIDTH - span.x, originY: HEIGHT - span.y });
+    for (let y = 0; y < TALL.height; y += 1) {
+      for (let x = 0; x < TALL.width; x += 1) {
+        const at = viewportFor(WIDTH, HEIGHT, TALL, { x, y }, far);
+        expect(at.originX, `${x},${y}`).toBeLessThanOrEqual(0);
+        expect(at.originX + span.x, `${x},${y}`).toBeGreaterThanOrEqual(WIDTH);
+        expect(at.originY, `${x},${y}`).toBeLessThanOrEqual(0);
+        expect(at.originY + span.y, `${x},${y}`).toBeGreaterThanOrEqual(HEIGHT);
+        const centre = pointOfTile(at, x, y);
+        expect(centre.x - 14, `${x},${y}`).toBeGreaterThanOrEqual(0);
+        expect(centre.x + 14, `${x},${y}`).toBeLessThanOrEqual(WIDTH);
+        expect(centre.y - 14, `${x},${y}`).toBeGreaterThanOrEqual(0);
+        expect(centre.y + 14, `${x},${y}`).toBeLessThanOrEqual(HEIGHT);
+      }
+    }
+    // A zone that fits the canvas at far zoom is centred on it and does not move with the hero.
+    const small = viewportFor(396, 528, { width: 9, height: 10 }, { x: 2, y: 2 }, far);
+    expect(small).toMatchObject({ tile: 28, originX: 72, originY: 124 });
+    expect(viewportFor(396, 528, { width: 9, height: 10 }, { x: 7, y: 8 }, far)).toEqual(small);
   });
 
   it('puts the centre of the focus tile at the centre of the canvas, away from the edges', () => {
@@ -109,6 +151,10 @@ describe('tileAtPoint and pointOfTile', () => {
     viewportFor(WIDTH, HEIGHT, TALL, { x: 6.4, y: 31.7 }),
     viewportFor(396, 528, { width: 5, height: 4 }, { x: 1, y: 1 }),
     viewportFor(100, 300, TALL, { x: 3, y: 9 }),
+    // The same at far zoom: mid-map, part-way between tiles near an edge, and a zone smaller than the canvas.
+    viewportFor(WIDTH, HEIGHT, TALL, { x: 7, y: 17 }, COLUMNS.far),
+    viewportFor(WIDTH, HEIGHT, TALL, { x: 6.4, y: 31.7 }, COLUMNS.far),
+    viewportFor(396, 528, { width: 9, height: 10 }, { x: 2, y: 2 }, COLUMNS.far),
   ];
 
   it('are inverses: the centre of every tile is in that tile', () => {
@@ -153,6 +199,84 @@ describe('tileAtPoint and pointOfTile', () => {
     expect(tileAtPoint(view, 87, 175)).toEqual({ x: -1, y: -1 });
     expect(tileAtPoint(view, 88, 176)).toEqual({ x: 0, y: 0 });
     expect(tileAtPoint(view, 88 + 5 * 44, 176 + 4 * 44)).toEqual({ x: 5, y: 4 });
+  });
+});
+
+describe('captionCentre', () => {
+  // A phone-wide canvas, 44-point tiles, and a caption 70 points wide: wider than its tile.
+  const TILE = 44;
+  const WORDS_WIDE = 70;
+  const place = (tileCentre: number, textWidth = WORDS_WIDE): number => captionCentre(tileCentre, textWidth, TILE, WIDTH);
+
+  it('is the centre of the tile wherever the words fit', () => {
+    expect(place(200)).toBe(200);
+    expect(place(38)).toBe(38);
+    expect(place(364)).toBe(364);
+    // Words no wider than the tile fit on the outermost column as they are.
+    expect(place(22, 28)).toBe(22);
+    expect(place(380, 28)).toBe(380);
+  });
+
+  it('pulls the words in, three points clear of the side, when their tile is the outermost column', () => {
+    // The last column of a 402-point canvas is 358 to 402; the first is 0 to 44.
+    expect(place(380)).toBe(WIDTH - WORDS_WIDE / 2 - 3);
+    expect(place(22)).toBe(WORDS_WIDE / 2 + 3);
+    expect(place(380) + WORDS_WIDE / 2).toBeLessThanOrEqual(WIDTH);
+    expect(place(22) - WORDS_WIDE / 2).toBeGreaterThanOrEqual(0);
+  });
+
+  it('lets go in step as the tile slides off the side, and leaves a tile that has gone alone', () => {
+    // Half the tile is off the right side: half the pull.
+    expect(place(402)).toBe(402 + (364 - 402) / 2);
+    expect(place(0)).toBe(0 + (38 - 0) / 2);
+    // Wholly off, and well beyond.
+    expect(place(424)).toBe(424);
+    expect(place(500)).toBe(500);
+    expect(place(-22)).toBe(-22);
+    expect(place(-300)).toBe(-300);
+  });
+
+  it('never jumps as the camera moves: a point of travel moves the words three points at most', () => {
+    for (let centre = -60; centre < WIDTH + 60; centre += 1) {
+      expect(Math.abs(place(centre + 1) - place(centre)), `at ${centre}`).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it('keeps the words wholly on the canvas for as long as their tile is wholly on it', () => {
+    for (let centre = TILE / 2; centre <= WIDTH - TILE / 2; centre += 1) {
+      expect(place(centre) - WORDS_WIDE / 2, `at ${centre}`).toBeGreaterThanOrEqual(0);
+      expect(place(centre) + WORDS_WIDE / 2, `at ${centre}`).toBeLessThanOrEqual(WIDTH);
+    }
+  });
+
+  it('leaves words too wide for the canvas on their tile, since no place would show them whole', () => {
+    expect(captionCentre(30, 400, TILE, WIDTH)).toBe(30);
+    expect(captionCentre(30, 397, TILE, WIDTH)).toBe(30);
+  });
+
+  it('does the same for the 28-point tile of far zoom, where the words are wider against their tile', () => {
+    // At far zoom a caption is at its smallest letters, so the same words are about two tiles wide.
+    const FAR_TILE = 28;
+    const WIDE = 56;
+    const far = (tileCentre: number): number => captionCentre(tileCentre, WIDE, FAR_TILE, WIDTH);
+    expect(far(200)).toBe(200);
+    // The outermost columns, 0 to 28 and 374 to 402: pulled in, three points clear.
+    expect(far(14)).toBe(WIDE / 2 + 3);
+    expect(far(388)).toBe(WIDTH - WIDE / 2 - 3);
+    // Half off the side is half the pull; wholly off is none.
+    expect(far(0)).toBe((WIDE / 2 + 3) / 2);
+    expect(far(-14)).toBe(-14);
+    expect(far(416)).toBe(416);
+    for (let centre = FAR_TILE / 2; centre <= WIDTH - FAR_TILE / 2; centre += 1) {
+      expect(far(centre) - WIDE / 2, `at ${centre}`).toBeGreaterThanOrEqual(0);
+      expect(far(centre) + WIDE / 2, `at ${centre}`).toBeLessThanOrEqual(WIDTH);
+    }
+    // No jump as the tile slides off: the words move with the camera, never against it and never by a leap.
+    for (let centre = -40; centre < WIDTH + 40; centre += 1) {
+      const moved = far(centre + 1) - far(centre);
+      expect(moved, `at ${centre}`).toBeGreaterThanOrEqual(0);
+      expect(moved, `at ${centre}`).toBeLessThanOrEqual(3);
+    }
   });
 });
 
@@ -252,6 +376,8 @@ describe('MapView', () => {
     controller: GameController;
     canvas: FakeCanvas;
     view: MapView;
+    /** Starts near. A test that zooms tells the map, as the zoom button's redraw does. */
+    zoom: MapZoom;
     asked: { enemies: string[]; sites: number; doors: DoorDef[]; toasts: string[] };
     /** Set `open` to stand in for a sheet the player has opened over the map. */
     sheet: { open: boolean };
@@ -262,18 +388,22 @@ describe('MapView', () => {
 
   const at = (x: number, y: number): GameState['run']['position'] => ({ zone: 'z01', x, y });
 
+  /** The words a drawing asks for. The sample world has no strings file, so a place is called by its key. */
+  const WORDS = { line: () => '', place: (key: string) => key, glyph: () => '?' };
+
   /** A map on screen over the sample game, with both controls on unless `settings` says otherwise. */
-  const mount = (state: GameState = game(), settings: Partial<AppState['settings']> = {}): Mounted => {
+  const mount = (state: GameState = game(), settings: Partial<AppState['settings']> = {}, box: typeof BOX = BOX): Mounted => {
     const base = payload(state);
     const app: AppState = { ...base.app, settings: { ...base.app.settings, tapToMove: true, dragToSteer: true, ...settings } };
     const writer = new SaveWriter({ store: backend, build: BUILD, content: CONTENT, now: () => FIXED_NOW, log: () => undefined }, cursorFor([]), null);
     const controller = new GameController({ content: CONTENT, writer, build: BUILD, randomSeed: () => 777, now: () => FIXED_NOW }, { game: base.game, app });
     const asked: Mounted['asked'] = { enemies: [], sites: 0, doors: [], toasts: [] };
-    // The map uses the content, the controller and the toast, and nothing else of the session unless it draws.
+    // The map uses the content, the controller, the zoom and the toast, and nothing else of the session unless it draws.
     const sheet = { open: false };
-    const session = { content: CONTENT, controller, shell: { toast: (words: string) => asked.toasts.push(words), sheetOpen: () => sheet.open } } as unknown as Session;
+    const zoom = new MapZoom(backend, () => undefined);
+    const session = { content: CONTENT, text: WORDS, controller, zoom, shell: { toast: (words: string) => asked.toasts.push(words), sheetOpen: () => sheet.open } } as unknown as Session;
     const canvas = new FakeCanvas('canvas');
-    canvas.box = { ...BOX };
+    canvas.box = { ...box };
     const hooks = {
       onEnemy: (spawn: string) => asked.enemies.push(spawn),
       onSite: () => {
@@ -287,7 +417,7 @@ describe('MapView', () => {
     controller.subscribe(() => {
       trail.push({ x: controller.game.run.position.x, y: controller.game.run.position.y });
     });
-    return { controller, canvas, view, asked, sheet, trail, shown: () => trail.length };
+    return { controller, canvas, view, zoom, asked, sheet, trail, shown: () => trail.length };
   };
 
   /** Where on the page the centre of a tile is. The whole zone fits the canvas, so the camera does not move. */
@@ -320,6 +450,101 @@ describe('MapView', () => {
       const before = index === 0 ? from : trail[index - 1];
       return before !== undefined && Math.max(Math.abs(to.x - before.x), Math.abs(to.y - before.y)) === 1;
     });
+
+  describe('a caption', () => {
+    type Drawn = { words: string; x: number; y: number; font: string };
+    /** In this stand-in every letter is 7 points wide. */
+    const LETTER = 7;
+
+    // The tests after these rely on there being nothing to draw on.
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    /** Something to draw on that keeps the words drawn, where their middle was put, and the letters they were drawn in. */
+    const drawingOn = (): Drawn[] => {
+      const drawn: Drawn[] = [];
+      let font = '';
+      const ctx = new Proxy(
+        {},
+        {
+          get: (_target, name) => {
+            if (name === 'measureText') return (words: string) => ({ width: words.length * LETTER });
+            if (name === 'fillText') return (words: string, x: number, y: number) => void drawn.push({ words, x, y, font });
+            return () => undefined;
+          },
+          set: (_target, name, value) => {
+            if (name === 'font') font = String(value);
+            return true;
+          },
+        },
+      );
+      vi.spyOn(FakeCanvas.prototype, 'getContext').mockReturnValue(ctx as never);
+      return drawn;
+    };
+
+    it('is kept on the canvas when its tile is the outermost one in view, and left on its tile anywhere else', () => {
+      if (ZONE === undefined) throw new Error('the sample world has no z01');
+      const drawn = drawingOn();
+      // A canvas 120 points wide makes a tile 24 points and the zone 216. With the hero on column 4 the camera
+      // puts column 2, the Salvage site's, hard against the left side: its tile is whole, and its caption, at 49
+      // points, is wider than the tile.
+      const narrow = { ...BOX, width: 120 };
+      const hero = { x: 4, y: 5 };
+      mount(game({ run: { position: at(hero.x, hero.y) } }), {}, narrow);
+      const view = viewportFor(narrow.width, narrow.height, ZONE.map, hero);
+      expect(view).toMatchObject({ tile: 24, originX: -48 });
+      const site = ZONE.map.salvageSites[0];
+      if (site === undefined) throw new Error('the sample world has no Salvage site');
+      expect(pointOfTile(view, site.x, site.y).x).toBe(12);
+
+      const salvage = drawn.find((entry) => entry.words === 'Salvage');
+      if (salvage === undefined) throw new Error(`no Salvage caption was drawn among: ${drawn.map((entry) => entry.words).join(' | ')}`);
+      const half = ('Salvage'.length * LETTER) / 2;
+      expect(salvage.x - half).toBeGreaterThanOrEqual(0);
+      expect(salvage.x + half).toBeLessThanOrEqual(narrow.width);
+      // Pulled in by no more than it needs: three points clear of the side.
+      expect(salvage.x).toBe(half + 3);
+
+      // An enemy two columns in keeps its caption on its own tile.
+      const spawn = CONTENT.spawns['s001'];
+      if (spawn === undefined) throw new Error('the sample world has no s001');
+      const level = drawn.filter((entry) => entry.words.startsWith('Lv ')).map((entry) => entry.x);
+      expect(level).toContain(pointOfTile(view, spawn.x, spawn.y).x);
+    });
+
+    it('follows its tile to the far zoom at once, in letters that stop shrinking at 10 points', () => {
+      if (ZONE === undefined) throw new Error('the sample world has no z01');
+      const site = ZONE.map.salvageSites[0];
+      const spawn = CONTENT.spawns['s001'];
+      if (site === undefined || spawn === undefined) throw new Error('the sample world has no Salvage site or no s001');
+      const drawn = drawingOn();
+      const mounted = mount();
+      const last = (words: string): Drawn => {
+        const found = drawn.filter((entry) => entry.words === words).at(-1);
+        if (found === undefined) throw new Error(`no ${words} caption was drawn`);
+        return found;
+      };
+
+      // Near: a 44-point tile, and letters a little over a quarter of it.
+      const near = viewportFor(BOX.width, BOX.height, ZONE.map, { x: 2, y: 2 }, COLUMNS.near);
+      expect(last('Salvage')).toMatchObject({ x: pointOfTile(near, site.x, site.y).x, y: pointOfTile(near, site.x, site.y).y + 44 * 0.4 });
+      expect(last('Salvage').font).toMatch(/^600 11px /);
+
+      // Far: the zone is nine tiles of 28 points, centred 72 points in from the side of the canvas.
+      drawn.length = 0;
+      mounted.zoom.toggle();
+      mounted.view.update();
+      const far = viewportFor(BOX.width, BOX.height, ZONE.map, { x: 2, y: 2 }, COLUMNS.far);
+      expect(far).toMatchObject({ tile: 28, originX: 72, originY: 124 });
+      expect(last('Salvage')).toMatchObject({ x: 72 + 2.5 * 28, y: 124 + 4.5 * 28 + 28 * 0.4 });
+      // A quarter of 28 points would be 7, too small to read: the letters stay at 10.
+      expect(last('Salvage').font).toMatch(/^600 10px /);
+      // The level under an enemy moves with its tile too. Its own glyph is drawn at the tile's centre, larger.
+      expect(last('Lv 2')).toMatchObject({ x: pointOfTile(far, spawn.x, spawn.y).x, font: last('Salvage').font });
+      expect(drawn.find((entry) => entry.words === '?' && entry.x === pointOfTile(far, spawn.x, spawn.y).x)?.font).toMatch(/^17px /);
+    });
+  });
 
   const where = (mounted: Mounted): Point => ({ x: mounted.controller.game.run.position.x, y: mounted.controller.game.run.position.y });
   const storedGame = async (): Promise<GameState | undefined> => ((await dump(backend)).slots['hot'] as SlotRecord | undefined)?.payload.game;
@@ -492,6 +717,119 @@ describe('MapView', () => {
       await walked();
       expect(where(mounted)).toEqual({ x: 2, y: 2 });
       expect(mounted.asked.enemies).toEqual([]);
+    });
+  });
+
+  // The far zoom (GDD 8.3, D-32): fourteen tiles across, so on this canvas a tile is 28 points and the whole zone,
+  // 252 points by 280, sits in the middle of it, 72 points in and 124 down.
+  describe('at far zoom', () => {
+    const zoomOut = (mounted: Mounted): void => {
+      mounted.zoom.toggle();
+      mounted.view.update();
+    };
+
+    /** Where on the page a tile is at far zoom, with the camera on `hero`, on a canvas of this size. */
+    const farPageOf = (tile: Point, hero: Point = { x: 0, y: 0 }, box: typeof BOX = BOX): FakePoint => {
+      if (ZONE === undefined) throw new Error('the sample world has no z01');
+      const centre = pointOfTile(viewportFor(box.width, box.height, ZONE.map, hero, COLUMNS.far), tile.x, tile.y);
+      return { clientX: box.left + centre.x, clientY: box.top + centre.y };
+    };
+
+    const tapAt = (mounted: Mounted, point: FakePoint): void => {
+      mounted.canvas.fire('pointerdown', point);
+      mounted.canvas.fire('pointerup', point);
+    };
+
+    it('a tap walks to the tile under the finger, which is not the tile that point was on before', async () => {
+      const mounted = mount();
+      zoomOut(mounted);
+      // Tile 1,6 at far zoom, worked out by hand. At near zoom the same point is on tile 2,5.
+      const point = { clientX: BOX.left + 72 + 1 * 28 + 14, clientY: BOX.top + 124 + 6 * 28 + 14 };
+      expect(point).toEqual(farPageOf({ x: 1, y: 6 }));
+      tapAt(mounted, point);
+      await walked();
+      expect(where(mounted)).toEqual({ x: 1, y: 6 });
+      expect(stepByStep({ x: 2, y: 2 }, mounted.trail)).toBe(true);
+
+      // Back at near zoom the same point is the run start's tile again.
+      zoomOut(mounted);
+      tapAt(mounted, point);
+      await walked();
+      expect(where(mounted)).toEqual({ x: 2, y: 5 });
+    });
+
+    it('a tap on an enemy, on the Salvage site and on a wall each do what they do at near zoom', async () => {
+      const mounted = mount(game({ run: { position: at(1, 6) } }));
+      zoomOut(mounted);
+      tapAt(mounted, farPageOf({ x: 3, y: 3 }));
+      await walked();
+      const hero = where(mounted);
+      expect(Math.max(Math.abs(hero.x - 3), Math.abs(hero.y - 3))).toBe(1);
+      expect(mounted.asked.enemies).toEqual(['s001']);
+
+      tapAt(mounted, farPageOf({ x: 2, y: 4 }));
+      await walked();
+      expect(where(mounted)).toEqual({ x: 2, y: 4 });
+      expect(mounted.asked.sites).toBe(1);
+
+      tapAt(mounted, farPageOf({ x: 4, y: 4 }));
+      // Outside the zone, on the part of the canvas the smaller map no longer covers.
+      tapAt(mounted, { clientX: BOX.left + 20, clientY: BOX.top + 20 });
+      await walked();
+      expect(where(mounted)).toEqual({ x: 2, y: 4 });
+      expect(mounted.asked.toasts).toEqual([]);
+    });
+
+    it('the camera follows the hero by the smaller tile, so the next tap still lands under the finger', async () => {
+      // A canvas 140 points high shows five of the zone's ten rows at far zoom, so the camera has to move.
+      const short = { ...BOX, height: 140 };
+      const mounted = mount(game(), {}, short);
+      zoomOut(mounted);
+      tapAt(mounted, farPageOf({ x: 1, y: 3 }, { x: 2, y: 2 }, short));
+      await walked();
+      expect(where(mounted)).toEqual({ x: 1, y: 3 });
+      // From there row 5 has come into view, 28 points higher on the canvas than it would have been.
+      const next = farPageOf({ x: 2, y: 5 }, { x: 1, y: 3 }, short);
+      expect(next.clientY - short.top).toBe(-28 + 5 * 28 + 14);
+      tapAt(mounted, next);
+      await walked();
+      expect(where(mounted)).toEqual({ x: 2, y: 5 });
+    });
+
+    it('steering works as at near zoom: the finger has to move the same 14 points, not half a tile', async () => {
+      const mounted = mount(game({ run: { position: at(2, 5) } }));
+      zoomOut(mounted);
+      const from = farPageOf({ x: 2, y: 5 });
+      mounted.canvas.fire('pointerdown', from);
+      // Thirteen points is still a tap in the making, though it is nearly half of a 28-point tile.
+      mounted.canvas.fire('pointermove', { clientX: from.clientX, clientY: from.clientY - 13 });
+      await walked();
+      expect(where(mounted)).toEqual({ x: 2, y: 5 });
+      mounted.canvas.fire('pointermove', { clientX: from.clientX, clientY: from.clientY - 14 });
+      await walked();
+      expect(where(mounted)).toEqual({ x: 2, y: 1 });
+    });
+
+    it('a change of zoom while the hero is walking leaves the walk to finish where it was going', async () => {
+      const mounted = mount(game({ run: { position: at(1, 6) } }));
+      // As in the app, the map is told of every change to the game.
+      mounted.controller.subscribe(() => mounted.view.update());
+      tap(mounted, { x: 3, y: 1 });
+      // The walk has begun and not one of its four steps has landed yet.
+      expect(mounted.shown()).toBe(0);
+      zoomOut(mounted);
+      await walked();
+      const hero = where(mounted);
+      expect(Math.max(Math.abs(hero.x - 3), Math.abs(hero.y - 1))).toBe(1);
+      expect(mounted.shown()).toBe(4);
+      expect(stepByStep({ x: 1, y: 6 }, mounted.trail)).toBe(true);
+      // It still ends by asking about the fight it was for.
+      expect(mounted.asked.enemies).toEqual(['s002']);
+      // And the other way: a walk begun at far zoom, with the map back at near before it has taken a step.
+      tapAt(mounted, farPageOf({ x: 1, y: 6 }));
+      zoomOut(mounted);
+      await walked();
+      expect(where(mounted)).toEqual({ x: 1, y: 6 });
     });
   });
 

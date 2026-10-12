@@ -5,19 +5,26 @@
 
 import { WALL_TILES, canStep, deriveHero, enemyAtSpawn, findPath, tileKey } from '../engine';
 import type { DoorDef, GameEvent, Point, Position, SpawnId, ZoneMap } from '../engine';
-import type { Session } from './session';
+import type { Session, ZoomLevel } from './session';
 
-/** Tiles across the screen. On a 402-point-wide phone that makes a tile 44 points, the smallest allowed tap target. */
-export const COLUMNS = 9;
+/**
+ * Tiles across the screen at each zoom level. On a 402-point-wide phone, near makes a tile 44 points, the smallest
+ * allowed tap target. Far makes it 28: the player gives up the full-size target to see and tap farther, on the map
+ * alone, where a tap only walks (GDD 8.3, D-32).
+ */
+export const COLUMNS: Record<ZoomLevel, number> = { near: 9, far: 14 };
 const MIN_TILE = 24;
 /** A press that moves farther than this, in points, is steering; anything less is a tap. */
 const DRAG_THRESHOLD = 14;
 
 export type Viewport = { width: number; height: number; tile: number; originX: number; originY: number };
 
-/** Where the map sits on the canvas when the camera is centred on `focus` (in tiles; fractions while walking). */
-export const viewportFor = (width: number, height: number, map: Pick<ZoneMap, 'width' | 'height'>, focus: Point): Viewport => {
-  const tile = Math.max(MIN_TILE, Math.floor(width / COLUMNS));
+/**
+ * Where the map sits on the canvas when the camera is centred on `focus` (in tiles; fractions while walking),
+ * with `columns` tiles across it.
+ */
+export const viewportFor = (width: number, height: number, map: Pick<ZoneMap, 'width' | 'height'>, focus: Point, columns: number = COLUMNS.near): Viewport => {
+  const tile = Math.max(MIN_TILE, Math.floor(width / columns));
   const along = (size: number, cells: number, at: number): number => {
     const span = cells * tile;
     if (span <= size) return Math.floor((size - span) / 2);
@@ -36,6 +43,23 @@ export const pointOfTile = (view: Viewport, x: number, y: number): Point => ({
   x: view.originX + (x + 0.5) * view.tile,
   y: view.originY + (y + 0.5) * view.tile,
 });
+
+/** A caption keeps this far, in points, from the side of the canvas. */
+const CAPTION_MARGIN = 3;
+
+/**
+ * Where the middle of a caption goes, across the canvas. On its tile's centre, unless the words would then run
+ * off a side: a caption is wider than its tile, so one on the outermost column would always be cut. It is pulled
+ * in by as much as it needs while its tile is wholly on the canvas, and by less and less as the tile slides off,
+ * so a caption never jumps and never outstays its tile.
+ */
+export const captionCentre = (tileCentre: number, textWidth: number, tile: number, width: number): number => {
+  const half = textWidth / 2;
+  if (half + CAPTION_MARGIN > width / 2) return tileCentre;
+  const kept = Math.min(Math.max(tileCentre, half + CAPTION_MARGIN), width - half - CAPTION_MARGIN);
+  const onCanvas = Math.min(width, tileCentre + tile / 2) - Math.max(0, tileCentre - tile / 2);
+  return tileCentre + (kept - tileCentre) * Math.min(1, Math.max(0, onCanvas / tile));
+};
 
 /** The eight directions, from a drag vector. Null while the finger is still inside the dead zone. */
 export const steerDirection = (dx: number, dy: number): { dx: number; dy: number } | null => {
@@ -158,11 +182,12 @@ export class MapView {
     return { width: this.canvas.clientWidth || 396, height: this.canvas.clientHeight || 528 };
   }
 
+  /** The one viewport that drawing and taps both go through, so a tap lands on the tile drawn under the finger at either zoom. */
   private view(): Viewport | null {
     const map = this.session.content.zones[this.shownZone]?.map;
     if (map === undefined) return null;
     const { width, height } = this.size();
-    return viewportFor(width, height, map, this.shown);
+    return viewportFor(width, height, map, this.shown, COLUMNS[this.session.zoom.level]);
   }
 
   private down(event: PointerLike): void {
@@ -452,12 +477,13 @@ export class MapView {
     const caption = (words: string, x: number, y: number, colour: string, above: boolean): void => {
       const at = pointOfTile(view, x, y);
       ctx.font = `600 ${Math.max(10, Math.round(tile * 0.26))}px system-ui, -apple-system, sans-serif`;
+      const at_x = captionCentre(at.x, ctx.measureText(words).width, tile, width);
       const at_y = at.y + (above ? -tile * 0.42 : tile * 0.4);
       ctx.lineWidth = 3;
       ctx.strokeStyle = 'rgba(10, 12, 16, 0.85)';
-      ctx.strokeText(words, at.x, at_y);
+      ctx.strokeText(words, at_x, at_y);
       ctx.fillStyle = colour;
-      ctx.fillText(words, at.x, at_y);
+      ctx.fillText(words, at_x, at_y);
     };
 
     for (const exit of map.exits) glyph('⇧', exit.x, exit.y, 0.6);

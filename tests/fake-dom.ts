@@ -132,7 +132,14 @@ export type FakeDom = {
   setVisibility: (state: 'visible' | 'hidden') => void;
   /** How many listeners `window` and `document` hold for an event. Two games would each have registered one. */
   listenerCount: (type: string) => number;
+  /** What the page is told about the screen it is on. Until a test says, nothing is: every number reads as 0. */
+  setScreen: (screen: FakeScreen) => void;
+  /** An attribute the app has set on the page's root element, where it leaves word for the style sheet. */
+  rootAttribute: (name: string) => string | undefined;
 };
+
+/** In points. The insets are what an element padded by the safe-area insets would report. */
+export type FakeScreen = { standalone: boolean; screenHeight: number; pageHeight: number; pageWidth: number; insetTop: number; insetBottom: number };
 
 export const installFakeDom = (): FakeDom => {
   const root = new FakeElement('div');
@@ -145,14 +152,16 @@ export const installFakeDom = (): FakeDom => {
   };
   let reloads = 0;
 
+  const html = new FakeElement('html');
   const page = {
     createElement: (tag: string) => (tag === 'canvas' ? new FakeCanvas(tag) : new FakeElement(tag)),
     addEventListener: listen,
     visibilityState: 'visible',
     body: new FakeElement('body'),
+    documentElement: html,
   };
   vi.stubGlobal('document', page);
-  vi.stubGlobal('window', {
+  const win: Record<string, unknown> = {
     addEventListener: listen,
     setTimeout: (run: () => void, ms: number) => setTimeout(run, ms),
     clearTimeout: (id: ReturnType<typeof setTimeout>) => clearTimeout(id),
@@ -163,7 +172,8 @@ export const installFakeDom = (): FakeDom => {
         reloads += 1;
       },
     },
-  });
+  };
+  vi.stubGlobal('window', win);
 
   const buttons = (): FakeElement[] => root.shown().filter((element) => element.tagName === 'button');
   const textBoxes = (): FakeElement[] =>
@@ -199,5 +209,13 @@ export const installFakeDom = (): FakeDom => {
       fire('visibilitychange');
     },
     listenerCount: (type) => (listeners.get(type) ?? []).length,
+    setScreen: (screen) => {
+      win['innerHeight'] = screen.pageHeight;
+      win['innerWidth'] = screen.pageWidth;
+      win['screen'] = { height: screen.screenHeight };
+      win['matchMedia'] = () => ({ matches: screen.standalone });
+      win['getComputedStyle'] = () => ({ paddingTop: `${screen.insetTop}px`, paddingBottom: `${screen.insetBottom}px` });
+    },
+    rootAttribute: (name) => html.attributes[name],
   };
 };

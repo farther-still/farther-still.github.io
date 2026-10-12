@@ -1112,11 +1112,26 @@ describe('Salvage (GDD 7.4)', () => {
     expect(rejection({ ...nextRun, run: { ...nextRun.run, gold: 500, strongestBeaten: 2 } }, { type: 'Salvage', boost: false })).toBeNull();
   });
 
-  it('must be used at a Salvage site', () => {
-    expect(rejection(ready({ position: NEAR }), { type: 'Salvage', boost: false })).toBe('not-at-site');
-    expect(rejection(ready({ position: at(2, 2) }), { type: 'Salvage', boost: false })).toBe('not-at-site');
-    expect(rejection(ready({ position: IN_Z2 }), { type: 'Salvage', boost: false })).toBe('not-at-site');
-    for (const position of [at(1, 3), at(2, 3), at(1, 4), at(2, 4), at(3, 4), at(1, 5), at(3, 5)]) expect(rejection(ready({ position }), { type: 'Salvage', boost: false })).toBeNull();
+  it('can be used from anywhere, and gives there exactly what it gives at a site (DV-9)', () => {
+    // On the site, beside it, across the room from it, and in a zone that has none.
+    const ON_SITE = at(2, 4);
+    const places = [ON_SITE, START, at(1, 3), at(3, 5), at(2, 2), NEAR, at(1, 6), IN_Z2];
+    // Seed 7 succeeds and seed 4 fails; a boosted attempt is paid for the same way wherever it is made.
+    for (const [seed, boost] of [[7, false], [4, false], [7, true]] as const) {
+      const profile = { bestiary: { e001: { timesBeaten: 1 } }, gems: 30 };
+      const atSite = accept(ready({ position: ON_SITE }, profile, seed), { type: 'Salvage', boost });
+      for (const position of places) {
+        const here = accept(ready({ position }, profile, seed), { type: 'Salvage', boost });
+        expect(here.events, `seed ${seed} at ${position.zone} ${position.x},${position.y}`).toEqual(atSite.events);
+        // The hero has not moved, and nothing else differs.
+        expect(here.state).toEqual({ ...atSite.state, run: { ...atSite.state.run, position } });
+      }
+    }
+    // Every other rule holds away from a site as it does on one.
+    expect(rejection(ready({ position: IN_Z2, salvageUsed: true }), { type: 'Salvage', boost: false })).toBe('salvage-used');
+    expect(rejection(ready({ position: IN_Z2, gold: 0 }), { type: 'Salvage', boost: false })).toBe('no-gold');
+    expect(rejection(ready({ position: IN_Z2, strongestBeaten: 1 }), { type: 'Salvage', boost: false })).toBe('empty-pool');
+    expect(rejection(ready({ position: IN_Z2 }), { type: 'Salvage', boost: true })).toBe('no-gems');
   });
 
   it('takes no gold and uses no attempt when the pool is empty', () => {

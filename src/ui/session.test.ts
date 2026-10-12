@@ -1,10 +1,10 @@
 // Notices waiting to be shown. They are kept in the device store, so one raised just before a reload is not
-// lost, and one that is already waiting is not said twice.
+// lost, and one that is already waiting is not said twice. The map's zoom level is kept there too.
 
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { freshIndexedDb } from '../../tests/helpers';
 import { LocalBackend } from '../save';
-import { Notices } from './session';
+import { MapZoom, Notices } from './session';
 
 let backend: LocalBackend;
 let logged: string[];
@@ -99,5 +99,80 @@ describe('Notices', () => {
     list.add('Fourth.');
     expect(list.list().map((notice) => notice.id)).toEqual([1, 3, 4]);
     expect(await stored()).toEqual(list.list());
+  });
+});
+
+// The map's zoom level (GDD 8.3, D-32): remembered on the device, in no save, and never a reason for the map
+// to fail to open or to change.
+describe('MapZoom', () => {
+  const zoom = (): MapZoom => new MapZoom(backend, (kind, message) => logged.push(`${kind}: ${message}`));
+
+  /** What the device store holds, once the write that follows a switch has landed. */
+  const remembered = async (): Promise<unknown> => {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    return backend.getDevice('mapZoom');
+  };
+
+  it('starts near, switches at once on each call, and stores each choice', async () => {
+    const map = zoom();
+    expect(map.level).toBe('near');
+    expect(await remembered()).toBeUndefined();
+    map.toggle();
+    expect(map.level).toBe('far');
+    expect(await remembered()).toBe('far');
+    map.toggle();
+    expect(map.level).toBe('near');
+    expect(await remembered()).toBe('near');
+    expect(logged).toEqual([]);
+  });
+
+  it('opens at the level an earlier launch chose', async () => {
+    zoom().toggle();
+    await remembered();
+    const next = zoom();
+    await next.restore();
+    expect(next.level).toBe('far');
+
+    next.toggle();
+    await remembered();
+    const third = zoom();
+    await third.restore();
+    expect(third.level).toBe('near');
+    expect(logged).toEqual([]);
+  });
+
+  it('opens near when the device store holds nothing, or anything it does not expect', async () => {
+    const fresh = zoom();
+    await fresh.restore();
+    expect(fresh.level).toBe('near');
+    for (const junk of ['FAR', 'out', '', 14, true, null, { level: 'far' }, ['far']]) {
+      await backend.setDevice('mapZoom', junk);
+      const map = zoom();
+      await map.restore();
+      expect(map.level, JSON.stringify(junk)).toBe('near');
+    }
+    expect(logged).toEqual([]);
+  });
+
+  it('opens near, and says so in the log, when the device store cannot be read', async () => {
+    await backend.setDevice('mapZoom', 'far');
+    vi.spyOn(backend, 'getDevice').mockRejectedValue(new Error('simulated: the store would not open'));
+    const map = zoom();
+    await map.restore();
+    expect(map.level).toBe('near');
+    expect(logged).toEqual(['device: could not read the map zoom: Error: simulated: the store would not open']);
+  });
+
+  it('still switches on screen when the choice cannot be stored, and says so in the log', async () => {
+    vi.spyOn(backend, 'setDevice').mockRejectedValue(new Error('simulated: the write was refused'));
+    const map = zoom();
+    map.toggle();
+    expect(map.level).toBe('far');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(map.level).toBe('far');
+    expect(logged).toEqual(['device: could not store the map zoom: Error: simulated: the write was refused']);
+    // The next switch is tried like any other.
+    map.toggle();
+    expect(map.level).toBe('near');
   });
 });
