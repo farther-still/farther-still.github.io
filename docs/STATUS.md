@@ -45,7 +45,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 | Boss-energy weapon | Not a separate mechanic. It is the same permanent-energy tool: a deliberately weak weapon that must be equipped when a boss dies; that boss then adds permanent starting energy once | [WEB] data + Michael's report (C16) |
 | Automation helper | Michael used it: a percentage split of new stat points across the five stats (C17). Unlock point "shortly after level 250" | split: Michael's turns; unlock level: [GPT] |
 | Summoning | Special enemies that appear when a condition is met at an NPC (for example carrying enough energy or gold) | [GPT]; out of v1 |
-| Allocatable stats | Five: Life, Damage, Defense, Dexterity, Luck. Each shows Base and Mult; final = Base × Mult | Michael's screenshots |
+| Allocatable stats | Five: Life, Damage, Defense, Dexterity, Luck. Each shows Base and Mult. Final = Base × Mult holds exactly for Life and Damage in all three stat screenshots; late-game Defense is 5–6× larger than Base × Mult, probably a separate multiplier layer [OPEN] | Michael's screenshots |
 | Spent stat points | Cannot be taken back within a run | Michael's turn (C26) |
 | Equipment layout | 1 weapon, 12 armor slots, 5 accessory slots, a 6th accessory slot unlockable late; up to 5 saved item sets with a quick selector on the map screen | screenshots + Michael's turns |
 | Pre-fight screen | Shows enemy name and level, a one-line win estimate, the energy cost, the enemy's special traits, its drops (unfound ones hidden), and a retreat button | Michael's screenshot (C30) |
@@ -133,13 +133,17 @@ From the developer data files; approximate. For Phase 1 curve design, not for co
 - 130 weapons and 539 armor/accessory rows; 113 items carry a gold price (shop stock), including tiered flat-stat accessories.
 - Player magnitudes seen in Michael's screenshots: level 1.8e10, stats up to about 6e14, enemy life up to about 3e18.
 - Screenshot cross-checks of the published formulas (inference from single data points):
-  - Defense: reduction = D ÷ (D + enemy damage) reproduces both displayed values (60% early, 11% at the final boss). The same shape applies to enemy defense against player damage ("18% defended").
+  - Defense, verified rather than inferred: reduction = D ÷ (D + E) in both directions. Using the two late bosses' damage and defense from the data files, it gives 22.0% and 78.1%, then 11.4% and 93.1%, against displayed values of 22%, 78%, 11% and 93%. The enemy's separate damage-reduction trait is not part of the "defended" figure.
   - Crit: Dexterity 1,575 showing 21% chance and 172% damage fits the published Dexterity rule exactly with a 10% base chance and a 150% base damage.
-  - Accuracy: accuracy about 1.74× (enemy level + 100) showed 97% to hit; a miss chance of 10% × ((level + 100) ÷ accuracy)² fits that one point.
+  - Accuracy: accuracy about 1.74× (enemy level + 100) showed 97% to hit; a miss chance of 10% × ((level + 100) ÷ accuracy)² fits that one point. In both late screenshots accuracy is exactly 1.75× Dexterity and evasion exactly 1.00× Dexterity, so item accuracy and evasion values look like percentage modifiers on a Dexterity-derived base [OPEN].
   - Evasion: evasion at 37× and 51× enemy level showed 51% and 56% to dodge, roughly +26 points per 10× above the published 10% point, under the 80% cap.
   - Stat points: bases at level 1.8e10 are consistent with roughly 5 stat points per level before per-level gear, with a Life point worth 3–4× a point of the other stats.
 - Michael's RH timeline from the chat dates (2026-09-06 to 2026-10-06): strongest enemy level reached about 42k by day 3, 450k by day 5, 3M by day 11, 36M by day 17, 1.3B by day 22, 4.4B by day 26, full completion on day 30. Roughly 10× in enemy level every 3–4 days, and about 1.2 zone sections, 15 enemies and 22 items per day.
 - The final boss's battle cost on screen (12) is one more than its energy value in the data (11), which is what led to the cost-and-payback model Michael confirmed in batch 1.
+
+## Starting a fresh session
+
+Phase 1 is meant to start in a new session (decided 2026-10-12). Read, in order: `CLAUDE.md`, this file, the Phase 1 section and hard rules of `docs/KICKOFF.md`, `reference/rh_notes.md`, `reference/rh_web_notes.md`, then `reference/_claude_phase0/README.md` and the two `data_*.txt` files beside it. That last folder is private and gitignored; it holds the evidence map for design pillars, what each of RH's screens shows, the stat-screenshot data, and the data-file digests. Do not re-read the transcripts or re-open the screenshots unless an exact quote or number is missing.
 
 ## Judgment calls
 
@@ -152,10 +156,11 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 - 2026-10-12: Read ChatGPT's side of the transcripts through the recap and targeted lookups rather than end to end; every claim there needs Michael's confirmation anyway.
 - 2026-10-12: This file is public, so it paraphrases the private recap and cites chat numbers instead of quoting it. The same will apply to the GDD unless Michael says otherwise.
 - 2026-10-12: Interview batches are posted as plain text so conflicts between sources can be shown side by side; answers can be given as "1a 2b …".
+- 2026-10-12: Added `reference/_claude_phase0/` (private, gitignored) as the second half of the handoff, because the evidence it holds uses RH names and Michael's private chat history and so cannot live in `docs/`. It is additive; nothing Michael put in `reference/` was changed.
 
 ## Handoff
 
 - **Done:** Step 0 committed. All of `reference/` read as described under "Reading coverage". Interview complete: 15 questions in 3 batches, all answered. Phase 0 gate report posted and its three questions answered.
 - **Worked:** Extracting only Michael's own turns from the transcripts gave the first-hand evidence in about 50 KB. His screenshots settled the pre-fight screen, the archaeology screen, and the stat screen layout. Running Python with `-I` against the data files in `reference/`.
 - **Failed:** Nothing. One trap to avoid: `cd` inside a Bash call moves the session's working directory, so use absolute paths for git.
-- **Next:** Wait for "approved". Then Phase 1: write `docs/GDD.md` from the tables in this file plus the reference material, and propose 5 original names. A fresh session can start from this file plus `docs/KICKOFF.md`; the screenshots and data files in `reference/` only need re-opening for exact numbers.
+- **Next:** Start Phase 1 in a fresh session using the reading order under "Starting a fresh session". Wait for "approved" first if it has not been given. Then Phase 1: write `docs/GDD.md` from the tables in this file plus the reference material, and propose 5 original names. A fresh session can start from this file plus `docs/KICKOFF.md`; the screenshots and data files in `reference/` only need re-opening for exact numbers.
