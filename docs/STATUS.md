@@ -4,7 +4,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Current phase
 
-**Phase 2 in progress.** Phase 1 was approved on 2026-10-12 with the reply "a, approved", where "a" is the DV-4 ruling (both movement controls at once). Phase 2 is `CLAUDE.md` expanded to under 8,000 characters plus `docs/ARCHITECTURE.md` with a module diagram. It ends at a ⛔ gate.
+**Phase 2 gate ⛔.** Phase 1 was approved on 2026-10-12 with the reply "a, approved", where "a" is the DV-4 ruling (both movement controls at once). Phase 2 is written: `CLAUDE.md` expanded to 7,919 characters and `docs/ARCHITECTURE.md` with a module diagram. The Phase 2 gate report was posted the same day with one question (A1). Waiting for the literal reply "approved"; answers, questions or silence are not approval. Do not start Phase 3a before it.
 
 **Spoiler rule for every session.** `docs/sealed/` holds zone themes and all content names. Michael does not open it. Never quote anything from it in chat, gate reports, commit messages or this file. Refer to zones as Z1–Z8, elements as E1–E3 and enemy types as T1–T4.
 
@@ -14,7 +14,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 - [ ] Before Phase 3a's first install: give Michael exact steps to create the free GitHub organization `farther-still` (he asked for this to be explained later), and settle the install address
 - [ ] Phase 3b gate: report what one zone cost to author, so the DV-6 condition can be judged on evidence
-- [ ] Phase 2: expand `CLAUDE.md` (<8,000 chars) + `docs/ARCHITECTURE.md` ⛔
+- [ ] Phase 2: wait for "approved" on the gate report; record the answer to A1 in `docs/ARCHITECTURE.md` section 13
 - [ ] Phase 3a: walking skeleton (PWA, save system, CI, Pages deploy) ⛔
 - [ ] Phase 3b: vertical slice ⛔
 - [ ] Phase 4: balance simulator ⛔
@@ -34,6 +34,39 @@ Re-read this file at the start of every session and every work cycle. Update it 
 - [x] Phase 1: gate questions answered (P1 a, P2 a, P3 a, P4 a, P5 d) and recorded in GDD section 13.4
 - [x] Phase 1: follow-ups answered (F1 c: 10–20 runs a day in early RH; F2: keep 8 zones) and recorded; deviations DV-1 to DV-8 explained again in chat
 - [x] Phase 1: DV-4 ruled (both controls at once) and Phase 1 approved by Michael, 2026-10-12
+- [x] Phase 2: `CLAUDE.md` expanded (7,919 characters) and `docs/ARCHITECTURE.md` written; content paths under `data/` sealed in `.gitattributes`
+- [x] Phase 2: script checks run; a separate verifier pass and a re-check run, and their findings fixed; gate report posted ⛔
+
+## Phase 2 working record
+
+### What Phase 2 settled
+
+- `CLAUDE.md` now carries the purpose, the ten hard rules, the spoiler rule, a folder map, commands, conventions, the save-change checklist, content rules, the enforcement map and the definition of done. `docs/ARCHITECTURE.md` is added to hard rule 6 as the structure document.
+- `docs/ARCHITECTURE.md` section 13 logs eleven architecture decisions (A-01 to A-11). Design decisions stay in the GDD.
+- The decisions Michael is most likely to care about: a save the app cannot use is quarantined and a recovery screen shown, never overwritten (A-06); an update is applied by a tap on the new-run sheet while the app is open, but takes over by itself after the app is fully closed, which no browser lets an app prevent (A-07); settings and export tracking travel inside the save (A-05); four tools beyond the kickoff's stack list (A-11).
+- The GDD gained what the architecture needed: two notes and one field in the reset ledger (2.5), the content-count check reading `data/content-spec.json` (7.9), and two screens plus a landscape panel (8.2, 8.3).
+- Nothing is built. Every check in the enforcement map is a specification for Phase 3a, except `.gitignore` and `.gitattributes`.
+
+### Gate question (posted 2026-10-12, not yet answered)
+
+| # | Question | Recommended default |
+|---|---|---|
+| A1 | Service worker: a Vite PWA plugin that supplies the list of files to cache while the worker's logic stays our own code, or a fully hand-written worker with no plugin? | The plugin |
+
+### Verifier pass (2026-10-12)
+
+A separate agent read both documents against the kickoff's stack and save spec, the old stub and the GDD. The first drafts failed six of nine checks. The serious findings were in the save paths: the load order could start fresh over a save it had rejected and then overwrite it; an import replaced the live game with no confirmation; the update flow claimed a behaviour a service worker cannot deliver; the write triggers contradicted each other; settings sat outside every save guarantee. It also found three hard rules loosened in the rewrite, a wrong fixture rule, and enforcement checks that would not have caught what they claimed. Both documents were rewritten.
+
+A re-check confirmed the eleven must-fix findings resolved apart from three sub-points, and raised ten further points (N1 to N10). The two that mattered were new save-safety gaps in the rewrite: a record that failed an invariant was kept on write but dropped on load, and routine quarantine copies could push out the only copy of a real save. All ten were fixed by the author afterwards and have not been re-verified.
+
+It could not check: whether any described check behaves as described, since nothing is built; anything about iOS or current tool versions, which it stated from memory; and the diagrams' rendering.
+
+### Carried forward to Phase 3a
+
+- First step: exact instructions for Michael to create the GitHub organization and the repo named for it, before anything is deployed. He asked for this to be explained when needed.
+- The open points at the end of `docs/ARCHITECTURE.md` section 13: generator and hash choice with test vectors, zod version, storage durability on the phone, file sharing from the installed app, database connection after backgrounding.
+- The kickoff's acceptance test "deploy a change and confirm it waits for update ready" holds while the app stays open or is resumed. After a force-quit the new version loads without asking. Michael was told this in the gate report.
+- Phase 3a's dummy save is version 1; Phase 3b's real one is version 2 with a migration.
 
 ## Phase 1 working record
 
@@ -98,6 +131,8 @@ A re-check by the same verifier then confirmed every must-fix finding resolved e
 The Phase 0 record below still tags the Auto-assign unlock level [GPT]; `reference/rh_web_notes.md` attributes it to the store's version history, so the GDD tags it [WEB].
 
 ### Carried forward to later phases
+
+The Phase 2 items below were picked up in `CLAUDE.md` and `docs/ARCHITECTURE.md` on 2026-10-12.
 
 - Phase 2 enforcement map: lint ban on `Math.pow`, `Math.exp`, the `Math.log` family and trigonometry in `src/engine/`; the content checks in GDD 7.9; a reference-name check that can run in CI without publishing the names (for example hashed names); `-diff` in `.gitattributes` for `data/` content files so code review does not spoil content.
 - Phase 3a: the on-device engine self-test in Settings (GDD 6.3); the install address, which follows from P1.
@@ -221,7 +256,7 @@ From the developer data files; approximate. For Phase 1 curve design, not for co
 
 ## Starting a fresh session
 
-For Phase 2, read in order: `CLAUDE.md`, this file, `docs/GDD.md`, then the Phase 2 section, stack and save spec of `docs/KICKOFF.md`. `docs/sealed/` is needed only when authoring content (Phase 3b on). `reference/` is needed only to check a claim about RH; start with `reference/_claude_phase0/README.md`, which is private and gitignored.
+For Phase 3a, read in order: `CLAUDE.md`, this file, `docs/ARCHITECTURE.md`, then the Phase 3a section, stack and save spec of `docs/KICKOFF.md`. `docs/GDD.md` sections 2.5, 6 and 8 are the parts 3a touches. `docs/sealed/` is needed only when authoring content (Phase 3b on). `reference/` is needed only to check a claim about RH; start with `reference/_claude_phase0/README.md`, which is private and gitignored.
 
 ## Judgment calls
 
@@ -243,11 +278,15 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 - 2026-10-12 (Phase 1): Design decisions made without asking are GDD D-01 to D-20, so they are not repeated here.
 - 2026-10-12 (Phase 1): Dropped the pre-fight "details" fold from the first draft. It went beyond the three clarity additions approved in Q11.
 - 2026-10-12 (Phase 1): Fight cost is 1 through Z6 and 2 in Z7–Z8. RH stays at 1 until about level 1 million (Michael's turns), which would make all of v1 cost 1; it rises once near the end of v1 so the rising-cost rule from Q2 is exercised.
+- 2026-10-12 (Phase 2): Architecture decisions made without asking are `docs/ARCHITECTURE.md` A-01 to A-11, so they are not repeated here.
+- 2026-10-12 (Phase 2): Hard rule 1 now says a ruling is not a confirmed fact about RH, and hard rule 6 names ARCHITECTURE as a fourth source of truth. Both keep the kickoff's meaning; neither loosens it.
+- 2026-10-12 (Phase 2): `CLAUDE.md` points to `docs/ARCHITECTURE.md` section 3 for file-level roles, because a file-by-file map would not fit under 8,000 characters and no source file exists yet.
+- 2026-10-12 (Phase 2): The "update ready" tap lives only on the new-run sheet, which is the kickoff's "apply it between runs". Settings shows that an update is waiting but does not apply it.
 - 2026-10-12 (Phase 1): After the verifier's re-check, a Claim was set to 3 energy against an unclaimed boss's surplus of 2, so that a Claim is never worthless. Both numbers are within what the sources give for RH (2 [WEB], 2–3 from Michael's notes).
 
 ## Handoff
 
-- **Done:** Phase 0 approved. Phase 1 written: `docs/GDD.md`, `docs/sealed/` (README plus the sealed appendix), a `.gitattributes` rule hiding sealed content in diffs, and this file. Script checks, a separate verifier pass and a re-check were run before the gate report. The must-fix findings were fixed; the re-check's nine further points were fixed afterwards without another verifier round. Results are in the report.
-- **Worked:** Recovering the exact batch posts from the Phase 0 session transcript instead of relying on this file's summaries. Writing each formula so it reproduces the calibration points, then checking that with a script. Keeping spoilers in a separate file and a separate commit.
-- **Failed:** The first draft of the GDD failed five of the verifier's nine checks (listed under "Verifier pass"). The author's own script checks had all passed, because they tested the formulas against calibration points and not the targets against the formulas. Three traps: `cd` inside a Bash call moves the session's working directory; plain-word GitHub names are nearly all taken, so only two of the five proposed names are free without a suffix; and Python on this machine prints in cp1252 unless run with `-X utf8`.
-- **Next:** Record Michael's pick on DV-4 in GDD 8.3, 13.2 and 13.4. Wait for "approved". Then start Phase 2: expand `CLAUDE.md` to under 8,000 characters and write `docs/ARCHITECTURE.md`, using the "Carried forward" list above for the enforcement map.
+- **Done:** Phases 0 and 1 approved. Phase 2 written and at its gate: `CLAUDE.md` (7,919 characters), `docs/ARCHITECTURE.md`, `.gitattributes` sealing content paths under `data/`, small GDD additions, and this file. Each phase's documents went through script checks and a separate verifier pass with a re-check.
+- **Worked:** Giving the verifier the source documents and asking it to find faults, never my conclusions. In both phases its first pass failed the draft on things my own scripts could not see: targets the formulas could not reach in Phase 1, and save paths that could lose data in Phase 2. Recovering exact batch posts from the earlier session's transcript. Keeping spoilers in separate files and separate commits.
+- **Failed:** First drafts in both phases. In Phase 2 the worst was a load path that could overwrite a save it had rejected. Traps: `cd` inside a Bash call moves the session's working directory; shell heredocs break on apostrophes here, so write scripts to a file first; Python prints in cp1252 unless run with `-X utf8`; `CLAUDE.md` has under 100 characters to spare.
+- **Next:** Wait for "approved" and record A1. Then Phase 3a, platform before game: give Michael the organization steps; scaffold Vite, TypeScript, ESLint, Vitest and the hook; build the save system with a dummy state exactly as `docs/ARCHITECTURE.md` section 7 describes, fixtures and all; the PWA shell, update flow, Settings and diagnostics; the checks in the enforcement map; CI and the Pages deploy; then exact phone test steps for his acceptance run.

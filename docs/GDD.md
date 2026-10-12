@@ -120,7 +120,7 @@ This table drives the save schema: the left group is the `run` object, the right
 | Gold | Gems |
 | Energy spent and boss paybacks received | Waypoints visited and unlocked |
 | Bosses beaten this run | Keys (they are items) |
-| Strongest enemy beaten this run | Bestiary: enemies seen, times beaten, drops found |
+| Strongest enemy beaten this run, and the last enemy fought | Bestiary: enemies seen, times beaten, drops found |
 | The Salvage attempt | Strongest enemy ever beaten |
 | Hero position | Secrets discovered on the map |
 | Run seed, battle counter, spawn counter | Auto-assign: unlocked flag, on or off, saved split |
@@ -132,6 +132,8 @@ Notes:
 
 - Full scope adds two persistent entries from the Q5 ledger: the journal and the sixth accessory slot.
 - The run-duration log exists only to measure section 5.9's time targets during playtests. No mechanic reads it (hard rule 3).
+- Three rows on the right are kept in the save but outside the game state the engine sees: settings, export tracking and the run-duration log. They form the `app` half of the save payload and are versioned, migrated, exported and imported with the rest (`docs/ARCHITECTURE.md` section 7.1).
+- Unspent stat points and "drops found" are derived, not stored: unspent points from level, Growth and points spent; a drop counts as found once a copy of that item is owned.
 - The run seed is drawn by the UI when a run starts and stored in `run`. The engine never reads a clock or a random source of its own.
 - One profile only. RH has three save files [WEB]; Steadfast's extra save slots exist for safety, not for parallel playthroughs.
 
@@ -591,7 +593,7 @@ Because Michael does not review content (Q12), these run automatically in tests 
 - every enemy, waypoint and Salvage site can be reached, and no walkable area is a dead end;
 - the required path uses no hidden tile;
 - each zone's reference loadout is within 15% of the section 5.6 totals, v1 gear stays under the section 5.6 limits on Reflect, Life Regen and Last Stand, and each enemy's modifiers are within section 5.4's range;
-- counts match section 7.2 and section 7.5;
+- counts match `data/content-spec.json`, which holds the section 7.2 and 7.5 figures for the phase being built, so the check passes on the slice as well as on full v1;
 - no content name matches the reference game's names.
 
 Simulator reports give the aggregate view, and a separate verifier pass reads what the checks cannot judge.
@@ -642,7 +644,9 @@ A tab bar at the bottom reaches Map, Hero, Gear, Items, Bestiary and the Run men
 | Auto-assign | A percentage for each of the five stats. | Turn on or off; edit the split. Points that do not divide evenly go to the stat furthest behind its percentage, ties going to the earlier stat in the order Life, Damage, Defense, Dexterity, Luck. Unlocks permanently the first time the hero reaches level 250; RH's unlock is "shortly after level 250" [WEB]. |
 | Run menu | Run number, level, strongest enemy beaten this run and ever, energy. Progress counters: items, bestiary, bosses claimed, zones reached. | New run. Settings. |
 | New-run sheet | Section 2.4. | Confirm or cancel. |
-| Settings | Playback speed; each movement control on or off; storage persistence status; export and import; days since last export; save-fallback notices; the diagnostics log and engine self-test; "update ready". | As listed in the kickoff save spec. |
+| Settings | Playback speed; each movement control on or off; storage persistence status; export and import; days since last export; save-fallback notices; the diagnostics log and engine self-test; "update ready". | As listed in the kickoff save spec. Importing shows the two saves side by side and asks before replacing anything. |
+| Recovery | Shown at startup only if the newest save cannot be used as it is: what was found, and the choices in `docs/ARCHITECTURE.md` section 7.3. | Export everything; try again; use a save anyway; use an older save; restore a set-aside save; start a new game. |
+| Save-failed notice | Shown if a save cannot be written after a retry. Blocks play. | Copy the current game as a text code. |
 
 ### 8.3 Movement
 
@@ -652,6 +656,7 @@ A tab bar at the bottom reaches Map, Hero, Gear, Items, Bestiary and the Run men
 - Walking is an animation. The engine sees every move as a step from one tile to a neighbouring tile and only checks that the step is allowed; a tapped route is a list of such steps.
 - Base walking speed and map size are set so that no enemy in Z3–Z8 is more than about 10 seconds' walk from its zone's waypoint, and nothing in Z1–Z2 is more than about 20 seconds from the run start. Move Speed shortens that.
 - A place name printed on the map is the same string the bestiary, the waypoint list and the locked-door message use (C03).
+- The game is portrait only. An installed web app cannot lock the phone's orientation, so in landscape it shows a panel asking for the phone to be turned.
 
 ### 8.4 Teaching
 

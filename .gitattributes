@@ -4,3 +4,7 @@
 # Spoiler policy (GDD decisions Q12, G2): keep sealed content out of diffs. The README in that folder stays readable.
 docs/sealed/** -diff linguist-generated=true
 docs/sealed/README.md diff -linguist-generated
+data/** -diff linguist-generated=true
+data/balance.json diff -linguist-generated
+data/content-spec.json diff -linguist-generated
+data/ids.lock.json diff -linguist-generated
