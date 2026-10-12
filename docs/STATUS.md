@@ -4,14 +4,15 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Current phase
 
-**Phase 0 gate ⛔.** The interview is complete (3 batches, 15 questions). The gate report was posted 2026-10-12 and Michael answered its three questions the same day, but his reply did not contain "approved". Still waiting for that word; answers, questions or silence are not approval. Do not start Phase 1 before it.
+**Phase 1 gate ⛔.** Phase 0 was approved on 2026-10-12. `docs/GDD.md` and the sealed appendix are written and the Phase 1 gate report was posted the same day with five questions (P1–P5, listed under "Phase 1 working record"). Waiting for the literal reply "approved"; answers, questions or silence are not approval. Do not start Phase 2 before it.
+
+**Spoiler rule for every session.** `docs/sealed/` holds zone themes and all content names. Michael does not open it. Never quote anything from it in chat, gate reports, commit messages or this file. Refer to zones as Z1–Z8, elements as E1–E3 and enemy types as T1–T4.
 
 ## Todo
 
 ### PENDING
 
-- [ ] Phase 0: wait for "approved" on the gate report
-- [ ] Phase 1: `docs/GDD.md` + 5 original names ⛔
+- [ ] Phase 1: wait for "approved" on the gate report; record the answers to P1–P5 in the GDD decisions log
 - [ ] Phase 2: expand `CLAUDE.md` (<8,000 chars) + `docs/ARCHITECTURE.md` ⛔
 - [ ] Phase 3a: walking skeleton (PWA, save system, CI, Pages deploy) ⛔
 - [ ] Phase 3b: vertical slice ⛔
@@ -26,6 +27,55 @@ Re-read this file at the start of every session and every work cycle. Update it 
 - [x] Phase 0: batch 2 posted and answered (permanent-energy ruling, run end, map model, respawn, shop)
 - [x] Phase 0: batch 3 posted and answered (clarity additions, spoiler policy, why RH beat the two other games, pacing, v1 size)
 - [x] Phase 0: gate report posted ⛔; its three questions answered (G1 a, G2 a, G3 a)
+- [x] Phase 0: approved by Michael, 2026-10-12
+- [x] Phase 1: `docs/GDD.md` (eleven kickoff sections, backup comparison, five names) and `docs/sealed/` written
+- [x] Phase 1: script checks run; a separate verifier pass and a re-check run, and their findings fixed in the GDD and the sealed appendix; gate report posted ⛔
+
+## Phase 1 working record
+
+`docs/GDD.md` is now the design truth. Where it and the Phase 0 record below differ, the GDD wins. The six deviations are in its section 13.2 and the open items are in its section 12.
+
+### What the GDD settled
+
+- All 15 interview answers and 3 gate answers are in its decisions log (13.1), each pointing at the section that implements it.
+- Six deviations from RH (DV-1 to DV-6), each with frustration fixed, cost and risk. Two more, DV-7 and DV-8, come from fitting RH's order into v1, not from the interview: Salvage exists from Z1 and waypoints start at Z3, both earlier than in RH. Neither has had an explicit ruling; approving the gate approves them.
+- Twenty Phase 1 design decisions (D-01 to D-20), proposed at the gate. The ones Michael is most likely to want to overrule: plain JavaScript numbers (D-01), shipped labels that differ from RH's (D-05), energy accessories counting only while equipped (D-08), a claimed boss refunding only its cost (D-09), shop stock visible from the start (D-11).
+- Twenty-eight open questions about RH (O-01 to O-28). None blocks the build; each has a Steadfast rule.
+- One risk was added to DV-1 after Michael's Q6 ruling: with the tool in hand from the first boss, permanent energy arrives in steps of 3, not as one large jump. It is flagged in the gate report.
+- Pacing targets for the simulators (GDD 5.9).
+
+### Gate questions (posted 2026-10-12, not yet answered)
+
+| # | Question | Recommended default |
+|---|---|---|
+| P1 | Which of the five names? | Farther Still |
+| P2 | Does the vertical slice get a small shop as well as Salvage? | Yes, both |
+| P3 | In RH, did a boss you had already collected permanent energy from still pay extra energy in later runs? This is also a design choice. (a) No: a Claim adds 3 starting energy and the boss then pays nothing extra, so there is no reason to tour old bosses, but a Claim on a boss the run would beat anyway is worth only 1. (b) Yes: every Claim is a full gain on every run, but beating every boss every run stays the best play | (a), which matches the one [WEB] account and is what the GDD describes |
+| P4 | In RH, did an energy accessory change your energy the moment you equipped or removed it? | Steadfast's rule is "counts only while equipped"; keep it if he does not remember |
+| P5 | About how long did he play RH on a typical day? | 2–4 hours. v1 is 5–9 hours of play either way; the answer only says whether that is "a week" |
+
+### Verifier pass (2026-10-12)
+
+A separate agent read the GDD, the sealed appendix and the reference files with instructions to find faults. It passed carry-over fidelity, prose formatting and name originality, and failed five checks. All of its "must fix" findings were fixed before the gate report:
+
+- item stats had no formula and two sections disagreed on what an item record holds (now GDD 5.6 and D-20);
+- Crit Damage fell below its confirmed 150% base at Dexterity under 10;
+- four pacing targets could not be met by the document's own numbers (breakthrough size, run total, level ratio, wins per run);
+- the sealed appendix disagreed with the GDD's structure in six places;
+- several RH claims were mis-tagged or one-sided, including where RH introduces Salvage ([GPT], not [WEB]) and a [WEB] account that contradicted the first draft's rule for claimed bosses;
+- three rules were ambiguous enough to build two ways (Resistance across two tags, negative item lines, `goldAt`).
+
+It could not check six things: the GDD's reset ledger against the batch 1 post (taken from the Phase 0 session transcript, which it did not have); chat-number citations beyond the Phase 0 digest, which is also where the [GPT] source for RH's Salvage timing sits; the name checks and the backup section's platform facts (no web access); whether the pacing targets are reachable in play (no simulator yet); reference-game names that exist only in screenshots; and whether square roots match between Node and Safari.
+
+A re-check by the same verifier then confirmed every must-fix finding resolved except one part of the item-budget finding, and raised nine further points (R1–R9). The main one: reversing the claimed-boss rule had made a Claim worth nothing on any boss the run would beat anyway. All nine were fixed by the author afterwards and have not been re-verified: a Claim is now worth 3 against a surplus of 2 (GDD 2.3, D-09), the item budget is defined on a named reference loadout (5.6), boss multipliers and early-zone budgets were lowered and raised until the shape model passed every gate boss with a full loadout and failed it with half of one, and the gem rate went up to cover the waypoints.
+
+The Phase 0 record below still tags the Auto-assign unlock level [GPT]; `reference/rh_web_notes.md` attributes it to the store's version history, so the GDD tags it [WEB].
+
+### Carried forward to later phases
+
+- Phase 2 enforcement map: lint ban on `Math.pow`, `Math.exp`, the `Math.log` family and trigonometry in `src/engine/`; the content checks in GDD 7.9; a reference-name check that can run in CI without publishing the names (for example hashed names); `-diff` in `.gitattributes` for `data/` content files so code review does not spoil content.
+- Phase 3a: the on-device engine self-test in Settings (GDD 6.3); the install address, which follows from P1.
+- Phase 3b: the simulator replaces the throwaway shape model mentioned in GDD 5.9. That model was not kept.
 
 ## Phase 0 working record
 
@@ -92,7 +142,7 @@ Standing [ASSUMPTION] items from the batch 3 post, no objection raised: no set b
 
 ### Deviations from RH decided so far
 
-These move to the GDD decisions log in Phase 1, each with the frustration fixed, the cost and the risk.
+Moved to the GDD decisions log (section 13.2) on 2026-10-12, each with the frustration fixed, the cost and the risk. The list below is the Phase 0 record.
 
 - Permanent-energy tool is handed over in plain sight by the first boss instead of being hidden (Q6).
 - Win chance with limiting factor before a fight, loss summary after one, archaeology pool shown by level band (Q11).
@@ -110,6 +160,8 @@ These move to the GDD decisions log in Phase 1, each with the frustration fixed,
 | G3 | Anything from the two other games to never copy? | a | Nothing beyond the kickoff's hard rules. |
 
 ### Open items carried into Phase 1
+
+All of these are now in GDD section 12 (O-01 to O-07, O-09, O-10), section 11 (install address), question P2 (slice shop) and section 6.3 (engine arithmetic rule). The list below is the Phase 0 record.
 
 - [OPEN] XP needed per level in RH. Steadfast sets its own formula, calibrated to the enemy XP curve and Michael's reported levels.
 - [OPEN] RH's accuracy and evasion curves between the published points; single-point fits are in the calibration notes.
@@ -143,7 +195,7 @@ From the developer data files; approximate. For Phase 1 curve design, not for co
 
 ## Starting a fresh session
 
-Phase 1 is meant to start in a new session (decided 2026-10-12). Read, in order: `CLAUDE.md`, this file, the Phase 1 section and hard rules of `docs/KICKOFF.md`, `reference/rh_notes.md`, `reference/rh_web_notes.md`, then `reference/_claude_phase0/README.md` and the two `data_*.txt` files beside it. That last folder is private and gitignored; it holds the evidence map for design pillars, what each of RH's screens shows, the stat-screenshot data, and the data-file digests. Do not re-read the transcripts or re-open the screenshots unless an exact quote or number is missing.
+For Phase 2, read in order: `CLAUDE.md`, this file, `docs/GDD.md`, then the Phase 2 section, stack and save spec of `docs/KICKOFF.md`. `docs/sealed/` is needed only when authoring content (Phase 3b on). `reference/` is needed only to check a claim about RH; start with `reference/_claude_phase0/README.md`, which is private and gitignored.
 
 ## Judgment calls
 
@@ -157,10 +209,19 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 - 2026-10-12: This file is public, so it paraphrases the private recap and cites chat numbers instead of quoting it. The same will apply to the GDD unless Michael says otherwise.
 - 2026-10-12: Interview batches are posted as plain text so conflicts between sources can be shown side by side; answers can be given as "1a 2b …".
 - 2026-10-12: Added `reference/_claude_phase0/` (private, gitignored) as the second half of the handoff, because the evidence it holds uses RH names and Michael's private chat history and so cannot live in `docs/`. It is additive; nothing Michael put in `reference/` was changed.
+- 2026-10-12 (Phase 1): The sealed appendix is a separate file, `docs/sealed/gdd-appendix-content.md`, not a section of `docs/GDD.md`, so Michael can read the whole GDD without scrolling past spoilers. `.gitattributes` hides that folder's contents in diffs and it is committed separately from the GDD.
+- 2026-10-12 (Phase 1): Element and enemy-type names are sealed along with zone themes, because a tag's name gives away its zone's theme. The GDD uses E1–E3 and T1–T4.
+- 2026-10-12 (Phase 1): The batch 1 persist/reset ledger was not in this file, so it was recovered from the Phase 0 session's own transcript and is now GDD section 2.5.
+- 2026-10-12 (Phase 1): Every Steadfast number in the GDD is marked "starting value". A throwaway expected-value model checked only that the formulas can produce the wall-and-breakthrough shape; it was not kept, and the GDD says it is not evidence for the pacing targets.
+- 2026-10-12 (Phase 1): Name checks used web search for existing games and GitHub's public API for free organization names. Neither touches RH sources.
+- 2026-10-12 (Phase 1): Design decisions made without asking are GDD D-01 to D-20, so they are not repeated here.
+- 2026-10-12 (Phase 1): Dropped the pre-fight "details" fold from the first draft. It went beyond the three clarity additions approved in Q11.
+- 2026-10-12 (Phase 1): Fight cost is 1 through Z6 and 2 in Z7–Z8. RH stays at 1 until about level 1 million (Michael's turns), which would make all of v1 cost 1; it rises once near the end of v1 so the rising-cost rule from Q2 is exercised.
+- 2026-10-12 (Phase 1): After the verifier's re-check, a Claim was set to 3 energy against an unclaimed boss's surplus of 2, so that a Claim is never worthless. Both numbers are within what the sources give for RH (2 [WEB], 2–3 from Michael's notes).
 
 ## Handoff
 
-- **Done:** Step 0 committed. All of `reference/` read as described under "Reading coverage". Interview complete: 15 questions in 3 batches, all answered. Phase 0 gate report posted and its three questions answered.
-- **Worked:** Extracting only Michael's own turns from the transcripts gave the first-hand evidence in about 50 KB. His screenshots settled the pre-fight screen, the archaeology screen, and the stat screen layout. Running Python with `-I` against the data files in `reference/`.
-- **Failed:** Nothing. One trap to avoid: `cd` inside a Bash call moves the session's working directory, so use absolute paths for git.
-- **Next:** Start Phase 1 in a fresh session using the reading order under "Starting a fresh session". Wait for "approved" first if it has not been given. Then Phase 1: write `docs/GDD.md` from the tables in this file plus the reference material, and propose 5 original names. A fresh session can start from this file plus `docs/KICKOFF.md`; the screenshots and data files in `reference/` only need re-opening for exact numbers.
+- **Done:** Phase 0 approved. Phase 1 written: `docs/GDD.md`, `docs/sealed/` (README plus the sealed appendix), a `.gitattributes` rule hiding sealed content in diffs, and this file. Script checks, a separate verifier pass and a re-check were run before the gate report. The must-fix findings were fixed; the re-check's nine further points were fixed afterwards without another verifier round. Results are in the report.
+- **Worked:** Recovering the exact batch posts from the Phase 0 session transcript instead of relying on this file's summaries. Writing each formula so it reproduces the calibration points, then checking that with a script. Keeping spoilers in a separate file and a separate commit.
+- **Failed:** The first draft of the GDD failed five of the verifier's nine checks (listed under "Verifier pass"). The author's own script checks had all passed, because they tested the formulas against calibration points and not the targets against the formulas. Three traps: `cd` inside a Bash call moves the session's working directory; plain-word GitHub names are nearly all taken, so only two of the five proposed names are free without a suffix; and Python on this machine prints in cp1252 unless run with `-X utf8`.
+- **Next:** Wait for "approved". Then record P1–P5 in the GDD decisions log (and change sections 2.2, 2.3, 5.9 or 10 if an answer differs from the default), and start Phase 2: expand `CLAUDE.md` to under 8,000 characters and write `docs/ARCHITECTURE.md`, using the "Carried forward" list above for the enforcement map.

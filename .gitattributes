@@ -1,2 +1,6 @@
 # Force LF everywhere: checksummed save fixtures and golden replay hashes must be byte-identical on Windows and Linux CI.
 * text=auto eol=lf
+
+# Spoiler policy (GDD decisions Q12, G2): keep sealed content out of diffs. The README in that folder stays readable.
+docs/sealed/** -diff linguist-generated=true
+docs/sealed/README.md diff -linguist-generated

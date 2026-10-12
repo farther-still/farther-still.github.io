@@ -1,0 +1,842 @@
+# Steadfast: Game Design Document
+
+GDD v1.0, written 2026-10-12 for the Phase 1 gate. Not approved until Michael replies "approved".
+
+## 0. How to read this
+
+This file is the design truth (hard rule 6). `CLAUDE.md` holds build rules and `docs/STATUS.md` holds where the project is. "RH" is the reference game; its name, art and text never ship.
+
+**Tags.** Tags mark claims about RH, as hard rule 1 requires.
+
+- **Confirmed (Qn / Gn / notes):** Michael's interview answer, gate answer, or `reference/rh_notes.md`.
+- **[WEB]:** public source, including the developer's published formulas and data files.
+- **[GPT]:** claim from the ChatGPT recap, unconfirmed.
+- **[ASSUMPTION]:** my default where nobody knows.
+- **[OPEN]:** unknown, listed in section 12.
+- **First-hand:** written as "Michael's screenshot", "Michael's turns" or "first-hand", usually with a chat number. It is what his own screenshot shows or his own message says. It outranks [WEB] and [GPT], but my reading of it is not confirmed until he confirms it.
+- **C01–C31:** chat numbers in the private recap. They are cited and paraphrased here, never quoted.
+
+**Starting values.** A number marked "starting value" is Steadfast's own, lives in `data/balance.json`, and will be tuned by the Phase 3b and Phase 4 simulators. What this gate approves is the shape of each formula and the pacing targets in section 5.9. Changing a starting value later is a balance change recorded in the decisions log, not a design change.
+
+**Spoilers.** Under the spoiler policy (Q12, G2) this file shows structure only. Zones are Z1–Z8, elements are E1–E3 and enemy types are T1–T4. Their themes and every content name are in `docs/sealed/`, which Michael does not open. Git is set to hide that folder's contents in diffs.
+
+**Terms.** Docs keep the working terms used since Phase 0. The app ships its own labels, because RH's labels are RH's text (hard rule 7). Code identifiers use the shipped labels.
+
+| Working term in docs | Shipped label | Note |
+|---|---|---|
+| Energy | Energy | The kickoff's own word for the per-run battle budget |
+| Archaeology | Salvage | Spend all gold for a chance at a drop you missed |
+| Permanent-energy tool | (sealed name) | Its effect is labelled Claim |
+| Item sets | Loadouts | Avoids the "set versus slot" confusion in C02 |
+| Auto-allocator | Auto-assign | |
+| Teleport points | Waypoints | |
+| Bonus enemy | Marked enemy | Shown with a marker of our own, not RH's `*` |
+| Double hit, double attack, double turn | Extra Hit, Extra Attack, Extra Turn | The kickoff's wording |
+| Thorns | Reflect | |
+| Survive deaths | Last Stand | |
+| Per-level bonus | Growth | |
+| Life, Damage, Defense, Dexterity, Luck | Unchanged | Plain genre words; renaming them would cost clarity |
+| Bestiary, gems, gold | Unchanged | Plain genre words |
+
+## 1. Design pillars
+
+Each pillar names the feel to protect, the evidence, and what it obliges the design to do.
+
+1. **Permanent progress changes what a run can do.** Evidence: C16, where starting energy went from 25 to 97 and Michael said it changed everything; Q13c. Obligation: permanent gains are felt on the very next run. They are starting energy, waypoints, loadout slots and kept gear.
+2. **Every run buys something lasting.** Evidence: C24 (what is the point of pushing farther if the next run is no better), C06 and C21 (it feels like grinding). Obligation: gold always has a lasting use, and section 5.9 sets a target for how often a run must produce a persistent gain.
+3. **You choose every fight.** Evidence: Q13a; [WEB] reviews praise planning over luck. Obligation: no random encounters, enemies stand on the map with their levels shown, backing out is free, and a loss costs nothing (Q2).
+4. **Loot is finite, fixed and visible.** Evidence: Q13b; notes #3. Obligation: no random stats, no rarity tiers, no set bonuses (G1). An enemy shows how many drops it still holds, and collecting has an end.
+5. **The climb is quick; the decision is the point.** Evidence: C15, C23 and C26, where rebuilding the run was the cost that hurt, not the fight; C27 asked for faster battles; Q14. Obligation: battle skip, tap-to-move and waypoints, with the run-time targets in section 5.9.
+6. **Level is not power.** Evidence: C24 and C30 (several times the boss's level and still losing), and C26 (the win came from swapping two accessories); Q13e. Obligation: builds and loadouts decide fights, enemy traits are visible before the fight, and the forecast names what is limiting you.
+7. **Systems are signposted; content is discovered.** Evidence: C16 (he found the energy system about ten days in and was annoyed not to have known sooner); gates that looked like level walls but were knowledge gates (C15, C20, C22, C30); on the other side he liked finding a stash (C02) and a shortcut (C14). Obligation: every system is introduced in plain sight, the required path is never hidden, every lock says what opens it, and optional secrets stay secret.
+8. **The game tells you what it knows before you spend.** Evidence: C26 (could not afford to test and test), C06 (worry about paying a run's gold for a low-level item); Q11. Obligation: the pre-fight forecast, the loss summary, the Salvage pool breakdown, and a one-line explanation behind every stat.
+9. **A hand-built world you learn.** Evidence: Q13d, Q8; navigation friction in C03, C09, C15, C23 and C30; "how far along am I" asked in C01, C23 and C31. Obligation: hand-built maps, place names on the map that match what every other screen calls them, waypoints, and progress counters.
+10. **Numbers that explode, legibly.** Evidence: the kickoff goal; C16. Obligation: the inflation curves in section 5, the number format in section 6, and an average shown for each multi-action layer.
+
+## 2. Core loop and run structure
+
+### 2.1 The loop
+
+1. A run starts at level 1 with no gold, full energy, and everything that persists (section 2.5).
+2. The player walks the map, or travels to an unlocked waypoint, and picks an enemy.
+3. The pre-fight sheet shows the enemy, the energy cost, the forecast and the drops it still holds. The player fights or backs out.
+4. The battle resolves instantly and is played back (section 3).
+5. A win charges the energy cost and pays XP, gold and drop rolls. Levels gained give stat points to spend. A loss charges nothing.
+6. Gold buys items from the shop at any time. Once per run, all remaining gold can go into Salvage.
+7. Energy runs out. The player finishes spending and starts the next run, a little stronger.
+
+### 2.2 Run rules
+
+| Rule | Detail | Source |
+|---|---|---|
+| Energy cost | Each fight has a cost set by its zone (section 5.8). | Confirmed (Q2) |
+| Only wins are charged | A loss costs no energy; the player is back on the map and can retry. | Confirmed (Q2) |
+| Boss payback | An unclaimed boss pays back its cost plus a surplus when beaten, once per run (sections 2.3 and 5.8). | Confirmed (notes #1, Q2) |
+| Free actions | Walking, waypoint travel, buying and Salvage cost no energy. | Confirmed (Q2) |
+| Affordability | A fight cannot be started if its cost exceeds remaining energy. | Confirmed (G1) |
+| Chosen fights | Enemies stand on the map; nothing attacks the player. | Confirmed (Q13a) |
+| Respawn | A normal enemy is back as soon as the player returns to the map, so fights chain on one spot. A boss is once per run. | Confirmed (Q9). RH's delay is "seconds"; Steadfast uses no timer at all. |
+| Gate bosses | A gate boss blocks its path again every run. | Confirmed (Q5) |
+| Keys | Keys are kept items; a door stays open for anyone holding its key. | Confirmed (Q5) |
+| Waypoints | Bought with gems, kept forever, and they skip whatever lies before them. Travel is from the map menu, any time outside a battle. | Confirmed (Q4, Q5). Where RH lets you travel from is [OPEN]. |
+| Full life | Every fight starts at full life; Last Stand charges reset each fight. | Confirmed (G1) |
+| Stat points | Allocation is manual by default and cannot be taken back within a run. | Confirmed (notes #4, C26) |
+| Zero energy | The player stays on the map and can still walk, buy and use Salvage. | Confirmed (Q7) |
+| New run | Can be started at any time from the run menu. | Confirmed (G1) |
+
+**Remaining energy** = starting energy + energy from equipped accessories + boss paybacks this run − energy spent this run, shown as 0 if that is negative. Starting energy = base + permanent energy claimed. A fight can start only if remaining energy covers its cost.
+
+An energy accessory counts only while it is equipped, so taking it off lowers remaining energy at once. This needs no start-of-run ritual, but it has one trick in it: a player can fight in a combat loadout until energy is gone and put the energy accessories on for the last few fights, so the slot is only given up at the end of a run. That is accepted. RH's rule is [OPEN] (gate question P4).
+
+### 2.3 Permanent starting energy
+
+Confirmed (Q6), a deviation from RH (DV-1).
+
+- The first boss hands over the tool on its first defeat, guaranteed and in plain sight.
+- The tool is a weapon that cuts Damage by 90% and has one effect, Claim.
+- An unclaimed boss pays back its fight cost plus a surplus of 2 energy each run it is beaten.
+- The first time a boss dies with the tool equipped, it is claimed: starting energy rises by 3 for good, at once, which also counts for the current run. That win pays no surplus, and from then on the boss refunds only its fight cost. Each boss can be claimed once, ever.
+- So a Claim is worth 3 energy on every run that would have skipped that boss, and 1 on a run that would have beaten it anyway. Once a boss is claimed there is nothing to gain from beating it again, so nobody needs to tour old bosses, and a waypoint can skip them at no loss.
+- The alternative is that a claimed boss keeps paying its surplus, so every Claim is a full gain on every run but beating every boss every run stays the best play. Gate question P3 puts that choice to Michael.
+- The bestiary and the pre-fight sheet mark every boss as claimed or unclaimed.
+- Because the tool guts damage, the player claims a boss after outgrowing it. That is the intended "come back and collect" decision. Reflect does not depend on the hero's Damage, so a Reflect build can claim earlier; section 5.6 limits how much Reflect v1 gear carries.
+- What RH does after a claim is [OPEN]. One reviewer says the tool means bosses need not be beaten again each run [WEB], which is the rule above. Michael's notes #1 and #2 describe the payback and the permanent bonus separately and do not say. Gate question P3.
+
+### 2.4 Run end and new run
+
+- At zero energy a banner says the run is spent and lists what is still unused: gold on hand and the Salvage attempt.
+- "New run" asks for confirmation. The confirmation shows this run's level, strongest enemy beaten, new items, permanent energy gained, and the gold that will be lost.
+- Confirming writes a checkpoint save (kickoff save spec), then resets everything in the "resets" half of the ledger.
+
+### 2.5 Reset ledger
+
+This table drives the save schema: the left group is the `run` object, the right group is the `profile` object. The split was approved in Q5.
+
+| Resets every run (`run`) | Persists (`profile`) |
+|---|---|
+| Level and XP | Items owned, with copy counts |
+| Stat points, spent and unspent | Loadouts (contents, active one, slots bought) |
+| Growth gains from gear (section 4) | Permanent energy: the set of bosses claimed |
+| Gold | Gems |
+| Energy spent and boss paybacks received | Waypoints visited and unlocked |
+| Bosses beaten this run | Keys (they are items) |
+| Strongest enemy beaten this run | Bestiary: enemies seen, times beaten, drops found |
+| The Salvage attempt | Strongest enemy ever beaten |
+| Hero position | Secrets discovered on the map |
+| Run seed, battle counter, spawn counter | Auto-assign: unlocked flag, on or off, saved split |
+| Marked-enemy rolls and stashes collected | Lifetime counters and the run-duration log |
+| This run's tallies for the new-run sheet | Settings, save version, export tracking |
+| | First-time explanations already shown |
+
+Notes:
+
+- Full scope adds two persistent entries from the Q5 ledger: the journal and the sixth accessory slot.
+- The run-duration log exists only to measure section 5.9's time targets during playtests. No mechanic reads it (hard rule 3).
+- The run seed is drawn by the UI when a run starts and stored in `run`. The engine never reads a clock or a random source of its own.
+- One profile only. RH has three save files [WEB]; Steadfast's extra save slots exist for safety, not for parallel playthroughs.
+
+## 3. Combat resolution
+
+A battle is a pure function of the hero's final stats, the enemy record and a seed. It returns win or loss plus an event log. The UI replays the log; the simulator calls the same function (kickoff stack).
+
+### 3.1 Quantities
+
+| Quantity | Formula | Source |
+|---|---|---|
+| Enemy rating `T` | `enemy level + 100` | [WEB] published |
+| Hit chance | `1 − 0.10 × (T ÷ Accuracy)²`, held between 5% and 100% | 90% at `Accuracy = T` is [WEB]; the square fits one screenshot; the curve is [OPEN] in RH |
+| Dodge chance | With `q = Evasion ÷ T`: `0.10 × q` below 1, else `0.10 + 0.26 × log10(q)`, capped at 80% | 10% at `q = 1` and the 80% cap are [WEB]; 0.26 fits two screenshots to within 2 points |
+| Defense | Share of a hit removed = `defender's Defense ÷ (defender's Defense + attacker's Damage)` | [WEB] published; verified against two screenshots to within 1 point |
+| Hero hit | `Damage × Damage ÷ (Damage + enemy Defense)` | Follows from the row above |
+| Crit | Multiplies the hit by Crit Damage | Order relative to defense is [OPEN] in RH |
+| Tag bonus | `1 + (sum of the hero's damage bonuses against tags this enemy has) ÷ 100` | Mechanic [WEB]; summing is Steadfast's rule |
+| Enemy damage reduction | Multiplies everything the enemy takes by `1 − reduction` | [WEB]; shown separately from Defense, as in RH's screens |
+| Enemy hit | `E × E ÷ (E + hero Defense)`, where `E` is enemy Damage | Same Defense rule |
+| Resistance | Multiplies an enemy's damage by `100 ÷ (100 + R)`, where `R` is the sum of the hero's Resistances to every tag that enemy carries, never below 0 | [WEB] published: 100 halves, 200 removes two thirds. Summing across tags is Steadfast's rule |
+| Reflect | The enemy takes `E × Reflect%`, before the hero's Defense and ignoring the enemy's Defense | [WEB]. Steadfast applies the enemy's damage reduction to it; RH is [OPEN] |
+
+Each damage or healing amount is worked out as one product and rounded down once, at the end. A hit that lands does at least 1. Accuracy and Evasion are never below 1.
+
+### 3.2 Order of a round
+
+The hero acts first (Confirmed, G1).
+
+1. **Hero turn.**
+   1. From round 2 on, Life Regen heals the hero.
+   2. Roll Extra Attack: the hero makes 1 or 2 attacks.
+   3. For each attack, roll to hit. A miss ends that attack.
+   4. On a hit, roll Extra Hit: the attack lands 1 or 2 hits.
+   5. For each hit, roll crit and apply the damage. If the enemy's life reaches 0, the hero wins at once.
+   6. Roll Extra Turn once. On success the hero repeats steps 2–5 one more time, with no second regen and no further Extra Turn.
+2. **Enemy turn.**
+   1. If the enemy has regeneration, it heals.
+   2. The enemy makes 1 attack, plus a second if its double-attack roll succeeds, plus a third if its triple-attack roll then succeeds.
+   3. For each attack, roll the hero's dodge. A dodged attack does nothing and triggers no Reflect.
+   4. Otherwise the hero takes the hit. If life reaches 0 and a Last Stand charge remains, life becomes 1 and a charge is spent; with no charge left, the hero loses at once.
+   5. If the hero is still standing, Reflect applies. If the enemy's life reaches 0, the hero wins.
+3. **Round limit.** A battle that reaches 200 rounds (starting value) is a loss. RH's handling of stalemates is [OPEN].
+
+Choices made where RH's behaviour is unknown, all [OPEN] in section 12: the hit roll is per attack, not per hit; Defense is computed from the Damage stat before crit and tag multipliers; multi-action chances stop at 100%; crit chance stops at 100%.
+
+### 3.3 Randomness
+
+- Each battle has its own seed, derived from the run seed and the battle counter. The counter advances on every battle, won or lost, so a retry is a new battle.
+- Rolls are drawn in the order listed above. Every listed roll draws one number even when its chance is 0% or 100%.
+- Rewards use a second stream derived from the same battle seed, so a change to combat rules does not reshuffle drops.
+- The forecast and Salvage each use their own stream derived from the run seed. Neither keeps any state beyond the counters already in `run`.
+
+### 3.4 After the battle
+
+On a win, in this order: charge the energy cost; refund a boss's cost; for an unclaimed boss, either pay its surplus or, if the tool is equipped, record the Claim and raise starting energy; add XP and apply level-ups; add Growth gains for the levels gained; run Auto-assign if it is on; add gold; roll each drop the enemy still holds; roll gems; update the bestiary. The result is committed to the save before the UI animates anything (kickoff save spec).
+
+On a loss: nothing is charged or lost. The enemy is marked as seen and the loss summary is shown.
+
+### 3.5 Forecast and loss summary
+
+Confirmed (Q11), deviations from RH (DV-2).
+
+- **Forecast.** Before a fight the engine runs 1,000 trial battles (starting value) with seeds from a separate forecast stream, so the forecast can never reveal the real battle's rolls. The sheet shows the win chance to the nearest 1%, with "under 1%" and "over 99%" at the ends. With 1,000 trials the figure is good to about 2 points.
+- **Limiting factor.** One line, shown only when the win chance is under 90%, chosen by the first rule that matches:
+
+| Order | Condition in the trials | Line shown |
+|---|---|---|
+| 1 | Hit chance under 60% | You miss too often: N% to hit. |
+| 2 | The hero usually dies within the enemy's first turn | It kills you in N hits. |
+| 3 | The enemy heals at least as much per round as the hero deals | It heals faster than you hurt it. |
+| 4 | Enemy Defense and damage reduction together remove over 80% of the hero's damage | It shrugs off N% of your damage. |
+| 5 | Rounds needed exceed rounds survived | You need about N rounds and last about M. |
+| 6 | None of the above | It comes down to the rolls. |
+
+- **Loss summary.** One line built from the real battle: how much of the enemy's life was removed, and in how many of its hits the hero died.
+
+## 4. Stat dictionary
+
+"Adds" means values from every equipped item are summed. "Highest wins" means only the largest equipped value counts (Confirmed, G1).
+
+### 4.1 Core stats
+
+Each core stat has a Base and a Mult, shown on the hero screen as in RH (Michael's screenshots, C02, C26, C30).
+
+- `Base = starting value + points spent × value per point + flat bonuses from gear + Growth gains`
+- `Mult = 1 + (sum of % bonuses from gear) ÷ 100`, never below 0.05
+- `Final = Base × Mult`, rounded down. Life, Damage and Defense are never below 1; Dexterity and Luck can be 0
+
+| Stat | What it does | Per point | Start (starting values) |
+|---|---|---|---|
+| Life | Damage the hero can take. Full at the start of every fight. | 3 | 60 |
+| Damage | Size of each hit before Defense. | 1 | 10 |
+| Defense | Removes a share of each enemy hit (section 3.1). | 1 | 5 |
+| Dexterity | Drives Accuracy, Evasion and both crit stats. | 1 | 0 |
+| Luck | Drives gold and drop bonuses. | 1 | 0 |
+
+The hero gets 5 stat points per level (starting value). RH's figure looks like about 5 with a Life point worth 3 to 4 of the others (inference from screenshots, [OPEN]).
+
+In RH's late screenshots Defense is 5 to 6 times larger than Base × Mult, which suggests a second multiplier layer [OPEN]. Steadfast v1 has one layer. A second layer is listed under full scope.
+
+### 4.2 Derived stats
+
+| Stat | Formula | Stacking | Cap | Source |
+|---|---|---|---|---|
+| Accuracy | `(100 + Dexterity) × (1 + Accuracy% ÷ 100)` | Adds | None | Dexterity rule [WEB]; the base of 100 fits one screenshot exactly, [OPEN] |
+| Evasion | `(100 + 0.5 × Dexterity) × (1 + Evasion% ÷ 100)` | Adds | Dodge caps at 80% | Dexterity rule [WEB]; base is Steadfast's |
+| Crit Chance | `10% + 5% × log10(Dexterity ÷ 10) + gear`, Dexterity term never negative | Adds | 100% | [WEB]; bases Confirmed (G1) |
+| Crit Damage | `150% + 10% × log10(Dexterity ÷ 10) + gear`, Dexterity term never negative | Adds | None | [WEB]; base Confirmed (G1) |
+| Gold Bonus | `50% × log10(Luck ÷ 100) + gear`, Luck term never negative | Adds | None | [WEB] |
+| Drop Bonus | `40% × log10(Luck ÷ 100) + gear`, Luck term never negative | Adds | None | [WEB] |
+| Luck drop multiplier | With `q = Luck ÷ enemy level`: 1 up to `q = 1`, 1.5 at `q = 10`, 5 at `q = 350` and beyond, straight lines between those points on a log scale | n/a | 5 | The 1.5 and 5 points are [WEB]; starting from 1 and the lines between are Steadfast's |
+
+Check against RH: Dexterity 1,575 gives 21% and 172%, matching Michael's screenshot. Luck 1,000 gives +50% gold and +40% drops, matching the published rule.
+
+Dexterity adds nothing to crit until it passes 10, and Luck adds nothing until it passes 100. The stat explanations say so, because what Luck does was asked twice (C02, C07).
+
+### 4.3 Effects on gear
+
+| Effect | What it does | Stacking | Cap | v1 |
+|---|---|---|---|---|
+| Flat Life, Damage, Defense, Dexterity, Luck | Adds to Base | Adds | None | Yes |
+| % Life, Damage, Defense, Dexterity, Luck | Adds to Mult | Adds | None | Yes |
+| Accuracy %, Evasion % | Section 4.2 | Adds | None | Yes |
+| Crit Chance, Crit Damage | Section 4.2 | Adds | Chance 100% | Yes |
+| XP Bonus | `XP × (1 + bonus ÷ 100)` | Adds | None | Yes |
+| Gold Bonus, Drop Bonus | Section 4.2 | Adds | None | Yes |
+| Life Regen | Heals that % of max Life at the start of each hero turn after the first | Adds | None | Yes |
+| Extra Hit | Chance for an attack to land twice | Adds | 100% | Yes |
+| Extra Attack | Chance to attack twice in a turn | Adds | 100% | Yes |
+| Extra Turn | Chance to take a second turn before the enemy acts | Adds | 100% | Yes |
+| Reflect | Section 3.1 | Adds | None | Yes |
+| Last Stand | Survive that many fatal hits per battle at 1 Life | Highest wins | None | Yes |
+| Resistance vs a tag | Section 3.1 | Adds | None | Yes |
+| Damage vs a tag | Section 3.1 | Adds | None | Yes |
+| Growth: stat points per level | Extra stat points for each level gained while the item is equipped. Points already earned stay for the run after unequipping. | Highest wins | None | Yes |
+| Move Speed | Faster walking on the map | Adds | +150% | Yes |
+| Energy | Section 2.2 | Adds | None | Yes |
+| Claim | Section 2.3 | n/a | n/a | Yes |
+
+Trade-off items can carry negative lines. Every summed value is held to its listed range, no chance goes below 0, and no multiplier built from a bonus (XP, gold, drops, damage against a tag) goes below 0.
+
+The Growth rule is [WEB] and the "highest wins" part for it is [GPT] plus G1's general ruling. It is what makes a separate climbing loadout worth keeping (C03, C06, C11).
+
+Left for full scope (G1): quadruple hit, the combo family, the 10× hit, faction mechanics. Also full scope because the kickoff's v1 list omits them: lifesteal, block, hero damage reduction, a second multiplier layer, heal-on-survive, overheal, flat per-level stat gains, items that raise energy cost in exchange for power, and items that multiply XP or gold and energy cost together.
+
+### 4.4 Enemy traits
+
+| Trait | What it does | v1 |
+|---|---|---|
+| Double attack, triple attack | Section 3.2; triple is rolled only if double succeeded | Yes |
+| Regeneration | Heals a % of max life at the start of its turn | Yes |
+| Damage reduction | Section 3.1 | Yes |
+| Tags | Up to two of E1–E3 and T1–T4; they drive Resistance and Damage vs a tag | Yes |
+| Quadruple attack, flat damage reduction, crit immunity, a rating multiplier | [WEB]; puzzle traits | Full scope |
+
+RH's data files list no crit, accuracy or evasion stats for enemies [WEB], so Steadfast's enemies have none beyond the rating `T` (inference).
+
+## 5. Progression and inflation curves
+
+Every number in this section is a parameter in `data/balance.json`. An enemy record in `data/` holds only its level, zone, role and modifiers; its stats come from these formulas. An item record holds its own fixed lines, written by hand inside the budget in section 5.6, plus an item level used for prices and budget checks.
+
+### 5.1 Hero level
+
+- XP to go from level `L` to `L + 1`: `10 × L`.
+- Total XP to reach level `L`: `5 × L × (L − 1)`.
+- Level from total XP: `floor((1 + sqrt(1 + 0.8 × XP)) ÷ 2)`, then corrected by direct comparison.
+
+RH's XP-per-level curve is [OPEN]. This one is Steadfast's own. The quadratic form is chosen because it needs only multiplication and a square root, which keeps levels identical on every device (section 6.3), and because it gives the constant-ratio climb described next.
+
+### 5.2 Enemy XP
+
+`XP = 0.6 × (level + 4)² × modifiers`, rounded down. A boss's modifier is 3 (starting values).
+
+What this does, with `r` = enemy level ÷ hero level and the underlevel bonus from section 5.3:
+
+| `r` | Hero level multiplies by, per win |
+|---|---|
+| 0.5 | 1.015 |
+| 1.0 | 1.058 |
+| 1.5 | 1.157 |
+| 2.0 | 1.342 |
+| 3.0 | 1.924 |
+| 3.6 or more | lands at about 60% of the enemy's level |
+
+Three consequences, which are the inflation feel:
+
+- Beating something far above your level throws you most of the way to its level in one win.
+- How far above your level you can win is set by gear, so gear sets how fast a run climbs.
+- Fighting below your level still moves you, slowly. Extra energy converts into over-levelling. Michael ended up several times a boss's level in RH (C24, C30); that the cause there is the same is an inference.
+
+### 5.3 Underlevel bonus
+
+With `r` as above: no bonus up to 1.2, rising in a straight line to 3× at 3.6, and 3× beyond [WEB] published.
+
+### 5.4 Enemy stats
+
+`stat = level × zone coefficient × role modifier × enemy modifier`. Bosses use Life ×2, Damage ×1.1, Defense ×1.1. An individual enemy's modifiers stay between 0.7 and 1.4. All starting values.
+
+| Zone | Life per level | Damage per level | Defense per level | Gold per level |
+|---|---|---|---|---|
+| Z1 | 24 | 5.0 | 2.0 | 4.0 |
+| Z2 | 34 | 5.5 | 2.4 | 3.0 |
+| Z3 | 48 | 6.0 | 2.8 | 2.5 |
+| Z4 | 68 | 6.6 | 3.2 | 2.0 |
+| Z5 | 96 | 7.4 | 3.7 | 1.6 |
+| Z6 | 135 | 8.4 | 4.2 | 1.3 |
+| Z7 | 190 | 9.6 | 4.8 | 1.1 |
+| Z8 | 270 | 11.0 | 5.5 | 1.0 |
+
+The shape follows RH's early game, where stats are close to linear in level and the per-level figures creep up by zone [WEB]. The step in coefficients from one zone to the next is what makes a wall. Past v1, RH applies much larger zone multipliers [WEB], and full scope will do the same.
+
+### 5.5 Rewards
+
+- **Gold:** `enemy gold × (1 + Gold Bonus ÷ 100) × marked-enemy multiplier`, rounded down. A boss carries 3 times a normal enemy's gold.
+- No reward multiplier built from a bonus goes below 0, whatever negative lines are equipped.
+- **XP:** `enemy XP × underlevel bonus × (1 + XP Bonus ÷ 100) × marked-enemy multiplier`, rounded down.
+- **Drops:** each drop an enemy still holds is rolled separately at `base chance × (1 + Drop Bonus ÷ 100) × Luck drop multiplier × marked-enemy multiplier`, capped at 100%.
+- **Marked enemies:** each normal enemy has an 8% chance to be marked, rolled when the run starts and again each time it respawns. A marked enemy gives +100% or +200% to XP (45% of the time), drops (29%) or gold (26%) for the win that removes it [WEB]. Losing to it does not clear the mark. The even split between +100% and +200% is [ASSUMPTION]. The pre-fight sheet says which bonus it carries.
+
+### 5.6 Item power by zone
+
+Item lines are written by hand, to a budget the content checks enforce. Every item has an **item level**: the level of the enemy that drops it, or for a shop item the level it is meant for. Item level sets prices and budgets. It is not a requirement to equip.
+
+Each zone's data names a **reference loadout**: one weapon, twelve armor pieces and five accessories, all with an item level at or below that zone's top enemy level `Ltop`. It is the loadout a player who has finished the zone would wear into its gate boss. Its totals must come within 15% of these (starting values):
+
+| Line | Reference loadout total |
+|---|---|
+| Flat Damage | `3.0 × Ltop` |
+| Flat Defense | `1.9 × Ltop` |
+| Flat Life | `7.9 × Ltop` |
+| Flat Dexterity | `0.4 × Ltop` |
+| % Life, % Damage, % Defense, each | Z1 +50%, Z2 +80%, Z3 +110%, Z4 +150%, Z5 +220%, Z6 +300%, Z7 +400%, Z8 +550% |
+
+- A single item's share is set by its slot: the weapon carries most of the Damage, armor most of the Defense and Life, accessories the rest.
+- With these totals a fresh level-1 hero in a zone's reference loadout can beat enemies at about two thirds of that zone's top level.
+- Flat Dexterity is in the budget because without it a level-1 hero could not land a hit that far up.
+- Other effects are budgeted as well. v1 gear keeps total Reflect at or under 30%, Life Regen at or under 20% a turn, and Last Stand at or under 3. RH's items go higher [WEB].
+
+In this band flat bonuses do most of the work, as they did in RH's early game (inference from the C02 screenshot). A run's reach scales with flat gear times Mult, so each new piece pushes the next run a little farther. Percent bonuses take over in full scope.
+
+### 5.7 Prices
+
+Let `goldAt(L)` be `L × gold per level` for the zone whose level band contains `L` (section 7.5), with no boss or enemy modifiers.
+
+- **Shop item:** `price = k × goldAt(item level)`, with `k` between 6 and 60 per item. In play that is between a fifth of a run's gold and a run and a half's, at the level the item is meant for.
+- **Loadout slots:** two are free. The third, fourth and fifth cost `60 × goldAt(L)` at levels 1,000, 30,000 and 300,000. In RH these are a gold purchase (Michael's turns, C15); RH's prices are [OPEN].
+- **Waypoints:** 20, 30, 40, 50, 60 and 70 gems for Z3 through Z8. RH's prices are [OPEN].
+
+### 5.8 Energy
+
+| Parameter | Starting value | RH reference |
+|---|---|---|
+| Base starting energy | 20 | 20 [GPT] or 25 (Michael, possibly including an accessory), [OPEN] |
+| Fight cost by zone, Z1–Z8 | 1, 1, 1, 1, 1, 1, 2, 2 | 1 up to about level 1 million, 3 in the region after, 12 at the end (Michael's turns, C15 and C19, and his C30 screenshot). Steadfast raises the cost once inside v1 so the rising-cost rule from Q2 is exercised |
+| Unclaimed boss payback | Cost + 2 | Early bosses cost 1 and pay 3 [WEB]. The last boss costs 12 and pays 11 [WEB], so full scope will shrink the surplus late |
+| Claimed boss payback | Cost only | [OPEN]; section 2.3 |
+| Permanent energy per Claim | 3 | Capped at 2 [WEB]; Michael recalls 2–3 (notes #2) |
+| Energy accessories in v1 | Three, giving +1, +2 and +3, one copy each | Fourteen, giving 1–25 [WEB] |
+
+With all 18 bosses claimed, v1 ends at 74 starting energy before accessories. With none claimed it is 20, plus 2 for each boss beaten that run.
+
+### 5.9 Pacing targets
+
+These are what the Phase 3b and Phase 4 simulators report against.
+
+| Target | Value | Source |
+|---|---|---|
+| Runs per wall | 4–6 | Confirmed (Q14) |
+| Real time per run, Z1–Z2 | 2–4 minutes | Derived |
+| Real time per run, Z3–Z5 | 4–7 minutes | Derived |
+| Real time per run, Z6–Z8 | 6–10 minutes | Derived |
+| Real time per run, late full scope | 7–13 minutes | Confirmed (Q14): a third of RH's 20–40 |
+| Wins per run | 20–30 early, 40–60 by the end of v1 | Section 5.8; includes whatever boss surplus the player chooses to collect |
+| Seconds per fight | 3–6 at default playback, under 1 with skip | DV-3 |
+| Runs in Z1 | 4–6 | One wall, the Z1 gate boss (Q14) |
+| Runs per zone, Z2–Z8 | 7–10 | One or two walls each |
+| Walls in v1 | 10–14 | Derived |
+| Runs to finish v1 | 53–76, aiming at 65 | Runs in Z1 plus seven times runs per zone |
+| Play time to finish v1 | 5–9 hours | Run counts times run lengths. Whether that equals "a week at Michael's RH pace" rests on the [ASSUMPTION] that he played RH 2–4 hours a day; gate question P5 |
+| Play time, full scope | 35–45 hours, about 300 runs | Projection from v1 |
+| Runs with a persistent gain | At least 90%, and never three in a row without one | Pillar 2 |
+| Breakthrough run | Beats the wall and at least 3 enemies never beaten before | Pillar 1 |
+| Hero level ÷ strongest enemy beaten, at run end | Between 1 and 3 in v1 | RH: about 1 early, over 4 late (Michael's turns, C04 and C30) |
+| Wins that needed more than 3 tries | Under 15% | Guards the risk in DV-3 |
+
+Definitions for the simulator:
+
+- A **wall** is a gate boss or zone entry the player cannot pass on the run that first reaches it.
+- A **persistent gain** is a new item or copy, a Claim, a waypoint or a loadout slot.
+
+A throwaway expected-value model, with the starting values above and a simple "fight the best XP you can beat" player, gave runs of 20 to 65 wins and a hero ending each run at 1.5 to 2.2 times the level of the strongest enemy beaten. In every zone the full reference loadout beat that zone's gate boss and half of it did not, which is the wall-and-breakthrough shape. The boss multipliers and the budget above were adjusted until it did so; the first draft's values left every early gate boss out of reach. That only shows the formulas can produce the intended shape. It is not evidence for the pacing targets; the Phase 3b simulator is.
+
+## 6. Numeric representation
+
+### 6.1 Projected peaks
+
+| Quantity | v1 peak | Full-scope peak | RH reference |
+|---|---|---|---|
+| Hero level | 3e6 | 3e10 | 1.8e10 (screenshot) |
+| Enemy level | 1.2e6 | 5e9 | 4.4e9 [WEB] |
+| Hero core stat, final | 1e8 | 1e15 | 6e14 (screenshot) |
+| Enemy life | 1e9 | 3e18 | 2.9e18 [WEB] |
+| Damage in one hit | 1e8 | 1e17 | Not recorded |
+| XP from one win | 1e13 | 2e20 | 1.3e18 [WEB] |
+| Total XP in a run | 5e13 | 5e21 | Not recorded |
+| Gold in a run | 3e8 | 1e12 | 4e11 (screenshot) |
+
+The largest value anywhere is about 5e21.
+
+### 6.2 Decision: plain JavaScript numbers
+
+No big-number library.
+
+- **Overflow:** a JavaScript number overflows near 1.8e308. The largest projected value is 5e21, which leaves about 286 orders of magnitude.
+- **Precision:** whole numbers are exact up to about 9e15. Only XP totals and late full-scope life and damage pass that, and nothing depends on their last digits.
+- **Cost of the alternative:** a library would wrap every stat, formula and save field, slow the simulator, and guard against something the design cannot reach.
+- **If the ceiling ever rises:** content would need to grow by another 280 orders of magnitude first. A change at that point would be a save migration like any other.
+
+Rules that follow from the decision:
+
+- Level, gold, gems, energy and every count are whole numbers that must pass a safe-integer check before a save is written.
+- Stats, life, damage and XP are whole-valued (always rounded down) but may exceed the exact range.
+- Saves store numbers as JSON numbers. JavaScript writes and reads them back without loss.
+- Comparisons that gate an action, such as "can afford", always use the stored values, never the displayed text.
+
+### 6.3 Determinism
+
+- Inside `src/engine/`, arithmetic is limited to add, subtract, multiply, divide, square root, rounding, min and max. `Math.pow`, `Math.exp`, the `Math.log` family and trigonometry are banned by lint, because their results are not guaranteed identical between Node and Safari.
+- The `log10` in sections 3.1 and 4.2 is the engine's own function, built from the allowed operations in a fixed order. It is used when stats are derived and never inside the battle loop.
+- The Settings diagnostics page re-runs the golden replays on the phone and compares their hashes with the ones computed at build time. That is the only way to check Safari without a Mac.
+
+### 6.4 Display format
+
+- Below 1,000,000: every digit, with thousands separators.
+- From 1,000,000: four significant figures and a suffix: M, B, T, Qa, Qi, Sx, Sp, Oc, No, Dc. Past Dc, scientific notation.
+- Displayed values are cut, not rounded, so the screen never shows more than the player has.
+- When two values being compared would display the same, both show extra digits.
+
+## 7. Loot, zones and economy
+
+### 7.1 Items
+
+- Every item has fixed stats. No random rolls, no rarity tiers, no set bonuses, no level requirements (Confirmed Q13b, G1; [WEB]).
+- An item has base lines (flat and % Life, Damage, Defense; Accuracy %; Evasion %) and up to four effects from section 4.3 [WEB].
+- Trade-off items with a negative line are allowed [WEB].
+- Slots: 1 weapon, 12 armor slot types and 5 accessory slots. The 12 types are [WEB], from the data files and the store listing; the 5 are from Michael's turns. The Phase 0 notes on his equipment screenshot count 14 cells including the weapon, which would mean one armor type has two cells [OPEN]. Steadfast has one cell per type. All five accessory slots are open from the start.
+- Copy caps: 1 for weapons and armor, 3 for most accessories, 1 for special accessories. Every owned copy can be equipped at once (Confirmed, Q1).
+- Content IDs are opaque codes with no theme in them, so display names can change without touching saves (hard rule 5).
+
+### 7.2 v1 item counts
+
+| | Total | Sold in the shop | Dropped or handed over |
+|---|---|---|---|
+| Weapons | 28 | 8 | 20, including the tool |
+| Armor, 7 per slot | 84 | 16 | 68 |
+| Accessories | 46 | 12 | 34 |
+| Keys | 2 | 0 | 2 |
+| All | 160 | 36 | 124 |
+
+### 7.3 How items are obtained
+
+- **Drops.** An enemy holds 1 to 3 drops, each with a fixed base chance. The authoring target is a median of 5%, most between 1.25% and 10% (RH's distribution, [WEB]). A drop stops once the item's copy cap is reached (Confirmed, notes #3 and Q1).
+- **Handovers.** A few drops are guaranteed: the tool from the first boss, and every key on the required path.
+- **Shop.** Buying happens in the Items screen and in the Gear screen's slot picker, from anywhere, at any time (Confirmed, Q10). All shop stock is listed with its price from the start, so there is always a known thing to save for (C06). Whether RH shows its stock from the start is [OPEN].
+- **Salvage.** Section 7.4.
+
+Not in v1: RH's "random piece of a family" group drops [WEB].
+
+### 7.4 Salvage
+
+Confirmed (notes #6, Q3), built to Michael's C04 screenshot.
+
+- Used at a Salvage site on the map, any time during a run, once per run. There is one beside the run start and one beside every waypoint.
+- It takes all gold on hand.
+- **Pool:** items the player owns no copy of, dropped by an enemy the player has beaten at least once ever, where that enemy's level is at or below the strongest enemy beaten this run.
+- **Chance:** `gold ÷ (gold + 36 × goldAt(strongest enemy beaten this run))`. So the same chance needs more gold as the run goes higher, which is what notes #6 describes. RH's formula is [OPEN]. Its one known point, 3.75 million gold at a strongest kill of level 42,000 showing 65.20% (Michael's screenshot, C04), comes out at 66% here.
+- **Gem boost:** 25 gems double the chance for this attempt, to at most 100%. RH offers the same at the same price (C04 screenshot).
+- **Result:** on success, one item from the pool, each equally likely. RH's selection rule is [OPEN].
+- **Pool breakdown (DV-2):** the screen shows how many pool items sit in each of three bands: within half of this run's strongest kill, between a tenth and a half, and below a tenth.
+- A failed attempt still uses up the gold and the run's one attempt.
+- An empty pool takes no gold and uses no attempt.
+
+Salvage is present from Z1 because the kickoff's slice needs gold to matter. In RH it opens after a boss at about enemy level 35,000 [GPT]; Michael's C04 screenshot shows him using it at about level 40,000. This is logged as DV-7.
+
+### 7.5 Zones (structure only)
+
+| Zone | Enemy levels | Enemies | Bosses among them | Tags present | Gate out of the zone |
+|---|---|---|---|---|---|
+| Z1 | 1–40 | 10 | 1 | T1, T2 | Gate boss, which hands over the tool |
+| Z2 | 41–250 | 11 | 2 | T1, T4 | Gate boss |
+| Z3 | 251–1,500 | 12 | 2 | E3, T1 | Gate boss; an optional key door |
+| Z4 | 1,501–8,000 | 12 | 2 | E3, T1, T4 | Gate boss |
+| Z5 | 8,001–40,000 | 13 | 2 | T2, T3 | A required key door, then a gate boss |
+| Z6 | 40,001–150,000 | 14 | 3 | E1, T1, T4 | Gate boss |
+| Z7 | 150,001–450,000 | 14 | 3 | E2, T3, T4 | Gate boss |
+| Z8 | 450,001–1,200,000 | 14 | 3 | E1, E2, E3, T1, T3, T4 | Final boss of v1; a sealed door beyond |
+| All | 1–1,200,000 | 100 | 18 | | |
+
+- Six orders of magnitude in level across v1 matches where Michael stood in RH after about a week (the timeline in `docs/STATUS.md`).
+- RH packs about 250 enemies into this band [WEB]; v1 has 100, so the step between neighbouring enemies averages about 15% against RH's 5%.
+- Each zone from Z3 on has one waypoint, six in all (DV-8).
+- v1 has a few optional secrets. How many, what kind and where are sealed. Any enemy among them is counted in the table.
+
+### 7.6 Enemy families
+
+A zone holds two or three families. A family shares tags and a trait pattern, and its members follow one of these roles through their modifiers:
+
+| Role | Shape |
+|---|---|
+| Standard | Zone coefficients as they are |
+| Bruiser | More life, less damage |
+| Glass | Less life, more damage |
+| Armored | More defense or a damage-reduction trait |
+| Flurry | Double or triple attack with less damage per hit |
+| Mender | Regeneration |
+
+Tags are how elements and types reach the build game. Gear can carry Resistance to any tag and Damage against any tag. E1–E3 and T1–T4 work identically; the split is flavour.
+
+### 7.7 Gates
+
+| Gate | Rule | Resets each run |
+|---|---|---|
+| Gate boss | Stands on the only path; beating it opens the path for this run | Yes |
+| Key door | Open to anyone holding the key | No |
+| Hidden path | A walkable tile that does not look like one; found by stepping onto it | No, once found |
+| Sealed door | Marks the end of current content and says so | n/a |
+
+Three rules from pillar 7:
+
+- The required path never depends on a hidden path.
+- A locked door says that it needs a key and which zone the key is in. Keys on the required path are guaranteed handovers from a boss. An optional door's key may be an ordinary drop.
+- A gate boss's pre-fight sheet says it is a gate.
+
+Out of v1: enemies that appear only when the player arrives with enough energy or gold [GPT], and enemies meant to be fought while weak [WEB].
+
+### 7.8 Economy
+
+| Currency | Scope | Sources | Sinks |
+|---|---|---|---|
+| Gold | Run | Wins, stashes | Shop, loadout slots, Salvage |
+| Gems | Permanent | Enemy drops only (DV-5) | Waypoints, the Salvage boost |
+| Energy | Run | Starting energy, boss paybacks, accessories | Wins |
+
+- **Gems.** A normal enemy has a 12% chance to drop 1 gem. A boss gives 3 gems in Z1–Z4 and 5 in Z5–Z8 the first time it is ever beaten and none after that, so there is no reason to tour bosses for gems. Drop Bonus does not affect gems, so supply stays predictable. Over v1 that comes to between about 330 and 440 gems, depending on how many runs v1 takes, against 270 for all six waypoints and 25 for each Salvage boost. Starting values; RH's rates are [OPEN].
+- **Stashes** pay gold once per run. Finding one is remembered.
+- There are no other currencies and no store (hard rules 3 and 10).
+
+### 7.9 Content checks
+
+Because Michael does not review content (Q12), these run automatically in tests and CI:
+
+- every item is obtainable, and every drop and shop entry points at a real item;
+- every lock states its key, and the key can be reached before the lock;
+- every enemy, waypoint and Salvage site can be reached, and no walkable area is a dead end;
+- the required path uses no hidden tile;
+- each zone's reference loadout is within 15% of the section 5.6 totals, v1 gear stays under the section 5.6 limits on Reflect, Life Regen and Last Stand, and each enemy's modifiers are within section 5.4's range;
+- counts match section 7.2 and section 7.5;
+- no content name matches the reference game's names.
+
+Simulator reports give the aggregate view, and a separate verifier pass reads what the checks cannot judge.
+
+## 8. UI screen map and flow
+
+Layouts are Steadfast's own. Every screen is built for an iPhone held in one hand: portrait, safe-area insets, controls in the lower half, tap targets of at least 44 points, nothing that needs hover, no pinch or double-tap zoom (kickoff stack).
+
+### 8.1 Flow
+
+```mermaid
+flowchart TD
+  Launch --> Map
+  Map -->|tap enemy| PreFight[Pre-fight sheet]
+  PreFight -->|fight| Battle[Battle playback]
+  PreFight -->|back| Map
+  Battle --> Result[Result sheet]
+  Result -->|again| PreFight
+  Result --> Map
+  Map -->|tap site| Salvage
+  Map -->|menu| Waypoints
+  Map --- Tabs
+  Tabs --> Hero
+  Tabs --> Gear
+  Tabs --> Items
+  Tabs --> Bestiary
+  Tabs --> Run[Run menu]
+  Run --> NewRun[New-run sheet]
+  Run --> Settings
+```
+
+A tab bar at the bottom reaches Map, Hero, Gear, Items, Bestiary and the Run menu from anywhere outside a battle.
+
+### 8.2 Screens
+
+| Screen | Shows | Actions |
+|---|---|---|
+| Map | A top-down tile map; enemies with their level, a marker if marked, a boss mark; doors, waypoints, Salvage sites. A status strip with level, gold, energy, gems and a "new item" badge. A row of loadout buttons. | Tap a tile to walk there by the shortest known path. Tap an enemy to walk to it and open the pre-fight sheet. Tap a loadout to switch. Open waypoint travel. |
+| Pre-fight sheet | Enemy level, tags and traits in plain words; energy cost and, for a boss, the payback; gate and Claim status; win chance and limiting factor; drops, with unfound ones hidden but counted; any marked bonus. | Fight, or back. |
+| Battle playback | The event log replayed: hits, crits, misses, dodges, life bars. | Speed 1×, 2×, 4×; skip to the end. The setting is remembered. |
+| Result sheet | Win: XP, levels gained, gold, drops, gems, any Claim, energy left. Loss: the one-line summary. | Fight again, or return to the map. |
+| Hero | Core tab: the five stats with Base, Mult and Final; unspent points; the derived stats. Combat tab: hits, attacks and turns, each with its chances and an average; Reflect, Regen, Last Stand; Resistances and Damage-vs-tag. Figures that depend on an enemy use the last enemy fought and say so. | Spend points by +1, +10, +100, a percentage of what is unspent, or all. Open Auto-assign. Tap any stat for a one-line explanation. |
+| Gear | The active loadout: weapon, 12 armor slots, 5 accessory slots, each with its main lines. Loadout tabs. | Tap a slot to choose from owned items, or buy one that is for sale, with the change to each stat previewed. Rename or buy a loadout. |
+| Items | Every item by slot: owned and maximum copies, stats, price if sold. Items not yet found appear as blank rows. Counter of items owned against the total. Gold on hand. | Filter by slot, owned, or for sale. Buy. |
+| Bestiary | A numbered list by zone with a found-against-total counter. Unseen enemies are blank. A seen enemy shows level, tags, traits, times beaten and its drops, unfound ones hidden. Bosses show claimed or unclaimed. | Browse. |
+| Salvage | Gold on hand, the chance, pool size, the three-band breakdown, the gem boost and its price. | Attempt, with or without the boost. |
+| Waypoints | Each waypoint: locked with its gem price, or unlocked. | Unlock a visited waypoint. Travel. |
+| Auto-assign | A percentage for each of the five stats. | Turn on or off; edit the split. Points that do not divide evenly go to the stat furthest behind its percentage, ties going to the earlier stat in the order Life, Damage, Defense, Dexterity, Luck. Unlocks permanently the first time the hero reaches level 250; RH's unlock is "shortly after level 250" [WEB]. |
+| Run menu | Run number, level, strongest enemy beaten this run and ever, energy. Progress counters: items, bestiary, bosses claimed, zones reached. | New run. Settings. |
+| New-run sheet | Section 2.4. | Confirm or cancel. |
+| Settings | Playback speed; storage persistence status; export and import; days since last export; save-fallback notices; the diagnostics log and engine self-test; "update ready". | As listed in the kickoff save spec. |
+
+### 8.3 Movement
+
+- Tap-to-move routes through ordinary walkable tiles, which are always visible, and through a hidden tile only once it has been found. So it never gives away a hidden path.
+- Walking is an animation. The engine treats a move as instant and only checks that the destination can be reached.
+- Base walking speed and map size are set so that no enemy in Z3–Z8 is more than about 10 seconds' walk from its zone's waypoint, and nothing in Z1–Z2 is more than about 20 seconds from the run start. Move Speed shortens that.
+- A place name printed on the map is the same string the bestiary, the waypoint list and the locked-door message use (C03).
+
+### 8.4 Teaching
+
+There is no tutorial sequence and no dialogue system (hard rule 10). Each system explains itself in one line the first time its screen opens, and every stat has a tap-for-explanation line (D-19). This targets the recorded confusions: what Luck does (C02, C07), loadout against slot (C02), and Growth against flat bonuses (C06, C10).
+
+## 9. Anti-patterns
+
+| Never do this | Why | Guard |
+|---|---|---|
+| A run that leaves nothing behind | C24, C06, C21 | Pacing target on persistent gains; the new-run sheet |
+| A core system the player can miss | C16 | Every system appears in plain sight in Z1 or at its unlock |
+| A knowledge gate dressed as a level wall | C15, C20, C22, C30 | Section 7.7's three rules, checked automatically |
+| An expensive test with no information | C26 | Forecast and loss summary |
+| A lottery with a whole run's gold and no odds | C06 | Chance and pool breakdown on the Salvage screen |
+| Slow, unskippable repetition | C15, C23, C27 | Playback speed and skip; waypoints; tap-to-move |
+| A map label that differs from what the game calls the place | C03, C15 | One string per place |
+| Two things with confusable names | C02, C06, C10 | The shipped labels in section 0; one-line explanations |
+| Random encounters, random stat rolls, rarity tiers, set bonuses | Q13a, Q13b, G1 | Not in the data schema |
+| Retrying as the best strategy | Free losses plus skip (DV-3) | The "more than 3 tries" target in section 5.9 |
+| Timers, daily resets, offline earnings, ads, purchases | Hard rule 3 | Lint and CI checks from Phase 3a |
+| Any sound or media element | Hard rule 2 | Lint and a scan of the built app |
+| Systems RH does not have: crafting, classes, quests, dialogue, procedural maps, daily tasks, extra currencies | Hard rule 10 | Deviations need a decisions-log entry |
+| Hardcoded content or balance numbers | Hard rule 5 | Everything in `data/`, validated at load |
+
+Michael named nothing further from the two other games to avoid (G3).
+
+## 10. v1 scope and full scope
+
+| Area | v1 | Full scope |
+|---|---|---|
+| Size | 8 zones, 100 enemies, 160 items (Q15) | RH's scale: about 36 zone sections, 460 enemies, 700 items [WEB] |
+| Level range | 1 to about 1.2 million | To about 5 billion |
+| Play time | 5–9 hours | 35–45 hours |
+| Core systems | Run loop, energy, Claim, shop, Salvage, gems and waypoints, loadouts, Auto-assign, bestiary, forecast, loss summary | The same |
+| Stats | Sections 4.1–4.3 | Adds everything listed at the end of 4.3 |
+| Enemy traits | Multi-attack, regeneration, damage reduction, tags | Adds the puzzle traits |
+| Tags | 3 elements, 4 types | About ten types and two late factions [WEB] |
+| Gates | Gate boss, key door, hidden path, sealed door | Adds condition-triggered enemies |
+| Drops | Named drops and handovers | Adds family group drops |
+| Other | One profile | Adds the journal and a sixth accessory slot |
+| Platform | Local saves, export and import | Adds cloud backup (Phase 5) |
+
+The Phase 3b vertical slice is Z1 plus the first two or three enemies of Z2: about 12 enemies and 25 items. Its arc maps onto this document as follows.
+
+- **Wall:** the Z1 gate boss.
+- **Persistent gain:** gear kept from Z1 and bought from the shop.
+- **Breakthrough:** the run that beats the boss and receives the tool.
+- **Next destination:** Z2's first enemies with their levels showing. The Z1 boss is also now marked unclaimed, but in the slice that is a small prize: the boss has to be beaten every run anyway, so claiming it is worth 1 energy.
+
+Whether the slice gets the shop as well as Salvage is gate question P2.
+
+## 11. Save backup comparison
+
+The kickoff's save spec is the specification. This section only settles the Phase 5 backend choice it asks for.
+
+| | (a) Private GitHub repo | (b) Supabase free tier |
+|---|---|---|
+| How | The app writes the save file through the contents API with a fine-grained token limited to that one repo | A hosted database table |
+| History | Every backup is a commit, so every past save can be recovered | Latest row unless history is built |
+| Idle behaviour | None | Free projects pause after 7 days idle (kickoff) |
+| Accounts | The GitHub account already in use | A new service to maintain |
+| Secret on the phone | One token | A project key plus a sign-in |
+| Main risk | The token expires and must be replaced; details to check against GitHub's current rules in Phase 5 | A paused project fails silently between play sessions |
+
+**Proposal: (a).**
+
+One problem to solve first: every project site on a personal `github.io` address shares one browser origin, so any of Michael's other sites could read a token stored on the phone. The fix recommended in Phase 0 stands: a free GitHub organization named after the game, which gives the app its own origin and a root address. This must be settled before the first install in Phase 3a, because the install address is permanent. It follows from the name chosen in section 14.
+
+## 12. Open-questions log
+
+Unknowns about RH. None blocks the build: each has a Steadfast rule in the section listed.
+
+| ID | Question about RH | Steadfast's rule | Section |
+|---|---|---|---|
+| O-01 | XP needed per level | Own quadratic formula | 5.1 |
+| O-02 | Accuracy and evasion curves between the published points | Square law for hits, log law for dodges | 3.1 |
+| O-03 | The Salvage chance formula (one data point) | Own formula, set to give 66% at that point | 7.4 |
+| O-04 | Gem drop rates and waypoint prices | Own starting values | 5.7, 7.8 |
+| O-05 | Base starting energy, 20 or 25 | 20 | 5.8 |
+| O-06 | Whether energy accessories count at run start or while equipped | While equipped; gate question P4 | 2.2 |
+| O-07 | Michael's total hours in RH | Assumed 2–4 a day; gate question P5 | 5.9 |
+| O-08 | Whether a claimed boss still pays its per-run surplus; one review says it need not be beaten again [WEB] | It refunds its cost only; gate question P3 | 2.3 |
+| O-09 | Defense's apparent second multiplier layer in late screenshots | One layer in v1 | 4.1 |
+| O-10 | Whether item accuracy and evasion are percentage modifiers on a base of 100 plus Dexterity | Yes | 4.2 |
+| O-11 | Whether the hit roll is per attack or per hit | Per attack | 3.2 |
+| O-12 | Whether crit applies before or after Defense | After | 3.1 |
+| O-13 | What multi-action chances above 100% do | Stop at 100% | 4.3 |
+| O-14 | What crit chance above 100% does (screenshots show 123% and 137%) | Stops at 100% | 4.2 |
+| O-15 | Whether Reflect ignores the damage-reduction trait | It does not | 3.1 |
+| O-16 | How a stalemate ends | Loss at 200 rounds | 3.2 |
+| O-17 | Whether shop stock is visible before it can be afforded | Visible from the start | 7.3 |
+| O-18 | How Salvage picks from the pool, and whether partly owned accessories are in it | Equal odds; only items with no copy owned | 7.4 |
+| O-19 | The split between +100% and +200% on marked enemies | Even | 5.5 |
+| O-20 | Where waypoint travel can be started from | The map menu, anywhere | 2.2 |
+| O-21 | Whether stashes pay once per run or once ever | Once per run | 7.8 |
+| O-22 | What the journal holds | Out of v1 | 10 |
+| O-23 | The exact Auto-assign unlock level ("shortly after 250" [WEB]) | Level 250 | 8.2 |
+| O-24 | Stat points per level and the value of a Life point | 5, and 3 | 4.1 |
+| O-25 | Whether one armor slot type has two cells (14 cells counted on one screenshot against 12 types in the data) | One cell per type | 7.1 |
+| O-26 | When teleports first become available ("later in the game", notes #7) | From Z3 (DV-8) | 7.5 |
+| O-27 | When Salvage first becomes available (level 35,000 is [GPT]) | From Z1 (DV-7) | 7.4 |
+| O-28 | Whether Resistances to two tags on one enemy add or multiply | They add | 3.1 |
+
+Project decision still open: the install address, due before Phase 3a's first install (section 11).
+
+## 13. Decisions log
+
+### 13.1 Interview rulings
+
+All dated 2026-10-12.
+
+| ID | Ruling | Where it lives |
+|---|---|---|
+| Q1 | Copy caps: 1 for weapons and armor, 3 for most accessories, 1 for special ones; drops stop at the cap; all copies can be equipped | 7.1, 7.3 |
+| Q2 | Fight cost rises by zone; only wins are charged; bosses pay energy back; walking, travel and Salvage are free | 2.2, 5.8 |
+| Q3 | Salvage follows the screenshot: all gold, a shown chance, once per run, pool limited to enemies beaten | 7.4 |
+| Q4 | Waypoints are bought with gems and kept; gems persist and come from drops only | 2.2, 7.8, DV-5 |
+| Q5 | Gate bosses reset each run; keys and waypoints persist; the reset ledger stands | 2.2, 2.5 |
+| Q6 | The permanent-energy tool is handed over in plain sight | 2.3, DV-1 |
+| Q7 | At zero energy the player stays on the map and starts the next run by hand | 2.2, 2.4 |
+| Q8 | Hand-built walkable tile maps with tap-to-move; accepted cost is a hand-authored grid per zone | 8.3, DV-4 |
+| Q9 | Normal enemies respawn at once; bosses are once per run | 2.2 |
+| Q10 | Buying happens in the item screens, anywhere, any time; no merchants | 7.3, 8.2 |
+| Q11 | Three clarity additions: forecast with limiting factor, loss summary, Salvage pool by band | 3.5, 7.4, DV-2 |
+| Q12 | Spoiler policy: systems visible, content unseen; content reviewed by simulator, automated checks and a verifier pass | 0, 7.9 |
+| Q13 | All five reasons apply: chosen fights, finite visible drops, permanent progress beyond gear, a hand-built world, build depth | 1 |
+| Q14 | Keep RH's 4–6 runs per wall; cut real time per run to about a third | 5.9, DV-6 |
+| Q15 | v1 is about 8 zones, 100 enemies, 160 items, with every core system | 7.2, 7.5, 10 |
+| G1 | Ten assumptions confirmed: hero strikes first; full life each fight and Last Stand resets; new run any time; no unaffordable fights; the marker means a bonus enemy; base crit 10% and 150%; no set bonuses; no rarity tiers; "doesn't stack" means highest wins; v1 uses the kickoff's stat list | 2.2, 3, 4 |
+| G2 | The GDD shows zone structure only; themes and names are sealed | 0, 7.5 |
+| G3 | Nothing further to avoid from the two other games | 9 |
+
+### 13.2 Deviations from RH
+
+| ID | Deviation | Frustration fixed | Cost | Risk |
+|---|---|---|---|---|
+| DV-1 | The permanent-energy tool is handed over by the first boss instead of being hidden (Q6) | Finding the system ten days late (C16) | One item and a bestiary marker | Nothing is left to discover about the system. Noticed in Phase 1: with the tool in hand from the first boss, energy arrives in steps of 3 as bosses are outgrown, not as the single jump from 25 to 97 that made C16 memorable |
+| DV-2 | A win chance with the limiting factor before a fight, a one-line summary after a loss, and the Salvage pool shown by level band (Q11) | Blind, expensive tests (C26); level not predicting outcomes (C24, C30); worry about paying a run's gold for a low-level item (C06) | Small: 1,000 trial battles per forecast, one line, one breakdown | Fights can feel decided beforehand; Salvage is less of a gamble |
+| DV-3 | Player-controlled battle speed and skip (kickoff) | Michael asked whether battles could be sped up (C27); that RH has no speed control is [GPT]. Also the real time a run takes (C15, C23) | None in the engine, since battles already resolve instantly; one setting | Less tension watching a close fight. Because losses are free, skip also makes retrying a long-shot fight nearly free in real time, so a wall can be brute-forced at low odds. Section 5.9 sets a target to measure this. If the target is missed, the fix would be a rule change, for example a retry at unchanged stats replaying the same seed, and that would be a new deviation for Michael to rule on |
+| DV-4 | Tap-to-move with pathfinding as the main control, where RH has the hero walk freely (Q8) with a joystick option [WEB] | Navigation friction (C03, C09, C15, C23, C30); one-handed play | Pathfinding on the tile grid | Less wandering, so fewer accidental discoveries. Pathfinding must not route through unknown hidden tiles |
+| DV-5 | Gems come from enemy drops only; there is no store (Q4) | None of Michael's; hard rule 3 forbids monetization | None; it removes a feature | Gem supply rests on drop tuning alone, with no purchase to fall back on |
+| DV-6 | A run takes about a third of RH's real time for the same number of runs per wall (Q14) | Rebuilding the run was the cost that hurt (C15, C23, C26) | Depends on DV-3, DV-4 and waypoints all working well | Content is used up about three times faster in real time: v1's "week" is 5–9 hours of play |
+
+Two more deviations come from fitting RH's order into v1, not from the interview, and have not had an explicit ruling:
+
+| ID | Deviation | Reason | Cost | Risk |
+|---|---|---|---|---|
+| DV-7 | Salvage exists from Z1; in RH it opens at about enemy level 35,000 [GPT] | The kickoff's slice needs gold to matter, and gold resets every run | None | An all-in gamble arrives before the player has learned the shop. Offering both in Z1 (gate question P2) lets the player choose the known payoff, as Michael did in C06 |
+| DV-8 | Waypoints start at Z3; RH's teleports come "later in the game" (notes #7), exact point [OPEN] | Q15 puts waypoints in v1, and Q14's shorter runs depend on them | None | Less walking through early zones, where Michael also enjoyed finding things (C02, C14) |
+
+### 13.3 Phase 1 design decisions
+
+Proposed at this gate; each stands once the gate is approved.
+
+| ID | Decision | Reason |
+|---|---|---|
+| D-01 | Plain JavaScript numbers, no big-number library | Section 6.2 |
+| D-02 | Engine arithmetic limited to operations that give identical results on every device; own `log10`; on-device self-test | Section 6.3; golden replays must mean something on the phone |
+| D-03 | Quadratic XP curve with enemy XP proportional to level squared | Section 5.1; RH's curve is unknown |
+| D-04 | Enemy stats are linear in level with per-zone coefficients | Mirrors RH's early structure [WEB]; multiplication only |
+| D-05 | Shipped labels differ from RH's for systems and effects; the five core stat names stay | Hard rule 7 against clarity |
+| D-06 | Element and type names are sealed with the zone themes | A tag's name gives away a zone's theme |
+| D-07 | Content IDs carry no theme | Display names can change freely (hard rule 5) |
+| D-08 | Energy accessories count only while equipped | No start-of-run ritual; the end-of-run trick in section 2.2 is accepted; RH's rule is unknown |
+| D-09 | A Claim adds 3 starting energy; a claimed boss then refunds only its cost and pays no surplus | Matches the one [WEB] account; removes any reason to tour every boss each run (pillar 5); keeps waypoints from costing energy. The price is that a Claim on a boss the run would beat anyway is worth 1, not 3. Gate question P3 |
+| D-10 | Combat choices where RH is unknown: hit roll per attack, Defense before crit, chances stop at 100%, Reflect reduced by damage reduction, Resistances summed across an enemy's tags, loss at 200 rounds | Each is the simpler rule; section 12 lists them |
+| D-11 | Shop stock is visible from the start | A known payoff beats a lottery (C06) |
+| D-12 | Salvage picks with equal odds from items with no copy owned; a failed attempt uses the gold; the gem boost is kept | Q3 as recorded; C04 screenshot |
+| D-13 | Gem drops ignore Drop Bonus, and a boss gives gems on its first defeat only | Keeps the one permanent currency predictable and gives no reason to tour bosses |
+| D-14 | v1 includes energy accessories, Accuracy % and Evasion % lines, Move Speed, and stat-points-per-level Growth; flat per-level gains wait | Energy is the run's central budget; the next three are item basics in RH's data [WEB] that the kickoff's list does not name; the kickoff lists stat points per level |
+| D-15 | One profile | Extra slots are for safety only |
+| D-16 | The new-run confirmation lists what the run gained and what will be lost | Guards against leaving gold or the Salvage attempt unused |
+| D-17 | Cloud backup option (a), on the game's own origin | Section 11 |
+| D-18 | v1's level range is 1 to about 1.2 million | Section 7.5 |
+| D-19 | Each screen explains itself in one line on first open, and every stat has a tap-for-explanation line | Recorded confusions (C02, C06, C07, C10); no tutorial or dialogue system is added |
+| D-20 | Item lines are hand-authored inside a per-zone budget; every item has an item level for prices and checks | Section 5.6 |
+
+## 14. Names
+
+Five original names. None says anything about the world, so none is a spoiler. Checks were run on 2026-10-12: a web search for an existing game of the same title, and whether the name is free as a GitHub organization.
+
+| Name | What it says | Existing game found | GitHub organization name |
+|---|---|---|---|
+| **Farther Still** | Each run gets a little farther | None | `farther-still` is free |
+| Inchmeal | An old word for "little by little" | None | `inchmeal` is taken; `inchmeal-rpg` is free |
+| Hundredfold | The inflation | None by that exact title | `hundredfold` is taken; `hundredfold-rpg` is free |
+| One More Wall | The wall-and-breakthrough loop | None | `one-more-wall` is free |
+| Carryover | What you keep between runs | None | `carryover` is taken; `carryover-rpg` is free |
+
+**Recommendation: Farther Still.** It states the loop in two words, reads well under a home-screen icon, and its exact name is free, which would make the install address `farther-still.github.io`.
+
+Rejected during the search because a game already uses the name or something close: Last Drop, Everclimb, Waymark, Gaining Ground.
