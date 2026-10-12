@@ -4,14 +4,13 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Current phase
 
-**Phase 0: Interview.** Reading of `reference/` is complete. Batch 1 (section 10 of `rh_web_notes.md`) was posted 2026-10-12 and is waiting on Michael's answers. Target: 4 batches or fewer, then the Phase 0 gate ⛔.
+**Phase 0: Interview.** Reading of `reference/` is complete. Batch 1 is answered. Batch 2 was posted 2026-10-12 and is waiting on Michael's answers. Target: 4 batches or fewer, then the Phase 0 gate ⛔.
 
 ## Todo
 
 ### PENDING
 
-- [ ] Phase 0: record Michael's batch 1 answers in the table below
-- [ ] Phase 0: batch 2 (run end flow, permanent-energy ruling, map and movement, combat order and stacking, leveling curve, shops)
+- [ ] Phase 0: record Michael's batch 2 answers in the table below
 - [ ] Phase 0: batch 3 (screens and pre-fight information, spoiler policy, comparison with the two other games, pacing targets, v1 scope)
 - [ ] Phase 0: batch 4 only if batches 1–3 leave material gaps
 - [ ] Phase 0: gate report ⛔ (wait for "approved")
@@ -26,7 +25,8 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 - [x] Step 0: `git init`, `.gitignore` (verified `reference/` ignored before first commit), `docs/KICKOFF.md` verbatim, stub `CLAUDE.md`, this file, first commit
 - [x] Phase 0: read `reference/` (coverage and its one limit are listed under "Reading coverage")
-- [x] Phase 0: batch 1 posted
+- [x] Phase 0: batch 1 posted and answered
+- [x] Phase 0: batch 2 posted (permanent-energy ruling, run end, map model, respawn, shop)
 
 ## Phase 0 working record
 
@@ -55,25 +55,35 @@ Re-read this file at the start of every session and every work cycle. Update it 
 | Battle speed | RH has no player speed control; Michael asked for one (C27). Steadfast's speed and skip settings are a deliberate deviation that fixes a recorded frustration | Michael's turn |
 | Multi-action layers | Three nested layers: hits per attack, attacks per turn, turns. The character screen shows an average for each | Michael's screenshots |
 
-### Batch 1 (posted 2026-10-12, awaiting answers)
+### Batch 1 (answered 2026-10-12)
+
+Michael's reply was the single letter "a". It is recorded as (a) on all five, which were the recommended defaults; he was told this reading and asked to correct any of 2–5 if he meant only question 1.
+
+| # | Question | Michael's answer | Recorded as |
+|---|---|---|---|
+| 1 | Item copy caps | a | Weapons and armor cap at 1, most accessories at 3, special accessories at 1. A drop stops once the cap is reached. All owned copies can be equipped at once. |
+| 2 | Energy | a | Each fight has an energy cost that rises by zone. Only wins are charged; a loss costs nothing and the player is back on the map free to retry. A boss pays back its listed energy when beaten. Walking, teleporting and archaeology cost no energy. |
+| 3 | Archaeology | a | Build the screenshot version: spends all current gold, shows a success chance driven by gold and the highest enemy level beaten this run, once per run, pool limited to unowned drops of enemies beaten at least once ever and at or below this run's highest kill. |
+| 4 | Teleports and gems | a | Teleport points are bought with gems and stay unlocked. Gems carry over between runs. Steadfast keeps gems as a second persistent currency, earned from enemy drops only, no store. |
+| 5 | New-run state | a | Gate bosses block the path again every run. Keys the player holds still open their doors. Teleport points skip whatever lies before them. The persist/reset ledger in the batch 1 post stands. |
+
+### Batch 2 (posted 2026-10-12, awaiting answers)
 
 | # | Question | My default | Michael's answer |
 |---|---|---|---|
-| 1 | Item copy caps: weapons and armor 1, most accessories 3, special accessories 1; drops stop at the cap; copies can all be equipped | a | |
-| 2 | Energy: cost per fight rises by zone, bosses pay energy back on defeat; what does a loss cost? | a (a loss costs nothing) | |
-| 3 | Archaeology: which version to build, given the screenshot and `rh_notes.md` #6 differ | a (screenshot version) | |
-| 4 | Teleports and gems: what paid for a teleport point, and did it persist? | a (gems; permanent) | |
-| 5 | New-run state: do gate bosses block the path again every run? | a (yes; keys and teleport points persist) | |
+| 6 | Permanent starting energy: signposted tool, automatic on first kill, or hidden tool as in RH | a (signposted tool) | |
+| 7 | What happens when a win takes energy to 0 | b if unsure (stay on the map; start the next run yourself) | |
+| 8 | Map model: hand-built walkable tile maps or a node map | a (tile maps, tap-to-move) | |
+| 9 | Respawn of normal enemies within a run | a (back almost at once) | |
+| 10 | Where buying happens | a (inside the item screens, anywhere) | |
+
+Assumptions stated in the batch 2 post, standing unless Michael objects: the hero strikes first; every fight starts at full life and survive-death charges reset per fight; a new run can be started at any time; a fight the player cannot afford cannot be started; a `*` after an enemy's level on the map marks a bonus enemy.
 
 ### Queued for later batches
 
-- Ruling needed: the kickoff says a first boss kill gives permanent starting energy, but RH gates that behind a hidden tool. Rule 10 deviation, to be decided with its cost and risk stated.
-- Run end: what exactly happens at zero energy, and whether a run can be ended early.
-- Map and movement: free-walking tile map versus something simpler; enemy respawn within a run; what "once per run" covers.
-- Combat order, base crit damage, what "doesn't stack" means, accuracy curve between the published points.
-- Leveling: XP needed per level, stat points per level.
-- Shops: what gold buys early, before archaeology exists.
-- Spoiler policy, pacing targets, v1 scope, comparison with the two other games (not covered anywhere in `reference/`).
+- Batch 3: screens and what is shown before a fight or route choice (including a pool preview for archaeology), spoiler policy and how content gets reviewed, what made RH better than the two other games (not covered anywhere in `reference/`), pacing targets (real time per run, runs per zone, total hours), v1 scope.
+- Batch 4 only if needed: leftovers from the assumptions list, original-name preferences.
+- Not for Michael, to be set by formula in Phase 1 and tagged [ASSUMPTION]: XP needed per level, accuracy and evasion curves between the published points, archaeology chance formula.
 
 ### Calibration notes [WEB]
 
@@ -85,6 +95,13 @@ From the developer data files; approximate. For Phase 1 curve design, not for co
 - Drop chances: median 5%, 10th–90th percentile 1.25%–10%, range 0.05%–100%. Most enemies have 1 or 2 drops. About 610 distinct dropped items; almost none drop from more than one enemy.
 - 130 weapons and 539 armor/accessory rows; 113 items carry a gold price (shop stock), including tiered flat-stat accessories.
 - Player magnitudes seen in Michael's screenshots: level 1.8e10, stats up to about 6e14, enemy life up to about 3e18.
+- Screenshot cross-checks of the published formulas (inference from single data points):
+  - Defense: reduction = D ÷ (D + enemy damage) reproduces both displayed values (60% early, 11% at the final boss). The same shape applies to enemy defense against player damage ("18% defended").
+  - Crit: Dexterity 1,575 showing 21% chance and 172% damage fits the published Dexterity rule exactly with a 10% base chance and a 150% base damage.
+  - Accuracy: accuracy about 1.74× (enemy level + 100) showed 97% to hit; a miss chance of 10% × ((level + 100) ÷ accuracy)² fits that one point.
+  - Evasion: evasion at 37× and 51× enemy level showed 51% and 56% to dodge, roughly +26 points per 10× above the published 10% point, under the 80% cap.
+  - Stat points: bases at level 1.8e10 are consistent with roughly 5 stat points per level before per-level gear, with a Life point worth 3–4× a point of the other stats.
+- The final boss's battle cost on screen (12) is one more than its energy value in the data (11), which is what led to the cost-and-payback model Michael confirmed in batch 1.
 
 ## Judgment calls
 
@@ -100,7 +117,7 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 
 ## Handoff
 
-- **Done:** Step 0 committed. All of `reference/` read as described under "Reading coverage". Batch 1 posted.
+- **Done:** Step 0 committed. All of `reference/` read as described under "Reading coverage". Batch 1 answered (all a). Batch 2 posted.
 - **Worked:** Extracting only Michael's own turns from the transcripts gave the first-hand evidence in about 50 KB. His screenshots settled the pre-fight screen, the archaeology screen, and the stat screen layout. Running Python with `-I` against the data files in `reference/`.
 - **Failed:** Nothing. One trap to avoid: `cd` inside a Bash call moves the session's working directory, so use absolute paths for git.
-- **Next:** Record batch 1 answers, then post batch 2 from the queued list above.
+- **Next:** Record batch 2 answers, then post batch 3 from the queued list above.
