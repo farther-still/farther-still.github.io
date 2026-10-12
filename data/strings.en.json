@@ -1,0 +1,75 @@
+{
+  "zones": {
+    "z01": "Lowgate Terraces",
+    "z02": "Teahouse Switchbacks"
+  },
+  "enemies": {
+    "e001": "Gosling",
+    "e002": "Leveret",
+    "e003": "Terrace Goose",
+    "e004": "Tally Clerk",
+    "e005": "Terrace Hare",
+    "e006": "Hissing Gander",
+    "e007": "Barrier Porter",
+    "e008": "Boxing Hare",
+    "e009": "Old Grey Gander",
+    "e010": "The Toll Keeper",
+    "e011": "Tea-Snatcher Macaque",
+    "e012": "Kettle Wisp"
+  },
+  "families": {
+    "f01": "Terrace Geese",
+    "f02": "Terrace Hares",
+    "f03": "Tollhouse Staff",
+    "f04": "Tea-Snatcher Macaques",
+    "f05": "Kettle Wisps"
+  },
+  "items": {
+    "i001": "Reed Cane",
+    "i002": "Harebone Cudgel",
+    "i003": "Terracer's Billhook",
+    "i004": "Notched Walking Stick",
+    "i005": "Gosling-Down Sash",
+    "i006": "Leveret-Skin Slippers",
+    "i007": "Goosefeather Cap",
+    "i008": "Goosequill Anklet",
+    "i009": "Clerk's Inky Gloves",
+    "i010": "Reed Jerkin",
+    "i011": "Hareskin Leggings",
+    "i012": "Hare-Sinew Cord",
+    "i013": "Ganderwing Mantle",
+    "i014": "Porter's Bracers",
+    "i015": "Porter's Whistle",
+    "i016": "Harepelt Cloak",
+    "i017": "Hare-Tooth Ring",
+    "i018": "Greydown Coat",
+    "i019": "Toll Keeper's Ledger",
+    "i020": "Reed Shield",
+    "i021": "Forged Toll Chit",
+    "i022": "Reed-Bound Whetstone",
+    "i023": "Reed Pace Bead",
+    "i024": "Tea-Picker's Pilgrim Badge",
+    "i025": "Kettle-Iron Poker"
+  },
+  "tags": {
+    "e1": "Frost",
+    "e2": "Storm",
+    "e3": "Blight",
+    "t1": "Wild",
+    "t2": "Sworn",
+    "t3": "Graven",
+    "t4": "Hollow"
+  },
+  "places": {
+    "p01": "Lowgate",
+    "p02": "Drying Racks",
+    "p03": "Toll Gate",
+    "p04": "First Switchback",
+    "p05": "Middle Terrace"
+  },
+  "lines": {
+    "handover.i004": "\"You'll want this more than a sword,\" says the keeper, and hands you his stick.",
+    "site.salvage": "The Ragpicker",
+    "claim": "You cut a notch in the stick."
+  }
+}

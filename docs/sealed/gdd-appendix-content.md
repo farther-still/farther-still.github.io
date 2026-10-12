@@ -73,3 +73,16 @@ v1 has two keys, matching GDD section 7.2:
 - Stat-points-per-level accessories are pilgrim badges, one from each shrine order.
 - Bosses have a title, not a personal name.
 - No name may match a name in the reference game, and no item category may borrow the reference game's theme for that category. The automated check in GDD section 7.9 enforces the first against a private list; the second is for the verifier pass.
+
+## S6. The slice as built (Phase 3b)
+
+Names are in `data/strings.en.json` and nowhere else; this section says how the slice is laid out, by ID.
+
+- **Z1 (`z01`)** is the terraces as a climb: nine terraces stacked up the map, joined by short stairs at alternating ends, with one enemy on each, and the toll yard at the top. The run starts at the bottom beside the Ragpicker. The gate boss stands in the one-tile stair above the toll yard, and the exit to Z2 is at its top.
+- **Families in Z1:** geese are `e001`, `e003`, `e006` and `e009`; hares are `e002`, `e005` and `e008`; gate hands are `e004` and `e007`; the Toll Keeper is `e010`. Levels run 1, 2, 3, 5, 8, 12, 17, 23, 30 and 40.
+- **Hidden stash 1** is as S4 describes it: the drying racks are the built wall at the east end of the bottom three rows, the bottom one is not a wall (`x01`), and the stash (`x02`) is on the hidden tile behind it, so nothing of it shows until the way in is found. Steering east along the bottom row from the run start walks straight into it, which is the "found early" intent.
+- **Z2 (`z02`)** is a glimpse: two halls of the first switchback, one macaque (`e011`) and one kettle wisp (`e012`), and a sealed door where the rest of the zone will be. The door is a stand-in for "end of current content", not the observatory hatch of S1.
+- **Items:** 23 belong to Z1 and 2 to the Z2 glimpse (`i024`, a pilgrim badge, and `i025`, the first weapon of the next tier). The shop's reed tier is `i001`, `i010`, `i020` and `i022`; the first pace bead is `i023`. `i019` is the Toll Keeper's own drop, and `i021` is the piece that works against his kind, dropped by his own gate hands.
+- **Placeholder art:** each enemy's one character is in `data/enemies.json`.
+- **Renamed after the content verifier's pass:** the family S3 calls gate hands ships under another name (`f03`), as does its second member (`e007`) and the two items named for it (`i014`, `i015`): the working name sat one word from a reference-game name and used two words that are also system labels. Also renamed, each for breaking a rule in S5 or reading as something it is not: `i001`, `i002`, `i008`, `i012`, `i023`, `i024`. S3's table keeps the working names; `data/strings.en.json` holds the shipped ones.
+- **A fifth place name** (`p05`) labels the middle of Z1, so the climb has a landmark between the bottom and the toll yard. The terraces alternate between three kinds of ground for the same reason.

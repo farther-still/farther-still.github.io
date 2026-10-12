@@ -1,0 +1,29 @@
+{
+  "items": [
+    {"id": "i001", "kind": "weapon", "level": 3, "lines": {"damageFlat": 9}, "resist": {}, "versus": {}, "claim": false, "copyCap": 1, "priceFactor": 8},
+    {"id": "i002", "kind": "weapon", "level": 8, "lines": {"damageFlat": 22, "critChance": 3}, "resist": {}, "versus": {}, "claim": false, "copyCap": 1, "priceFactor": null},
+    {"id": "i003", "kind": "weapon", "level": 30, "lines": {"damageFlat": 76, "damagePct": 15}, "resist": {}, "versus": {}, "claim": false, "copyCap": 1, "priceFactor": null},
+    {"id": "i004", "kind": "weapon", "level": 40, "lines": {}, "resist": {}, "versus": {}, "claim": true, "copyCap": 1, "priceFactor": null},
+    {"id": "i005", "kind": "waist", "level": 1, "lines": {"defenseFlat": 2, "lifeFlat": 8, "lifePct": 5}, "resist": {}, "versus": {}, "claim": false, "copyCap": 1, "priceFactor": null},
+    {"id": "i006", "kind": "feet", "level": 2, "lines": {"lifeFlat": 8, "dexterityFlat": 3}, "resist": {}, "versus": {}, "claim": false, "copyCap": 1, "priceFactor": null},
+    {"id": "i007", "kind": "head", "level": 3, "lines": {"defenseFlat": 4, "lifeFlat": 14, "lifePct": 5}, "resist": {}, "versus": {}, "claim": false, "copyCap": 1, "priceFactor": null},
+    {"id": "i008", "kind": "accessory", "level": 3, "lines": {"dexterityFlat": 6}, "resist": {}, "versus": {}, "claim": false, "copyCap": 3, "priceFactor": null},
+    {"id": "i009", "kind": "hands", "level": 5, "lines": {"damageFlat": 4, "defenseFlat": 3, "dexterityFlat": 4}, "resist": {}, "versus": {}, "claim": false, "copyCap": 1, "priceFactor": null},
+    {"id": "i010", "kind": "body", "level": 5, "lines": {"defenseFlat": 6, "lifeFlat": 22}, "resist": {}, "versus": {}, "claim": false, "copyCap": 1, "priceFactor": 12},
+    {"id": "i011", "kind": "legs", "level": 8, "lines": {"defenseFlat": 6, "lifeFlat": 24, "defensePct": 5, "evasionPct": 10, "dexterityFlat": 4}, "resist": {}, "versus": {}, "claim": false, "copyCap": 1, "priceFactor": null},
+    {"id": "i012", "kind": "accessory", "level": 8, "lines": {"lifeFlat": 28, "lifePct": 10}, "resist": {}, "versus": {}, "claim": false, "copyCap": 3, "priceFactor": null},
+    {"id": "i013", "kind": "shoulders", "level": 12, "lines": {"defenseFlat": 7, "lifeFlat": 28, "lifePct": 5, "defensePct": 5}, "resist": {}, "versus": {}, "claim": false, "copyCap": 1, "priceFactor": null},
+    {"id": "i014", "kind": "arms", "level": 17, "lines": {"damageFlat": 8, "defenseFlat": 6, "damagePct": 10}, "resist": {}, "versus": {}, "claim": false, "copyCap": 1, "priceFactor": null},
+    {"id": "i015", "kind": "neck", "level": 17, "lines": {"lifeFlat": 30, "lifePct": 10}, "resist": {"t2": 25}, "versus": {}, "claim": false, "copyCap": 1, "priceFactor": null},
+    {"id": "i016", "kind": "back", "level": 23, "lines": {"defenseFlat": 12, "lifeFlat": 46, "defensePct": 10}, "resist": {}, "versus": {}, "claim": false, "copyCap": 1, "priceFactor": null},
+    {"id": "i017", "kind": "finger", "level": 23, "lines": {"damageFlat": 6, "critChance": 5, "damagePct": 10, "dexterityFlat": 4}, "resist": {}, "versus": {}, "claim": false, "copyCap": 1, "priceFactor": null},
+    {"id": "i018", "kind": "body", "level": 30, "lines": {"defenseFlat": 18, "lifeFlat": 76, "defensePct": 15, "lifePct": 10}, "resist": {}, "versus": {}, "claim": false, "copyCap": 1, "priceFactor": null},
+    {"id": "i019", "kind": "accessory", "level": 40, "lines": {"lifeFlat": 40, "lastStand": 1}, "resist": {}, "versus": {}, "claim": false, "copyCap": 1, "priceFactor": null},
+    {"id": "i020", "kind": "offhand", "level": 6, "lines": {"defenseFlat": 9, "lifeFlat": 18, "defensePct": 10}, "resist": {}, "versus": {}, "claim": false, "copyCap": 1, "priceFactor": 10},
+    {"id": "i021", "kind": "accessory", "level": 17, "lines": {}, "resist": {}, "versus": {"t2": 30}, "claim": false, "copyCap": 1, "priceFactor": null},
+    {"id": "i022", "kind": "accessory", "level": 8, "lines": {"damageFlat": 8, "damagePct": 5}, "resist": {}, "versus": {}, "claim": false, "copyCap": 3, "priceFactor": 10},
+    {"id": "i023", "kind": "accessory", "level": 25, "lines": {"energy": 1}, "resist": {}, "versus": {}, "claim": false, "copyCap": 1, "priceFactor": 20},
+    {"id": "i024", "kind": "accessory", "level": 45, "lines": {"growth": 1}, "resist": {}, "versus": {}, "claim": false, "copyCap": 1, "priceFactor": null},
+    {"id": "i025", "kind": "weapon", "level": 60, "lines": {"damageFlat": 150, "damagePct": 20}, "resist": {}, "versus": {}, "claim": false, "copyCap": 1, "priceFactor": null}
+  ]
+}

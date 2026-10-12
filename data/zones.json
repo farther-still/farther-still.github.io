@@ -1,0 +1,38 @@
+{
+  "start": {
+    "zone": "z01",
+    "x": 6,
+    "y": 32
+  },
+  "zones": [
+    {
+      "id": "z01",
+      "balanceKey": "Z1",
+      "referenceLoadout": {
+        "weapon": "i003",
+        "head": "i007",
+        "neck": "i015",
+        "shoulders": "i013",
+        "body": "i018",
+        "back": "i016",
+        "arms": "i014",
+        "hands": "i009",
+        "finger": "i017",
+        "waist": "i005",
+        "legs": "i011",
+        "feet": "i006",
+        "offhand": "i020",
+        "acc1": "i022",
+        "acc2": "i022",
+        "acc3": "i022",
+        "acc4": "i021",
+        "acc5": "i012"
+      }
+    },
+    {
+      "id": "z02",
+      "balanceKey": "Z2",
+      "referenceLoadout": null
+    }
+  ]
+}
