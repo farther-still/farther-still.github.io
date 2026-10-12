@@ -305,6 +305,230 @@ pre {
   overflow-wrap: anywhere;
 }
 
+/* ---- the game screens ---- */
+
+.host.fixed {
+  display: flex;
+  overflow: hidden;
+}
+
+.map-screen {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+  max-width: 34rem;
+  margin: 0 auto;
+}
+
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  padding: 6px 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+
+.chip {
+  display: inline-flex;
+  gap: 6px;
+  font-size: 0.95rem;
+}
+
+.chip .value {
+  font-weight: 600;
+}
+
+.map-above {
+  padding: 0 10px;
+}
+
+.map-above .notice,
+.map-above .hint {
+  margin: 6px 0;
+  padding: 8px 10px;
+}
+
+.map-canvas {
+  display: block;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
+.loadout-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 12px;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+}
+
+.hint {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: #1a2029;
+  color: var(--muted);
+}
+
+.hint p {
+  margin: 0 0 4px;
+}
+
+.btn.current {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn.badge {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.btn.linkish {
+  min-height: 44px;
+  margin: 0;
+  padding: 10px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  text-decoration: underline dotted;
+  text-underline-offset: 4px;
+}
+
+.btn.slot {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+}
+
+.slot-item {
+  font-weight: 600;
+}
+
+.line.tappable {
+  align-items: center;
+  margin: 0;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.stat-name {
+  flex: 0 0 5.5rem;
+}
+
+.stat-math {
+  flex: 1 1 auto;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+.stat-final {
+  flex: 0 0 auto;
+  min-width: 3.5rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.big {
+  margin: 0 0 4px;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.tabbar {
+  gap: 4px;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.tab {
+  padding: 10px 2px;
+  font-size: 0.82rem;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  z-index: 5;
+  max-width: 88%;
+  padding: 10px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  background: #10141a;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.toast[hidden] {
+  display: none;
+}
+
+/* Battle playback. Bar widths are classes, because the content security policy forbids inline styles. */
+.bar-row {
+  margin: 10px 0;
+}
+
+.bar {
+  height: 14px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  background: var(--ok);
+  transition: width 120ms linear;
+}
+
+.bar-fill.w0 { width: 0; }
+.bar-fill.w1 { width: 5%; background: var(--danger); }
+.bar-fill.w2 { width: 10%; background: var(--danger); }
+.bar-fill.w3 { width: 15%; background: var(--danger); }
+.bar-fill.w4 { width: 20%; background: var(--danger); }
+.bar-fill.w5 { width: 25%; background: var(--accent); }
+.bar-fill.w6 { width: 30%; background: var(--accent); }
+.bar-fill.w7 { width: 35%; background: var(--accent); }
+.bar-fill.w8 { width: 40%; background: var(--accent); }
+.bar-fill.w9 { width: 45%; background: var(--accent); }
+.bar-fill.w10 { width: 50%; }
+.bar-fill.w11 { width: 55%; }
+.bar-fill.w12 { width: 60%; }
+.bar-fill.w13 { width: 65%; }
+.bar-fill.w14 { width: 70%; }
+.bar-fill.w15 { width: 75%; }
+.bar-fill.w16 { width: 80%; }
+.bar-fill.w17 { width: 85%; }
+.bar-fill.w18 { width: 90%; }
+.bar-fill.w19 { width: 95%; }
+.bar-fill.w20 { width: 100%; }
+
+.battle-words {
+  min-height: 2.8em;
+  margin: 8px 0;
+  text-align: center;
+}
+
 /* An installed web app cannot lock the phone's orientation, so landscape gets a panel instead (GDD 8.3). */
 .rotate {
   display: none;

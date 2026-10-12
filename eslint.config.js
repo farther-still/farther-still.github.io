@@ -155,15 +155,16 @@ export default tseslint.config(
     rules: { 'no-restricted-syntax': ['error', ...engineSyntax] },
   },
   {
-    // Engine tests may import Vitest and use any number; every purity ban still applies to them.
-    files: ['src/engine/**/*.test.ts'],
+    // Engine tests, and the made-up world they share, may import Vitest and use any number; every purity ban
+    // still applies to them.
+    files: ['src/engine/**/*.test.ts', 'src/engine/**/*.fixture.ts'],
     rules: {
       'no-restricted-syntax': ['error', ...engineSyntax],
       'no-restricted-imports': engineImports(0, true),
     },
   },
   {
-    files: ['src/engine/*/**/*.test.ts'],
+    files: ['src/engine/*/**/*.test.ts', 'src/engine/*/**/*.fixture.ts'],
     rules: { 'no-restricted-imports': engineImports(1, true) },
   },
   {

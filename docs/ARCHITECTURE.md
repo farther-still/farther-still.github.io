@@ -1,6 +1,6 @@
 # Steadfast: Architecture
 
-Written 2026-10-12 for the Phase 2 gate and updated the same day for the Phase 3a gate. Phase 3a built the platform parts around a dummy state; section 14 lists what exists and what waits for Phase 3b, which builds the game. Design is in `docs/GDD.md`, build rules in `CLAUDE.md`, state in `docs/STATUS.md`. The game ships as "Farther Still"; "Steadfast" is the codename.
+Written 2026-10-12 for the Phase 2 gate and updated the same day for the Phase 3a and Phase 3b gates. Phase 3a built the platform parts around a dummy state. Phase 3b replaced the dummy state with the game, as a vertical slice. Section 14 lists what exists and what is still to come. Design is in `docs/GDD.md`, build rules in `CLAUDE.md`, state in `docs/STATUS.md`. The game ships as "Farther Still"; "Steadfast" is the codename.
 
 ## 1. Principles
 
@@ -43,7 +43,7 @@ flowchart TD
 |---|---|---|---|
 | `src/engine/` | Nothing outside itself, and no npm package | Everything else | Browser and Node |
 | `src/content/` | Engine types and pure functions, zod | UI, save, platform | Browser and Node |
-| `src/save/` | Engine types, `hash` and `canonicalJson`, zod, idb | UI, sim, platform, content | Browser; Node in tests with a fake IndexedDB |
+| `src/save/` | Engine types and constants, `hash` and `canonicalJson`, zod, idb | UI, sim, platform, content | Browser; Node in tests with a fake IndexedDB |
 | `src/platform/` | Save: the database handle and the store names only (`db`, `constants`) | Engine, UI, sim, content | Browser |
 | `src/ui/` | All of the above | Sim | Browser |
 | `src/sim/` | Engine, content, Node APIs | UI, save, platform | Node |
@@ -55,6 +55,7 @@ flowchart TD
 - The engine's rule is stricter than a list of forbidden folders: a file in `src/engine/` may not import anything from outside that folder at all, by any relative path. That is what stops an engine file reading `data/balance.json` directly, past its schema.
 - Dynamic `import()` is banned throughout `src/`, because its path is only known at run time and no boundary rule can follow it.
 - Golden replay tests need content as well as the engine, so they live in `tests/`, not in `src/engine/`.
+- Engine tests share one small made-up world, `src/engine/sample.fixture.ts`. A `*.fixture.ts` file is test support: it is left out of the engine and app projects, type-checked with the tools, and linted like a test, so it may hold any number. The save and UI tests use the same world through `tests/helpers.ts`.
 
 ## 3. Folder layout
 
@@ -67,19 +68,20 @@ steadfast/
   tsconfig.base.json           options shared by the four projects below
   tsconfig.json                app: ui, save, platform, content, main
   tsconfig.sw.json             the service worker, with the worker library and no DOM
-  tsconfig.tools.json          tests, scripts and the Vite config
+  tsconfig.tools.json          tests, fixtures, the simulator, scripts and the Vite config
   .githooks/pre-commit         runs `npm run check`
+  .githooks/commit-msg         refuses a commit message that holds a content name
   .github/workflows/ci.yml     one workflow: check and build, then deploy from main
   data/
-    balance.json               every balance number in the GDD (systems; Michael reviews it). From Phase 3b
-    content-spec.json          expected counts for the current phase (structure; not sealed). From Phase 3b
+    balance.json               every balance number in the GDD, with the zone table (systems; Michael reviews it)
+    content-spec.json          expected counts for the current phase (structure; not sealed)
     ids.lock.json              every content ID ever shipped, with its kind (opaque; not sealed)
-    dummy.json                 Phase 3a only: the fake item list. Removed in Phase 3b
-    zones.json                 sealed content from here down. From Phase 3b
+    zones.json                 sealed content from here down
     enemies.json
     items.json
     strings.en.json            every display name, place name and line of content text
     maps/z01.json ...          one tile grid per zone
+    name-scan-exceptions.json  strings-file keys the name scan skips, each with a reason
   docs/
     KICKOFF.md  GDD.md  ARCHITECTURE.md  STATUS.md
     sealed/                    spoilers; hidden in diffs
@@ -88,19 +90,35 @@ steadfast/
   scripts/
     lib.ts                     git plumbing and reporting shared by the checks
     check-repo.ts              reference/ untracked, token patterns, content names in unsealed text, ID lock and fixtures against the previous commit
+    check-content.ts           the GDD 7.9 checks
     check-dist.ts              the built app: media, external URLs, reference-game title, CSP, manifest and phone rules
     check-prose.ts             hard-wrapped markdown
-    check-content.ts           the GDD 7.9 checks. From Phase 3b
-    build-refnames.ts          local only; hashes names from reference/. From Phase 3b
+    refnames.ts                how a name is normalized and hashed, shared by the next file and its test
+    build-refnames.ts          local only; hashes names from reference/
   src/
     engine/                    section 5
       tsconfig.json            the engine project: no DOM library
+      types.ts                 IDs, the balance table, content definitions, derived figures
+      state.ts                 GameState, a new game, a fresh run, the marked-enemy roll
+      formulas.ts              every formula in GDD sections 2, 4, 5 and 7
+      battle.ts  forecast.ts   combat resolution; the pre-fight forecast
+      map.ts                   walkable tiles, single steps, pathfinding, the content index
+      step.ts                  the reducer and run repair
+      policies.ts              allocation policies
       math/  rng.ts  hash.ts   the only engine files allowed their own number literals
-    content/                   section 6
+      sample.fixture.ts        the made-up world the tests share
+    content/                   section 6: schemas.ts, bundle.ts (the files that ship), index.ts (the loader)
     save/                      section 7
+      migrations/v1-to-v2.ts   one frozen file per version step
     ui/                        section 8
+      app.ts  controller.ts    startup and the screen switcher; the save-before-show loop
+      mapview.ts               the canvas map and its two controls
+      fight.ts  salvage.ts     pre-fight sheet, playback and result sheet; the Salvage sheet
+      screens.ts  gear.ts  settings.ts  sheets.ts  recovery.ts   the screens of GDD 8.2
+      format.ts  labels.ts     the number formatter; every system label
+      selftest.ts              the engine self-test and golden replays
     platform/                  section 9
-    sim/                       section 10. From Phase 3b
+    sim/                       section 10: player.ts, run.ts, report.ts, cli.ts
     main.ts
     env.d.ts                   the two build-time constants
   tests/
@@ -110,28 +128,27 @@ steadfast/
     golden/                    golden values, the test that runs them, and the hash cross-check
     enforcement.test.ts        each lint ban and the engine's no-DOM compile, shown to fire
     checks.test.ts             each check script, shown to fire
-    refnames.hashes.json       hashed reference-game names. From Phase 3b
+    refnames.hashes.json       salted hashes of reference-game names
     refnames.test.ts
   reference/                   private, gitignored
 ```
 
 ## 4. State
 
-One plain, JSON-safe object. Its two halves are the game rows of the reset ledger in GDD 2.5.
+One plain, JSON-safe object. Its two halves are the game rows of the reset ledger in GDD 2.5. This is save version 2, as built in Phase 3b.
 
 ```ts
 type GameState = {
   profile: {                      // persists across runs
-    items: Record<ItemId, number>;          // copies owned
-    loadouts: Loadout[];                    // up to 5; each has a name and its slots
+    items: Record<ItemId, number>;          // copies owned; keys are items too
+    loadouts: Loadout[];                    // 2 to 5; each has a name and one cell per slot
     activeLoadout: number;
-    loadoutSlotsBought: number;
     claimedBosses: EnemyId[];
     gems: number;
     waypointsVisited: WaypointId[];
     waypointsUnlocked: WaypointId[];
-    bestiary: Record<EnemyId, { seen: boolean; timesBeaten: number }>;
-    strongestEverBeaten: number;
+    bestiary: Record<EnemyId, { timesBeaten: number }>;   // an entry means the enemy has been fought
+    strongestEverBeaten: number;            // a level
     secretsFound: SecretId[];
     autoAssign: { unlocked: boolean; on: boolean; split: StatSplit };
     hintsShown: HintId[];
@@ -148,15 +165,17 @@ type GameState = {
     energySpent: number;
     energyPaidBack: number;
     bossesBeaten: EnemyId[];
-    strongestBeaten: number;
+    strongestBeaten: number;                // a level
     lastEnemy: EnemyId | null;              // the Hero screen's bracketed figures use it
     salvageUsed: boolean;
     position: { zone: ZoneId; x: number; y: number };
-    spawns: Record<SpawnId, { marked: MarkKind | null }>;
+    marks: Record<SpawnId, { stat: 'xp' | 'drops' | 'gold'; percent: number }>;   // marked spawns only
     stashesCollected: SecretId[];
-    tallies: RunTallies;
+    tallies: { wins: number; losses: number; itemsGained: ItemId[]; claims: number; gemsGained: number };
   };
 };
+
+type Loadout = { name: string; slots: Record<SlotId, ItemId | null> };   // weapon, twelve armor types, acc1 to acc5
 ```
 
 Derived, never stored, so that two copies of one fact cannot disagree:
@@ -166,6 +185,10 @@ Derived, never stored, so that two copies of one fact cannot disagree:
 - **Remaining energy**, by the rule in GDD 2.2.
 - **Drops found** for a bestiary entry: a drop counts as found once the player owns a copy of that item. A copy that came from Salvage counts, which is intended, since Salvage only offers that enemy's missed drops.
 - **Doors**: open if the key item is owned.
+- **Loadouts bought**: the list's length less the free ones.
+- **Seen**: an enemy has been seen if it has a bestiary entry.
+
+Three places where the built state is leaner than the Phase 2 sketch, each by the rule above (A-23): there is no `loadoutSlotsBought`, because the list's length says it; a bestiary entry has no `seen` flag, because no rule could ever write `false`; and `marks` holds only the spawns that carry a mark, so a spawn added by a content update needs nothing repaired.
 
 Three ledger rows are not game state and the engine never sees them: settings, export tracking and the run-duration log. They are the `app` half of the save payload (section 7.1), versioned and migrated with the game half.
 
@@ -176,44 +199,47 @@ Three ledger rows are not game state and the engine never sees them: settings, e
 | Function | Purpose |
 |---|---|
 | `step(state, action, content)` | Returns `{ state, events }` or `{ rejected: reason }`. The only way game state changes |
-| `resolveBattle(hero, enemy, seed, balance, options)` | GDD section 3. Returns the outcome, summary numbers and, if asked, the event log |
-| `forecast(state, spawn, content)` | 1,000 trial battles on the forecast stream; returns win chance and limiting factor (GDD 3.5) |
-| `deriveHero(state, content)` | Final stats from points, gear and Growth (GDD section 4) |
+| `resolveBattle(hero, enemy, generator, balance, options)` | GDD section 3. Returns the outcome, summary numbers and, if asked, the event log. It takes a generator, not a seed, so the forecast can draw a thousand battles from one |
+| `forecast(state, spawn, content)` and `forecastBattle(hero, enemy, seed, counter, balance)` | 1,000 trial battles on the forecast stream; returns win chance and limiting factor (GDD 3.5) |
+| `deriveHero(state, content)` | Final stats from points, gear and Growth (GDD section 4). Takes an optional item list, which is how the Gear screen previews a change |
 | `enemyStats(enemy, zone, balance)` | An enemy's stats from the GDD 5.4 formula. The content loader calls it; the formula stays in the engine |
-| `findPath(state, content, from, to)` | Shortest route over known-walkable tiles (GDD 8.3) |
+| `findPath(state, content, from, to)`, `canStep`, `walkable` | Shortest route over known-walkable tiles; whether one step is allowed (GDD 8.3) |
 | `level(state, balance)`, `unspentPoints(...)`, `remainingEnergy(...)` | The derived values in section 4 |
-| `repairRun(state, content)` | Brings a run in line with changed content. The UI calls it at startup (section 7.3) |
+| `fightBlock(state, spawn, content)` | Why a fight cannot start, or null: the same test `step` applies, so the Fight button and the reducer cannot disagree |
+| `salvagePool`, `salvageChance`, `salvageBands`, `shopPrice`, `loadoutPrice`, `dropsHeld` | What the Salvage, Items and pre-fight screens show, from the same functions `step` uses |
+| `repairRun(state, content)` | Brings a run in line with changed content. The UI calls it at every load (section 7.3) |
+| `indexContent(content)` | Builds the lookups by tile and by item. The content loader and the tests' made-up world both go through it |
 | `hash(text)` | The pure checksum used by saves, golden replays and the on-device self-test: SHA-256 over the text's UTF-8 bytes, as 64 hex characters |
 | `canonicalJson(value)` | The one serialization that gets hashed: keys sorted, no whitespace. Throws on a value JSON cannot hold exactly |
 
-`step` never throws on a player action. An action that is not allowed, such as a fight the player cannot afford, comes back as `rejected` with a reason the UI can show.
+`step` never throws on a player action. An action that is not allowed, such as a fight the player cannot afford, comes back as `rejected` with a reason the UI can show. So does anything it does not know: an action type from a newer build, or something that is not an action at all.
 
 ### 5.2 Actions
 
 | Action | Effect |
 |---|---|
 | `NewRun { seed }` | Replaces `run`. The seed comes from the caller: the UI draws it from the browser's random source, the simulator from its own seed |
-| `Step { dx, dy }` | One tile in one of eight directions, if walkable. Tapped routes and steering are both sequences of these. May find a secret or visit a waypoint |
-| `Travel { waypoint }` | Moves to an unlocked waypoint |
-| `UnlockWaypoint { waypoint }` | Spends gems |
-| `Fight { spawn }` | Resolves a battle and applies GDD 3.4 in order |
+| `Step { dx, dy }` | One tile in one of eight directions, if walkable. Tapped routes and steering are both sequences of these. May find a secret or cross into another zone |
+| `Fight { spawn }` | Resolves a battle and applies GDD 3.4 in order. The hero must be beside the enemy |
 | `Allocate { points }` | Spends stat points; cannot be undone within a run |
-| `SetAutoAssign { on, split }` | |
 | `Equip { loadout, slot, item }`, `SwitchLoadout { index }`, `RenameLoadout { index, name }` | |
 | `Buy { item }`, `BuyLoadoutSlot` | Spends gold |
 | `Salvage { boost }` | GDD 7.4 |
 | `CollectStash { secret }`, `MarkHintShown { hint }` | |
 
+Not built in the slice, though the state has their fields: `Travel { waypoint }` and `UnlockWaypoint { waypoint }`, which arrive with Z3, and `SetAutoAssign { on, split }`, which arrives later in v1.
+
 ### 5.3 Events
 
-`step` returns events for the UI to present: battle events (attack, miss, hit with damage and crit flag, dodge, reflect, regen, last stand, end), reward events (XP, levels, gold, drops, gems, Claim) and state notices (door opened, waypoint unlocked, secret found). The simulator asks `resolveBattle` not to build the battle log, which is most of the cost. A test confirms that the outcome is identical with the log on and off.
+`step` returns events for the UI to present. A fight gives a `Battle` event carrying the battle's log (round, miss, hit with damage and crit flag, extra turn, dodge, enemy hit, Last Stand, Reflect, regen on either side, end) and, on a win, a `Rewards` event: XP, level before and after, gold, drops, gems, whether the boss was claimed, energy charged, paid back and left, and the mark that was used up. Every other action gives one event: run started, moved, zone entered, secret found, stash collected, allocated, equipped, loadout switched, renamed or bought, item bought, salvaged, hint shown. The forecast asks `resolveBattle` not to build the log, which is most of the cost. A test confirms that the outcome is identical with the log on and off.
 
 ### 5.4 Randomness
 
 - One 32-bit generator built only from integer operations (adds, shifts, xor), so it is bit-identical everywhere: sfc32, with 15 warm-up rounds (A-12). It is frozen by the vectors in `src/engine/rng.test.ts`.
 - A roll is `uint32 ÷ 2^32`, which is exact.
 - Seeds for separate streams come from an integer hash of `(run seed, stream name, counter)`: the first four words of `hash` over the text `seed:stream:counter`. Streams: `battle` and `reward` by battle count, `forecast` by battle count, `spawn` by spawn count, `salvage` by run.
-- Rolls are drawn in the order GDD 3.2 lists, one number per listed roll.
+- Rolls are drawn in the order GDD 3.2 lists, one number per listed roll. GDD 3.3 gives the order of the reward stream and of a marked-enemy roll.
+- Hashing a seed is slow next to drawing a number, so a stream is hashed once and then drawn from. A forecast's thousand battles share one generator.
 
 ### 5.5 Arithmetic
 
@@ -231,28 +257,30 @@ The kickoff asks for stat allocation to be pluggable. One type, three sources, a
 type AllocationPolicy = (ctx: { unspent: number; spent: StatPoints; hero: HeroStats }) => StatPoints;
 ```
 
-- **Manual:** a policy that returns what the player entered on the Hero screen.
-- **Auto-assign:** the engine's own policy, which applies the saved percentage split after each win (GDD 8.2).
-- **Simulator strategies:** any function of this type.
+- **Manual:** `manualPolicy`, which returns what the player entered. The Hero screen sends each spend through it.
+- **Auto-assign:** `splitPolicy`, the engine's own policy, which applies a percentage split (GDD 8.2). It is built and tested; the Auto-assign screen and the unlock arrive later in v1.
+- **Simulator strategies:** any function of this type. The Phase 3b strategy uses `splitPolicy` with its own split.
 
 ## 6. Content
 
 | File | Holds | Sealed |
 |---|---|---|
-| `data/balance.json` | Every balance number in the GDD: sections 3, 4, 5 and 7, and the Auto-assign unlock level | No |
-| `data/content-spec.json` | Expected counts for the current phase, so the count check passes on the slice and again on full v1 | No |
+| `data/balance.json` | Every balance number in the GDD: sections 3, 4, 5 and 7, and the Auto-assign unlock level. It includes the zone table of GDD 5.4 and 7.5 for all eight zones, level bands and all, because prices need the band of a level in a zone not yet built (A-24), and the pacing targets of GDD 5.9, which no rule reads and the simulator reports against | No |
+| `data/content-spec.json` | Expected counts for the current phase, and which zones are built in full, so the count check passes on the slice and again on full v1 | No |
 | `data/ids.lock.json` | Every ID ever shipped and its kind | No |
-| `data/zones.json` | Level band, coefficient key, waypoint, reference loadout, run start position | Yes |
-| `data/enemies.json` | ID, zone, family, level, role, modifiers, tags, traits, drops, boss and gate flags | Yes |
-| `data/items.json` | ID, kind (weapon, an armor slot, accessory, or key), item level, lines, effects, copy cap, shop price factor | Yes |
-| `data/maps/zNN.json` | Tile grid, spawn points, doors, exits to other zones, waypoints, Salvage sites, stashes, hidden tiles, place-name keys | Yes |
+| `data/zones.json` | The run start position; for each zone, its row of the balance zone table and its reference loadout | Yes |
+| `data/enemies.json` | ID, zone, family, level, role, modifiers, tags, traits, drops, boss and gate flags, and the one character drawn for it | Yes |
+| `data/items.json` | ID, kind (weapon, an armor slot, accessory, or key), item level, lines, Resistance and Damage against tags, the Claim flag, copy cap, shop price factor | Yes |
+| `data/maps/zNN.json` | Tile grid, spawn points, doors, exits to other zones, waypoints, Salvage sites, secrets (hidden tiles and stashes), place-name keys | Yes |
 | `data/strings.en.json` | Display names, place names and content text, keyed by ID | Yes |
+| `data/name-scan-exceptions.json` | Strings-file keys the repo's name scan skips, each with a reason. Empty so far | Yes |
 
 - **Loading.** `src/content/` parses each file with a zod schema at startup and in tests, then builds the engine's `Content` object: lookups by ID, and each enemy's stats from the engine's `enemyStats`. A file that fails its schema stops the app with an entry in the diagnostics log.
-- **IDs.** Opaque and permanent: `z01`, `e001`, `i001`, `w01`, `s01`. The lock file records each ID's kind. The repo checks compare the lock with the previous commit: no entry may disappear or change kind, and every ID in the data must be in the lock. In the hook the previous commit is the last one; in CI it is the commit before the push, with history fetched, since work lands directly on `main`. The lock is not sealed, because IDs carry no content, so its diffs can be reviewed.
+- **IDs.** Opaque and permanent: `z01`, `e001`, `i001`, `s001`, `x01`, `w01`. The lock file records each ID's kind, which is finer than "item" or "enemy" on purpose: an item's kind is its slot, and a boss is its own kind. A save holds items in slots and bosses in its claimed list, and since the repo check refuses a change of kind, neither can change under a save (A-25). The repo checks compare the lock with the previous commit: no entry may disappear or change kind, and every ID in the data must be in the lock. In the hook the previous commit is the last one; in CI it is the commit before the push, with history fetched, since work lands directly on `main`. The lock is not sealed, because IDs carry no content, so its diffs can be reviewed.
 - **Names.** Only `strings.en.json` holds names, so a name can change without touching structure or saves.
 - **Sealing.** `.gitattributes` hides every file under `data/` in diffs except `balance.json`, `content-spec.json` and `ids.lock.json`. Michael reviews `balance.json` because curves are systems.
-- **Checks.** `scripts/check-content.ts` runs the list in GDD 7.9: every item obtainable, every lock's key reachable first, no dead ends, no hidden tile on the required path, reference loadouts within budget, counts matching `content-spec.json`. Its output names things by ID only, never by display name. The reference-name test is separate (section 11).
+- **Checks.** `scripts/check-content.ts` runs the list in GDD 7.9: every item obtainable, every lock's key reachable first, no dead ends, no hidden tile on the required path, reference loadouts within budget, counts matching `content-spec.json`, the data matching the ID lock, and the handovers, secrets and Salvage sites the verifier found it missing. Its flood fill judges every step with the engine's own `canStep`, so the check cannot drift from the rules of movement. Its output names things by ID only, never by display name. The reference-name test is separate (section 11).
+- **Lookups.** `indexContent` builds the tables by tile and by item, and makes every lookup table a bare one: an ordinary object answers to names such as `constructor`, so an ID of that spelling in a crafted save or action would otherwise look like known content.
 
 ## 7. Save system
 
@@ -271,7 +299,7 @@ One IndexedDB database named `farther-still`, namespaced so nothing else on the 
 
 A slot record is `{ slot, saveVersion, buildId, contentVersion, seq, writtenAt, payload: { game, app }, checksum }`.
 
-- `game` is the `GameState` in section 4. `app` holds settings, export tracking and the run-duration log. Both halves are covered by the same version, migrations, checksum, export and import.
+- `game` is the `GameState` in section 4. `app` holds settings (playback speed, skip every battle, and each of the two movement controls), export tracking, the timing of the run in progress and the run-duration log: one entry per finished run, the newest 200, with the time actually played. Both halves are covered by the same version, migrations, checksum, export and import.
 - `seq` rises by one on every write. The newest record is the one with the highest `seq`, never the latest clock time, because a phone's clock can change. The sequence carries on after the highest `seq` in storage, so the next write outranks every record there that could win a load, including one from a newer version that the player chose to go back past. One limit keeps damage from leaving the sequence where it cannot go on: a record the app could not use counts only if its `seq` is below 2^40, which one write every millisecond would take 35 years to reach. A usable record always counts, since the app must be able to follow its own writes. The schema caps `seq` below 2^52.
 - `checksum` is the engine's `hash` over every other field of the record, serialized with sorted keys. It needs no WebCrypto, so saves also work on the plain-HTTP LAN dev server. The hash is SHA-256 written in plain TypeScript (A-12), frozen by the published test vectors and by the byte-exact fixture test; changing it later would be a save migration.
 - `buildId` is the git commit the build was made from. `contentVersion` is the first 16 hex characters of a hash of everything under `data/`, `balance.json` included. Both are computed by the build, never typed by hand, and say what wrote the record (section 7.3).
@@ -290,7 +318,7 @@ All writes go through one writer that handles them in order, one at a time.
 
 - **Written means committed.** The write is done when the IndexedDB transaction completes. Playback and the next input wait for that.
 - **Checks on every write.** The state must pass the save schema and the safe-integer check (GDD 6.2). A state that fails is an engine bug: it is not written over the good hot slot, and the app stops on a screen that offers the last good save as a text code.
-- **Checkpoints.** The checkpoint slot with the lowest `seq` is the one replaced. A checkpoint slot holding a record the app could not use counts as empty, so it is replaced first; its copy is already in quarantine by then. It is written only if the state also passes the invariant checks: every equipped item owned in that many copies, no negative count, every ID present in content, claimed and beaten bosses really bosses. If they fail, the checkpoint is skipped, a notice says so and suggests an export, and the failure goes in the diagnostics log. Play continues on the hot slot, and loading treats that record the same way (section 7.3), so it is never silently dropped later.
+- **Checkpoints.** The checkpoint slot with the lowest `seq` is the one replaced. A checkpoint slot holding a record the app could not use counts as empty, so it is replaced first; its copy is already in quarantine by then. It is written only if the state also passes the invariant checks: every item in a loadout owned in that many copies and of the kind its slot takes, no negative count, every ID in `profile` present in content, every claimed boss really a boss. The invariants cover `profile`, whose IDs are permanent, and the plain arithmetic of `run`. What a run says about content, such as its position, its marks and the bosses it has beaten, is not judged: content can change under a run in progress, and that is run repair's job (section 7.3), not a reason to refuse the save (A-26). If they fail, the checkpoint is skipped, a notice says so and suggests an export, and the failure goes in the diagnostics log. Play continues on the hot slot, and loading treats that record the same way (section 7.3), so it is never silently dropped later.
 - **A write that fails** is retried once on a fresh database connection, and the retry is recorded in the diagnostics log. A second failure shows a blocking notice with the current state as a text code.
 - **At startup** the hot slot is written once before play begins if it does not already hold the chosen record as it stands: after a fallback, after a migration, after a run repair, on a new install, and after any choice on the recovery screen.
 - **Durability.** Slot and quarantine writes ask IndexedDB for strict durability. Settings shows what the last write reported.
@@ -323,7 +351,7 @@ The point of steps 4 and 5 is that the app never quietly falls back past a recor
 
 **Leaving the recovery screen.** A choice that leads to play reads the slots again at that moment and sets aside what it is about to replace, working from what is in storage then, never from what was read when the screen opened. If the slots cannot be read or the copies cannot be made, nothing is changed and the screen says so (A-19). Restoring from quarantine is also available in Settings, and goes through the same checks and confirmation as an import.
 
-**Run repair.** At startup, after a record is chosen and before anything is drawn, the UI compares the record's `contentVersion` with the running build's. If they differ and a run is in progress, it calls the engine's `repairRun`: a position that is no longer walkable moves to the run start; spawn and boss IDs that no longer exist are dropped; and if more points are spent than the run has now earned, all of the run's points are returned unspent. `profile` is never altered. A notice says the game was updated mid-run. The repaired state is written at once, so the record names the content its run now fits. An imported or restored record goes through the same repair.
+**Run repair.** At startup, after a record is chosen and before anything is drawn, the UI calls the engine's `repairRun`: a position that cannot be stood on moves to the run start; IDs in the run that content no longer has are dropped (bosses beaten, marks, stashes, the last enemy, the run's item tally); and if more points are spent than the run has now earned, all of the run's points are returned unspent. `profile` is never altered. It is called on every load, whatever content the record says it was written with: it returns the same object when the run already fits, which costs nothing, and a migrated record always needs it (A-27). If it changed anything, or the record's `contentVersion` differs from the running build's, the state is written at once, so the record names the content its run now fits, and a notice says the game was updated mid-run. An imported or restored record goes through the same repair.
 
 ### 7.4 Versions and migrations
 
@@ -331,7 +359,8 @@ The point of steps 4 and 5 is that the app never quietly falls back past a recor
 - **The fields around the payload never change meaning.** `slot`, `saveVersion` and `seq` are read from a record before anything else is known about it, including by an older version of the app looking at a newer save. A later version may change the payload freely, by migration, but not these three.
 - **Fixtures.** The commit that introduces a save version also adds a fixture written by that version: a complete slot record with its checksum. A fixture is never edited afterwards, and the repo checks fail if an existing fixture differs from the previous commit.
 - **Tests.** Every fixture loads and migrates. The current version's fixture also loads with no migration and serializes back to the same bytes, which freezes the hash and the serialization. The zod schema's inferred type must equal the engine's `GameState` at compile time. Schemas are strict, so an unknown field is an error, never silently dropped. A hash of the schema's shape fails the build if it changes while `SAVE_VERSION` does not.
-- **The first two versions.** Phase 3a's dummy state is version 1 and will be on Michael's phone. Phase 3b's real state is version 2, reached by a migration that discards the dummy fields. That exercises the migration path for real before any progress depends on it.
+- **A migration is a pure function of the record.** No clock, no random source and no content, so a fixture always migrates to the same bytes. Each lives in its own frozen file and spells out the shape it produces in full, without calling the engine's `newGame`, which will keep changing.
+- **The first two versions.** Phase 3a's dummy state is version 1 and is on Michael's phone. Phase 3b's real state is version 2. The migration discards every dummy field and gives a new game at run 1. It carries two things over: the old run's seed, and the time the record was last written, as the moment export tracking and the run timer start from. Export tracking starts again, since an export of the dummy save is not a backup of this game. A migration cannot know where the run start is, because that is content, so it leaves the hero on a position no map has and run repair moves it (A-27). That exercises the migration path for real before any progress depends on it.
 
 ### 7.5 Backends, export and import
 
@@ -375,13 +404,14 @@ sequenceDiagram
   U->>P: play back events at chosen speed
 ```
 
-- **Map and battle views.** Canvas 2D, the map camera following the hero. Placeholder art is shapes and emoji until content expansion.
-- **Input.** A press that moves less than a small distance is a tap: on a tile it requests `findPath` and plays the steps; on an enemy it does the same and opens the pre-fight sheet. A press that moves farther is steering: the direction from the press point picks one of eight directions and the UI sends `Step` actions while it is held. Either control can be turned off in Settings. The map canvas sets `touch-action: none` and disables text selection so a drag is never taken as a scroll.
-- **Playback.** Battles are already resolved and saved. Playback walks the event log at 1×, 2× or 4×, or jumps to the end. Speed is a setting, not game state.
+- **Map view.** Canvas 2D, the camera following the hero, nine tiles across so that a tile is a 44-point tap target on the phone. It keeps one canvas for as long as the game runs, and every other screen is rebuilt from state on each change. Placeholder art is flat colours and one character per enemy until content expansion. A walk is timed by a timer and only drawn by animation frames, because a browser sends no frames to a page it is not painting and a walk must never wait on one.
+- **Battle view.** DOM, not canvas: two life bars and a line of text need no canvas (A-28). Bar widths are set as classes, since the content security policy forbids inline styles.
+- **Input.** A press that moves less than a small distance is a tap: on a tile it requests `findPath` and plays the steps; on an enemy it does the same and opens the pre-fight sheet. A press that moves farther is steering: the direction from the press point picks one of eight directions and the UI sends `Step` actions while it is held, sliding along walls. Steering straight into an enemy opens its pre-fight sheet. Either control can be turned off in Settings, but not both. The map canvas sets `touch-action: none` and disables text selection so a drag is never taken as a scroll. A tap on a wall does nothing, so tapping cannot be used to probe for a hidden path.
+- **Playback.** Battles are already resolved and saved. Playback walks the event log at 1×, 2× or 4×, or jumps to the end, and paces itself so a whole battle takes about four seconds at 1× whatever its length. A setting skips every battle straight to its result. Speed and skip are settings, not game state.
 - **Numbers.** One formatter implements GDD 6.4 and is unit-tested. Affordability is always decided by the engine, never by formatted text.
 - **Phone rules.** Portrait layout, safe-area insets, controls in the lower half, tap targets at least 44 points, nothing that depends on hover, and no pinch or double-tap zoom. iOS does not let an installed web app lock its orientation, so in landscape the game shows a "turn your phone" panel.
 - **Labels.** System labels (GDD section 0) are in `src/ui/`. Content names come from `strings.en.json`.
-- **Engine self-test.** A Settings action re-runs the golden replays on the device and compares their hashes with the ones baked in at build time (GDD 6.3). It lives in the UI because it needs the engine. The expected values are `tests/golden/golden.json`, and the golden test runs the same function under Node. In Phase 3a the list is the hash, the generator, square roots, the serialization and a replay of dummy actions; Phase 3b adds the battle replays.
+- **Engine self-test.** A Settings action re-runs the golden replays on the device and compares their hashes with the ones baked in at build time (GDD 6.3). It lives in the UI because it needs the engine. The expected values are `tests/golden/golden.json`, and the golden test runs the same function under Node. The list is the hash, the generator, square roots, the serialization, the engine's logarithm and level formula, 24 battles between a hero and an enemy that between them use every effect and trait (with the hero's derived stats and a battle that runs to the round limit), two runs of the real game played through the reducer, a milestone replay (a secret and its stash, a boss with its payback and handover, the way on past the gate, Salvage, a Claim with the tool, and a run fought until the energy is gone), and the forecast for every enemy. A replay matches its own golden value whatever it does, so a separate test checks that each replay still reaches the rules it is there for.
 
 ## 9. Platform
 
@@ -400,7 +430,11 @@ sequenceDiagram
 
 ## 10. Simulator
 
-`npm run sim` runs the engine headless in Node. A simulated player is a set of policies: which enemy to fight next, how to allocate, what to equip, what to buy, when to use Salvage, when to start a new run. Phase 3b ships one simple strategy and reports level, zone reached and runs to breakthrough over 50 runs. Phase 4 adds configurable strategies, CSV output and a markdown summary against every row of GDD 5.9. Simulator output names content by ID only.
+`npm run sim` runs the engine headless in Node. A simulated player is a set of policies: which enemy to fight next, how to allocate, what to equip, what to buy, when to use Salvage, when to start a new run. It plays through `step` and walks the map with `findPath`, so a gate it has not opened really is in its way.
+
+Phase 3b ships one simple strategy: climb on the strongest enemy the forecast likes, turn to collecting drops once the hero has outgrown what it can beat, buy the dearest thing it can afford, put on whatever a dice-free measure of strength rates highest, try a boss at lower odds than a normal enemy since a loss is free, and put leftover gold into Salvage. `npm run sim -- --runs 50` plays 20 simulated players for 50 runs each (`--players`, `--seed` and `--detail` change that) and reports, against GDD 5.9: level, strongest enemy and zone by run; the run on which each gate boss first fell; wins per run; level against strongest enemy; runs with a persistent gain; wins needing more than three tries; and minutes per run from a model of walking time plus seconds per fight.
+
+Phase 4 adds configurable strategies, CSV output and a markdown summary against every row of GDD 5.9. Simulator output names content by ID only.
 
 ## 11. Tests and checks
 
@@ -409,23 +443,25 @@ sequenceDiagram
 | Typecheck | `tsc`, four projects: the engine, the app, the service worker, and the tools (simulator, scripts, tests) | DOM use in the engine; the save schema and `GameState` drifting apart |
 | Lint | ESLint with typescript-eslint | Media and audio APIs anywhere; in the engine, any `Math` member off the allowlist, `**`, clock, random and locale APIs, cross-module imports, and any number literal other than 0, 1, 2 and 100 outside the three exempt files |
 | Unit tests | Vitest | Each formula at its GDD calibration points; the number formatter; the reducer; battle outcome identical with the log on and off; save-before-show order, using a backend that delays its commit; the update controller reloading only after an explicit apply, and never on a controller change nobody asked for; the service worker, run in a stand-in scope, waiting until it is asked and refusing to install with a mismatched page; run repair leaving `profile` untouched and the run valid |
-| Golden replays | Vitest, in `tests/golden/` | Any change to battle results: fixed seed and loadout must give the same event-log hash |
+| Golden replays | Vitest, in `tests/golden/` | Any change to battle results: fixed seed and loadout must give the same event-log hash. The same list runs on the phone as the self-test |
 | Save fixtures | Vitest with a fake IndexedDB | A version that no longer loads; a schema change without a version bump; a change to the hash or serialization; the load path writing over a damaged, suspect or newer record; a routine quarantine copy pushing out a kept one |
 | Pinned names | Vitest | A change to the database name or a store name |
 | Enforcement | Vitest, in `tests/enforcement.test.ts` and `tests/checks.test.ts` | A lint ban, the engine's no-DOM compile or a check script that has stopped firing: each is run against a deliberate violation |
 | Content checks | `scripts/check-content.ts` | The GDD 7.9 list |
 | Reference names | `tests/refnames.test.ts` against `tests/refnames.hashes.json` | A content display name equal to a reference-game name |
-| Repo checks | `scripts/check-repo.ts` | Anything under `reference/` tracked by git; a token pattern in a tracked file; a content display name appearing in unsealed tracked text; an ID removed from the lock or changed in kind since the previous commit; an existing save fixture changed |
+| Repo checks | `scripts/check-repo.ts` | Anything under `reference/` tracked by git; a token pattern in a tracked file; a content display name appearing in unsealed tracked text or in a commit message; an ID removed from the lock or changed in kind since the previous commit; an existing save fixture changed |
 | Prose | `scripts/check-prose.ts` | Hard-wrapped markdown. `docs/KICKOFF.md` is excluded because it is stored verbatim |
 | Build scan | `scripts/check-dist.ts` | In `dist/`: media elements, audio calls, the bare media tag names or media files; external URLs; the reference game's title or developer name in any spacing; a content security policy or viewport tag that is not exactly the pinned one; a `:hover` rule; a source map; a built manifest whose display mode, start URL or scope is not the pinned value, or that sets `display_override`; a service worker that calls `skipWaiting` anywhere but in answer to the page's message; a page that asks for a file the worker does not precache |
 | Pre-commit | `.githooks/pre-commit` | Runs `npm run check` |
+| Commit message | `.githooks/commit-msg` | A content display name in the message |
 | On-device self-test | Settings | The phone's engine disagreeing with Node's |
 
 - `npm run check` is typecheck, lint, tests, content checks, repo checks and the prose check. The hook and CI both run it, so nothing depends on the hook alone.
 - CI then builds and runs the build scan.
 - **How names are checked without publishing them.** `scripts/build-refnames.ts` runs locally against `reference/` and stores only salted hashes of normalized names. The test hashes each content display name the same way and looks it up, so CI needs neither the names nor `reference/`. The build scan looks only for the reference game's title and developer name, which are already public in `docs/KICKOFF.md`, so it holds them as plain strings.
 - Repo checks read file contents directly, because sealed paths print as binary in diffs.
-- The scan for content names in unsealed text matches whole names, case-sensitively, so a one-word name that is also an ordinary word does not fire on every use of the word. Any exception is listed in a sealed file.
+- The scan for content names in unsealed text matches a whole name in any case, with a plural ending, and with spaces or hyphens between its words. A name that is also an ordinary word the unsealed text uses is exempted in a sealed file, `data/name-scan-exceptions.json`, by strings-file key and with a reason; an exception that is stale or has no reason is itself a finding. The list is empty. The same scan runs over commit messages: a `commit-msg` hook refuses one that holds a content name, and the repo check reads the messages of the commits since the previous one, so CI catches what a skipped hook did not. A finding gives the name's number, never the name.
+- The reference-name list holds 1,170 salted hashes: every enemy, item and zone name in the developer's data files, the names in the enemy file's drop columns, and one made-up canary. The test looks the canary up under the file's salt, so a file whose salt and hashes no longer belong together fails instead of quietly matching nothing.
 - The build scan's check for external URLs allows three kinds of URL-shaped text that nothing is loaded from, each listed with its source in `scripts/check-dist.ts`: XML namespaces, and two strings inside zod. Anything else fails.
 
 ## 12. Build and deploy
@@ -479,6 +515,20 @@ Added after the Phase 3a verifier pass, which found the first of these as a repr
 | A-21 | The service worker refuses to install unless the page it fetched matches its file list, and the build scan makes the same comparison | A page from the previous deploy cached beside the new files would not start, and the only fix on the phone would be deleting the app, which deletes the save |
 | A-22 | A suspect save can be imported or restored after a "replace anyway" confirmation, and a raw export can be imported | Otherwise the export the app asks for when a checkpoint is skipped could not be read back, and the recovery screen's raw export could not be used at all |
 
+Added in Phase 3b:
+
+| ID | Decision | Reason |
+|---|---|---|
+| A-23 | The built state drops three things the Phase 2 sketch had: `loadoutSlotsBought`, the bestiary's `seen` flag, and an entry for every unmarked spawn | Each was a second copy of a fact the state already holds, which is what A-02 rules out |
+| A-24 | The zone table, level bands included, is in `balance.json` for all eight zones; `zones.json` names a row | A price is `k × goldAt(level)`, and the third loadout is priced at a level in a zone the slice does not build. The table is GDD 5.4 and 7.5, which are not sealed |
+| A-25 | The ID lock's kinds are fine-grained: an item's slot, and `boss` apart from `enemy`. A secret is only ever `secret` | The existing check that no ID changes kind then also guarantees that an item never changes slot and a boss never stops being one, which the save invariants depend on. What kind of secret an ID is stays sealed (GDD 7.5), and the lock is not a sealed file |
+| A-26 | The save invariants judge `profile` and the arithmetic of `run`; the run's references to content are run repair's | Phase 2 listed "beaten bosses really bosses" as an invariant. An invariant failure sends the player to the recovery screen, and the load order checks invariants before it repairs, so a content update could have locked a run out that repair would have fixed |
+| A-27 | Run repair is tried on every load, and the version 1 migration relies on it to place the hero | A pure migration cannot read content. Repairing only when `contentVersion` differs would have been true for every version 1 record, but by accident, not by rule |
+| A-28 | Battle playback is DOM and paced to a fixed length; the map is the only canvas | Two bars and a line of text gain nothing from a canvas, and DOM text is sharp at any size. Section 8 originally said both views were canvas |
+| A-29 | Content lookup tables are bare objects | `content.items['constructor']` is not `undefined` on an ordinary object, so a crafted import or action with such an ID passed as known content |
+| A-30 | `*.fixture.ts` is a third kind of file beside source and test | The engine's tests need a shared world full of numbers, and an engine source file may hold none |
+| A-31 | No DOM library was added for tests: `tests/fake-dom.ts` grew a canvas and pointer events | The Phase 3a question. The wiring tests need a tree, text, clicks and pointer positions, and nothing a real DOM would add |
+
 Settled in Phase 3a:
 
 - The generator and the hash: A-12, frozen by `src/engine/rng.test.ts`, `src/engine/hash.test.ts` and the cross-check against Node in `tests/golden/golden.test.ts`.
@@ -496,14 +546,15 @@ Settled on the phone, by Michael's Phase 3a acceptance run on his iPhone 16 Pro,
 
 Nothing from the list of points to settle in Phase 3a is still open.
 
-## 14. Phase 3a as built
+## 14. Phase 3b as built
 
 What exists, so nobody has to infer it from the sections above, which describe the finished game.
 
-- **Engine:** `hash`, `canonicalJson`, the generator, and a dummy reducer. The dummy `GameState` is save version 1: `profile` holds a fake inventory, one equipped item and the run count; `run` holds the seed, a counter, the last roll, a step count and an aim. `step` handles `NewRun`, `Count`, `Step`, `AddItem`, `RemoveItem`, `Equip` and `SetTarget`; `repairRun` clears an aim the content no longer has. Section 4's real state, section 5's battle functions, `math/` and `log10` are Phase 3b.
-- **Content:** one loader for `data/dummy.json`, the fake item list. `data/ids.lock.json` exists and is empty.
-- **Save:** all of section 7 except the cloud backend. The `app` half of version 1 holds one test setting and export tracking; the run-duration log arrives with real runs in version 2. No migration exists yet, so the migration path is tested with a stand-in version step.
-- **Platform:** all of section 9. The service worker has its own tests, run in a stand-in for the worker scope.
-- **UI:** a dummy game screen, the new-run sheet, Settings, Recovery, the save-failed notice and the landscape panel. Startup and the recovery screen's wiring are tested through the real `startApp` against a stand-in DOM (`src/ui/app.test.ts`); the sheets and Settings have no automated tests of their own and were exercised by hand in a browser. `Count` stands in for a fight: it saves before it shows. `Step` stands in for a move: it is saved with the next write or when the app is hidden. The map, battle playback, the number formatter and the real screens of GDD 8.2 are Phase 3b.
-- **Checks:** everything in section 11 except the three that need content: `scripts/check-content.ts`, the reference-name test with `scripts/build-refnames.ts`, and battle replays. The repo check for content names in unsealed text is built and has nothing to compare until `data/strings.en.json` exists. The check that every ID in the data is in the lock arrives with the content schemas.
-- **Not built:** `src/sim/` and `npm run sim` (Phase 3b).
+- **Engine:** everything in section 5 except the three actions listed at the end of 5.2. The reducer handles a run from start to end: walking, fights, levels, allocation, loadouts, buying, Salvage, stashes, hidden tiles, zone exits, doors and a new run. The forecast, run repair, pathfinding and both allocation policies are built.
+- **Content:** schemas and a loader for every file in section 6, and the slice: Z1 in full (10 enemies, 1 gate boss, 23 of the 25 items) and Z2's first two enemies with their two drops, behind the gate and before a sealed door. `data/dummy.json` is gone.
+- **Save:** version 2, with the migration from version 1 and a fixture for each. The `app` half carries real settings and the run-duration log. The cloud backend is still Phase 5.
+- **Platform:** unchanged from Phase 3a.
+- **UI:** Map, pre-fight sheet, battle playback, result sheet, Hero, Gear, Items, Bestiary, Salvage, Run menu, New-run sheet, Settings, Recovery and the save-failed notice. Not built: the Waypoints screen and the Auto-assign screen.
+- **Checks:** everything in section 11, including the three that Phase 3a deferred: `scripts/check-content.ts`, the reference-name test with `scripts/build-refnames.ts`, and the battle golden replays.
+- **Simulator:** one strategy, as section 10 describes. Phase 4 expands it.
+- **Tests:** the engine's tests were written from the GDD by a separate pass, not by the engine's author, so that they check the rules and not the code. That pass changed the engine in three places and left eight readings of the GDD as questions, which are settled in GDD 13.5 (D-30). The save tests and the UI wiring tests were each rewritten by a separate pass as well; the UI one fixed four display bugs.

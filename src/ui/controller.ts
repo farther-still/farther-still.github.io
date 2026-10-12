@@ -1,9 +1,9 @@
 // The loop (ARCHITECTURE section 8): input becomes an action, `step` returns state and events, the writer
 // commits, and only then is anyone told. Actions are handled one at a time, so input waits on a pending write.
 
-import { repairRun, step } from '../engine';
+import { level, repairRun, step } from '../engine';
 import type { Action, Content, GameEvent, GameState, RejectReason } from '../engine';
-import { encodeTextCode } from '../save';
+import { RUN_LOG_LIMIT, encodeTextCode } from '../save';
 import type { AppState, BuildInfo, CheckpointOutcome, CommitResult, SavePayload, SaveWriter, SlotRecord } from '../save';
 
 export type Halt =
@@ -23,10 +23,16 @@ export type ControllerDeps = {
   build: BuildInfo;
   /** A fresh run seed from the browser's random source. The engine never draws its own (GDD 2.5). */
   randomSeed: () => number;
+  /** The clock, for the run-duration log only. No game rule reads it (hard rule 3). */
+  now: () => number;
 };
 
-// Phase 3a's stand-in for "a Step that only moves the hero": it changes state without a write of its own.
-const isDeferred = (action: Action): boolean => action.type === 'Step';
+/** A gap between two actions longer than this is the player being away, and is not counted as play. */
+const IDLE_CAP_MS = 60_000;
+
+// A step that only moved the hero is not written at once: the position goes out with the next write, or when
+// the app is hidden (ARCHITECTURE 7.2). A step that found something is written like any other action.
+const onlyMoved = (events: readonly GameEvent[]): boolean => events.every((event) => event.type === 'Moved' || event.type === 'ZoneEntered');
 
 export class GameController {
   private gameState: GameState;
@@ -34,6 +40,7 @@ export class GameController {
   private unsaved = false;
   private stopped: Halt | null = null;
   private chain: Promise<unknown> = Promise.resolve();
+  private lastTouch: number;
   private readonly listeners = new Set<() => void>();
 
   constructor(
@@ -42,6 +49,7 @@ export class GameController {
   ) {
     this.gameState = payload.game;
     this.appState = payload.app;
+    this.lastTouch = deps.now();
   }
 
   get game(): GameState {
@@ -72,23 +80,28 @@ export class GameController {
     return () => this.listeners.delete(listener);
   }
 
+  /** The player has come back to the app: time away is not play. */
+  resume(): void {
+    this.lastTouch = this.deps.now();
+  }
+
   dispatch(action: Action): Promise<Outcome> {
     return this.enqueue(async () => {
       if (this.stopped !== null) return { kind: 'halted' };
       const result = step(this.gameState, action, this.deps.content);
       if ('rejected' in result) return { kind: 'rejected', reason: result.rejected };
-      if (isDeferred(action)) {
+      const app = action.type === 'NewRun' ? this.closeRun(this.timed()) : this.timed();
+      if (action.type === 'Step' && onlyMoved(result.events)) {
         this.gameState = result.state;
+        this.appState = app;
         this.unsaved = true;
         this.notify();
         return { kind: 'done', events: result.events, checkpoint: 'none', problems: [] };
       }
-      const commit = await this.deps.writer.commit(
-        { game: result.state, app: this.appState },
-        { checkpoint: action.type === 'NewRun' },
-      );
+      const commit = await this.deps.writer.commit({ game: result.state, app }, { checkpoint: action.type === 'NewRun' });
       if (!commit.ok) return this.stop(commit);
       this.gameState = result.state;
+      this.appState = app;
       this.unsaved = false;
       this.notify();
       return { kind: 'done', events: result.events, checkpoint: commit.checkpoint, problems: commit.problems };
@@ -130,19 +143,46 @@ export class GameController {
   replaceWith(record: SlotRecord): Promise<{ outcome: Outcome; repaired: boolean }> {
     return this.enqueue(async () => {
       if (this.stopped !== null) return { outcome: { kind: 'halted' }, repaired: false };
-      const sameContent = record.contentVersion === this.deps.build.contentVersion;
-      const game = sameContent ? record.payload.game : repairRun(record.payload.game, this.deps.content);
+      // Always checked, whatever content the record says it was written with: it costs nothing when the run fits.
+      const game = repairRun(record.payload.game, this.deps.content);
       const commit = await this.deps.writer.replaceWith({ game, app: record.payload.app });
       if (!commit.ok) return { outcome: this.stop(commit), repaired: false };
       this.gameState = game;
       this.appState = record.payload.app;
       this.unsaved = false;
+      this.lastTouch = this.deps.now();
       this.notify();
       return {
         outcome: { kind: 'done', events: [], checkpoint: 'none', problems: [] },
         repaired: game !== record.payload.game,
       };
     });
+  }
+
+  /** The `app` half with the time since the last action added to the run in progress. */
+  private timed(): AppState {
+    const now = this.deps.now();
+    const played = Math.min(IDLE_CAP_MS, Math.max(0, now - this.lastTouch));
+    this.lastTouch = now;
+    const { runTiming } = this.appState;
+    return { ...this.appState, runTiming: { ...runTiming, activeMs: runTiming.activeMs + Math.floor(played) } };
+  }
+
+  /** Files the finished run in the run-duration log and starts timing the next one. */
+  private closeRun(app: AppState): AppState {
+    const now = this.deps.now();
+    const { profile, run } = this.gameState;
+    const entry = {
+      run: profile.counters.runsStarted,
+      startedAt: app.runTiming.startedAt,
+      endedAt: now,
+      activeMs: app.runTiming.activeMs,
+      wins: run.tallies.wins,
+      losses: run.tallies.losses,
+      level: level(this.gameState, this.deps.content.balance),
+      strongest: run.strongestBeaten,
+    };
+    return { ...app, runTiming: { startedAt: now, activeMs: 0 }, runLog: [...app.runLog, entry].slice(-RUN_LOG_LIMIT) };
   }
 
   private enqueue<T>(task: () => Promise<T>): Promise<T> {

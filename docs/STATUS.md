@@ -4,18 +4,30 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Current phase
 
-**Phase 3a gate ⛔.** Phase 2 was approved on 2026-10-12. Phase 3a, the walking skeleton, was built the same day: an installable app with a dummy state, the full save system less cloud backup, the update flow, Settings, the diagnostics log, the checks, CI and the Pages deploy. It is live at `https://farther-still.github.io/`. The gate report was posted with the steps for Michael's phone acceptance run, and he answered its two questions the same day (1 a, 2 a). He then did the phone acceptance run and reported every step as passing. No reply so far has contained "approved". Still waiting for that word; answers, questions or silence are not approval. Do not start Phase 3b before it. He asked for Phase 3b to start in a new session and was given a prompt for it, whose first line is his approval.
+**Phase 3b gate ⛔.** Michael approved Phase 3a on 2026-10-12, as the first line of the Phase 3b prompt. Phase 3b, the vertical slice, was built the same day: save version 2 with its migration, the engine, one zone and a glimpse of the next, the screens, the three deferred checks and the simulator. Two separate verifier passes ran before anything was pushed, and the first 3b push followed. The gate report was posted in two parts: the automated checks, and a playtest rubric for Michael to score on his phone. Waiting for the literal reply "approved"; answers, questions or silence are not approval. Do not start Phase 4 before it. When it comes, give Michael a paste-ready prompt for Phase 4 in a new session.
 
-**Spoiler rule for every session.** `docs/sealed/` holds zone themes and all content names. Michael does not open it. Never quote anything from it in chat, gate reports, commit messages or this file. Refer to zones as Z1–Z8, elements as E1–E3 and enemy types as T1–T4.
+**Spoiler rule for every session.** `docs/sealed/` holds zone themes and all content names. Michael does not open it. Never quote anything from it in chat, gate reports, commit messages or this file. Refer to zones as Z1–Z8, elements as E1–E3 and enemy types as T1–T4. What kind each optional secret is, and where, is sealed too: say "an optional secret".
+
+## Phase 3b success checks
+
+Stated before the work began. The gate report marks each PASS, FAIL or NOT CHECKED with evidence.
+
+1. `npm run check`, `npm run build` and `npm run check:dist` pass.
+2. The version 1 fixture migrates to a good version 2 record; the version 2 fixture loads with no migration and writes back the same bytes; a version 1 hot slot started through the real `startApp` opens the game at run 1 with the old record kept as a set-aside copy.
+3. The built app is played end to end in a browser: walk, fight, level, allocate, equip, buy, Salvage, run out of energy, new run, and a later run that beats the Z1 gate boss and is handed the tool, with Z2's first enemies in view.
+4. `check-content`, the reference-name test and the battle golden replays exist, and each is shown to fire on a deliberate violation.
+5. `npm run sim -- --runs 50` reports level, zone reached and runs to breakthrough against GDD 5.9.
+6. A separate verifier pass returns pass or fail with evidence, including the content.
+7. The gate report is posted in two parts, with what one zone cost to author, and work stops.
+
+Result: 1, 2, 4, 5 and 6 PASS on the laptop, with the evidence under "Phase 3b working record". 3 is PASS with one qualification: the app was played by script, and the breakthrough run began from a simulator-made save with the missing reference gear handed over (see "Judgment calls"). 7 is the gate report itself.
 
 ## Todo
 
 ### PENDING
 
-- [ ] Phase 3a: wait for "approved" on the gate report. Michael intends to give it as the first line of the new session's prompt
-- [ ] Phase 3b: vertical slice ⛔. First: save version 2 with its migration and fixture, removing the dummy state and `data/dummy.json`; then `check-content`, the reference-name test, battle replays and `npm run sim`
-- [ ] Phase 3b gate: report what one zone cost to author, so the DV-6 condition can be judged on evidence
-- [ ] Phase 4: balance simulator ⛔
+- [ ] Phase 3b: wait for "approved" on the gate report, and for Michael's scores on the playtest rubric
+- [ ] Phase 4: balance simulator ⛔. Starts in a new session, from a prompt given after the approval
 - [ ] Phase 5: cloud backup, then content expansion
 
 ### COMPLETED
@@ -44,6 +56,98 @@ Re-read this file at the start of every session and every work cycle. Update it 
 - [x] Phase 3a: first push, CI green, site live; gate report posted ⛔ (2026-10-12)
 - [x] Phase 3a: gate questions answered (1 a, 2 a); third verifier pass and its fixes
 - [x] Phase 3a: Michael's phone acceptance run, every step reported as passing (2026-10-12); all phone readouts recorded in `docs/ARCHITECTURE.md` section 13
+- [x] Phase 3a: approved by Michael, 2026-10-12
+- [x] Phase 3b: save version 2 settled: state, schema, pure migration from version 1, invariants, fixture, run-duration log; `data/dummy.json` removed
+- [x] Phase 3b: engine built: math, formulas, battle, forecast, reducer, run repair, pathfinding, allocation policies
+- [x] Phase 3b: content schemas and loader; `balance.json`, `content-spec.json`, the ID lock; sealed slice content (Z1 and a glimpse of Z2)
+- [x] Phase 3b: simulator built; slice tuned against GDD 5.9, changes logged in GDD 13.5
+- [x] Phase 3b: the screens of GDD 8.2 that the slice needs; map view with both controls; battle playback
+- [x] Phase 3b: `check-content`, the reference-name test (1,169 hashes), battle golden replays in the self-test
+- [x] Phase 3b: the built app played by script in a browser: fights, levels, shop, gear, Salvage, an optional secret, new run, import, the version 1 migration, the wall, its fall, the tool handover, Z2 and the sealed door
+- [x] Phase 3b: GDD, ARCHITECTURE and `CLAUDE.md` brought in line
+- [x] Phase 3b: engine tests written from the GDD, save tests and UI wiring tests, each by a separate pass; their fixes applied
+- [x] Phase 3b: two verifier passes, content and then saves, engine and wiring; findings fixed, one left by choice
+- [x] Phase 3b: `npm run check` and `check:dist` green; first 3b push; gate report posted ⛔ in two parts, with what one zone cost to author
+
+## Phase 3b working record
+
+`docs/ARCHITECTURE.md` section 14 lists exactly what exists, and `docs/GDD.md` section 13.5 lists what building it settled. This section records how it was checked and what is still unknown.
+
+### What Phase 3b built
+
+- Save version 2: the real game state, a pure migration from version 1 that gives a new game at run 1, a frozen fixture, invariants, and the run-duration log.
+- The engine: formulas, combat resolution, the forecast, the reducer, run repair, pathfinding and allocation policies.
+- Content schemas and a loader, `data/balance.json` with every number in the GDD, and the sealed slice: Z1 in full and the first two enemies of Z2 behind its gate.
+- The screens the slice needs: map with both movement controls, pre-fight sheet, battle playback, result sheet, Hero, Gear, Items, Bestiary, Salvage, Run menu, new-run sheet, Settings.
+- The three checks Phase 3a deferred: `check-content`, the reference-name test (salted hashes), and battle golden replays that also run on the phone as the self-test.
+- The simulator, `npm run sim -- --runs 50`.
+
+### Verified on the laptop (2026-10-12)
+
+- `npm run check`: PASS. Typecheck of four projects, lint, 1,097 tests in 32 files, content check, repo check, prose check.
+- `npm run build` and `npm run check:dist`: PASS.
+- Each new check is run against a deliberate violation in `tests/checks.test.ts` and `tests/refnames.test.ts`; each lint rule in `tests/enforcement.test.ts`, with cases for the new fixture files.
+- A test checks that the golden replays still reach what they are there for: wins and a loss, a level, a drop, a purchase, a secret, a boss with its payback and handover, the way past the gate, Salvage, a Claim and an empty tank.
+- The built app, served by `npm run preview` and driven by script in a Chromium pane. The pane was not being painted, so nothing here is a judgment of how it looks; that is Michael's phone. PASS on each of the following.
+  - A new install opens on the map at run 1. Tapping an enemy walks the hero to it and opens the pre-fight sheet; a fight is in storage, at save version 2, before its result shows.
+  - Levels, spending points, the Combat tab, the Gear picker with its preview of the change, the Items list with unfound items blank, the Bestiary, the Run menu.
+  - A save made by the simulator was imported through the import sheet, with the side-by-side comparison, and played on.
+  - Salvage showed its chance, pool and bands, took the gold and failed. Steering along a wall found the slice's optional secret.
+  - The new-run sheet listed what the run gained and would lose; the new run wrote a checkpoint and then the hot slot, and filed one run-duration entry.
+  - The wall read as a wall: 0% with "You need about 19 rounds and last about 5", and a loss summary after trying it.
+  - With the reference loadout and a climb to level 42 the boss stood at 70%. It fell, the tool was handed over with its line and its explanation, the gate opened, Z2's first enemy stood at 61% and its second under 1%, and the sealed door said so.
+  - **The version 1 migration:** a version 1 record in the hot slot opened as the map at run 1 with the upgrade notice; the hot slot became version 2 at the next seq with the hero on the run start; the version 1 record was kept as a set-aside copy. Restoring that copy from Settings shows a warning that it holds nothing of the real game.
+  - The update flow: a second build waited as "update ready" with both caches present, applied only from the new-run sheet, and the old cache was then gone.
+  - The self-test read 11 of 12 in the browser while one golden value was stale, which is the check doing its job. With the values rewritten it reads 13 of 13 there, so Chromium's arithmetic matches Node's on every replay. Safari's is for the phone to say.
+- `npm run sim -- --runs 50`: runs in about a minute. Results are in GDD 13.5.
+
+### Deploy
+
+One push carries the whole phase, in two commits: the sealed content, then everything else. Its CI run and the check of the live site are reported in the gate report and not here, so that recording them does not ship one more version to the phone.
+
+### Separate passes (2026-10-12)
+
+Six passes were run by agents that did not write what they checked. None was shown this file's conclusions.
+
+- **Engine tests, written from the GDD.** 483 tests. A mutation check on a copy of the engine: 100 of 102 deliberate rule-breaks failed a test. It changed the engine in three places: the tool's cut was a hair under a tenth, so Damage 20 gave 1; an item ID spelt `constructor` passed as known and turned gold into not-a-number; a malformed spend threw. It left eight readings of the GDD as questions, which were settled (GDD D-30) and the engine changed for four of them.
+- **Save tests for version 2.** Every Phase 3a protection translated. One fix: a migration that returned something unserializable made the loader throw.
+- **UI wiring tests.** The startup, recovery and migration wiring through the real `startApp`, the controller, the map's two controls. A mutation check of `src/ui`: 54 of 55 caught. Four display bugs fixed: a number just under a boundary rounded up, and the loss line was wrong in two cases.
+- **Content checks and the reference-name test,** built to GDD 7.9, then widened after the second verifier's pass. 1,169 hashed names and a canary; no content name matches. The name scan now matches any case, plurals and hyphenation, and reads commit messages too; it finds nothing in 157 unsealed files, and no exception was needed.
+- **Content verifier.** Naming FAILED: seven names broke the sealed naming rules or sat one word from a reference-game name; all were renamed. One spoiler leak, in this file, fixed. It also found the first energy accessory out of reach for half of simulated players, the reference loadout padded, and the ID lock giving away what kind each secret is; all fixed. Originality, the arc, the numbers, the maps and the tone passed.
+- **Verifier of saves, engine and wiring.** No way to lose a save in any arrangement the phone can reach. The migration passed every case it tried through the real entry point: hot and five checkpoints, hot missing, hot damaged, killed between the copy and the first write, a second launch, seven runs on, version 1 copies restored, version 1 exports imported. It found eight things to fix, all fixed except the first, below: a result sheet that opened over the save-failed screen; a double tap on Buy buying twice; a new run mid-walk leaving the map behind; gaps in `check-content`; golden replays that reached no boss, Claim or Salvage; a name scan that matched exact case only; and stale numbers in the GDD.
+
+### Left as they are, by choice
+
+- A version 1 record with a higher seq than a version 2 record beside it is loaded in preference, as a new game. That needs a version 1 build to write after a version 2 one. The site only ever serves the newest build, so the phone cannot reach it, and a special case in the load order is not worth its own risk.
+- A set-aside copy of a version 1 save can still be restored from Settings. The sheet now says that it holds nothing of the real game; the current game is set aside first, as with any import.
+- A run that began as a migrated version 1 save has no marked enemies at its start. A fresh run does.
+- An XP amount is the floor of a product of doubles, and comes out 1 short of exact arithmetic for about 4% of level pairs. It is the same on every device.
+- `goldAt` falls at each zone edge, because the GDD's gold-per-level table does: an item meant for level 41 costs less than one for level 40. For Phase 4.
+- The simulator's tail: 5 to 9 simulated players in 100 take more than 8 runs at the wall. GDD 13.5 says why it is left.
+- The slice has one item per weapon and armor slot, so its build choices are all in the five accessory cells. Gems reach about 20 by run 14 and their only use costs 25.
+- Z1's map is nine terraces of one shape. It is placeholder layout as well as placeholder art.
+
+### What one zone cost to author
+
+Measured on Z1, for the DV-6 condition.
+
+- **What a zone is, once the systems exist:** data only. Z1 and the Z2 glimpse are 12 enemies, 25 items, two tile grids, about 50 names and one reference loadout: 240 lines of JSON in six files. No code changed for content.
+- **The steps:** one authoring pass; the content check, which the authored data passed first time; four tuning passes with the simulator, each a change of a few numbers and a one-minute run; one verifier pass, which sent back seven renames and three number changes.
+- **The time:** the authoring pass was minutes. Tuning and the verifier's round were the bulk, under an hour of session time together.
+- **What makes later zones dearer:** two or three bosses instead of one, key doors, a waypoint, more tags and traits, and maps that are places and not placeholders. What makes them cheaper: the checks, the simulator and the naming rules now exist.
+- **So:** a zone is about an hour or two of a session, most of it tuning its walls, and none of it Michael's time beyond the gate. Seven more zones is a few sessions. The lever that costs nothing, runs per wall and drop rates, is in `data/balance.json` and the sealed drop chances.
+
+### A spoiler that got out
+
+A status line in chat during this phase named the kind of optional secret the slice holds. It did not say where. The same phrase was in this file's todo list and was removed. Nothing else sealed was put in chat, a commit message or an unsealed file; the content verifier searched 140 unsealed files and the second verifier 151.
+
+### Carried forward to Phase 4
+
+- Configurable strategies: one that retries a boss at poor odds, which is DV-3's risk and which the Phase 3b strategy cannot show, and a cautious one.
+- The wall's tail, and whether it is content or the simulated player.
+- `goldAt` at zone edges.
+- A first Claim: the tool cannot claim the Z1 boss until about level 300, which is Z2's end or Z3. Michael is asked about this at the gate.
+- CSV output and the markdown summary against every row of GDD 5.9, whose targets are now in `data/balance.json` under `pacing`.
 
 ## Phase 3a working record
 
@@ -357,7 +461,7 @@ From the developer data files; approximate. For Phase 1 curve design, not for co
 
 ## Starting a fresh session
 
-For Phase 3b, read in order: `CLAUDE.md`, this file, `docs/ARCHITECTURE.md` (section 14 first: it says what exists), then the Phase 3b section of `docs/KICKOFF.md` and `docs/GDD.md`. `docs/sealed/` is needed from Phase 3b on, for authoring content only. `reference/` is needed only to check a claim about RH; start with `reference/_claude_phase0/README.md`, which is private and gitignored.
+For Phase 4, read in order: `CLAUDE.md`, this file, `docs/ARCHITECTURE.md` (sections 10 and 14 first), the Phase 4 section of `docs/KICKOFF.md`, then `docs/GDD.md` sections 5.9 and 13.5. `src/sim/` is the Phase 3b simulator to build on. `docs/sealed/` is needed only when content is authored or reviewed. `reference/` is needed only to check a claim about RH; start with `reference/_claude_phase0/README.md`, which is private and gitignored.
 
 ## Judgment calls
 
@@ -395,9 +499,20 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 - 2026-10-12 (Phase 3a): `.claude/launch.json`, which starts the local preview for the browser pane, is gitignored.
 - 2026-10-12 (Phase 3a): No DOM library was added for tests. The startup and recovery wiring is tested against a small stand-in in `tests/fake-dom.ts`.
 
+- 2026-10-12 (Phase 3b): Design decisions made without asking are GDD D-21 to D-31 and balance changes B-01 to B-04; architecture decisions are `docs/ARCHITECTURE.md` A-23 to A-31. They are not repeated here.
+- 2026-10-12 (Phase 3b): The pasted Phase 3b prompt was taken as Michael's own message, approval included: it is the prompt this file says he was given, and its first line is the word the gate asks for.
+- 2026-10-12 (Phase 3b): Three actions were left out of the slice though their fields are in the save: waypoint travel, waypoint unlock and Auto-assign. The kickoff puts Auto-assign later in v1 and waypoints start at Z3.
+- 2026-10-12 (Phase 3b): Tests and checks were written by separate agents, not by the code's author, with the brief to find where code and GDD disagree. Their fixes to non-test code were kept; every one is listed under "Separate passes".
+- 2026-10-12 (Phase 3b): The built app was played by script, not by hand, and the breakthrough run was played from a save in which the simulator had played four runs and the hero was then handed the missing reference gear. A full playthrough to the wall by hand is about two hours; the simulator covers the path through the same reducer.
+- 2026-10-12 (Phase 3b): The simulator was not tuned further to pull in its tail. One strategy's unlucky players are not grounds for a content change; Phase 4 has the tools to tell.
+- 2026-10-12 (Phase 3b): The rollback arrangement the verifier found (a version 1 record written after a version 2 one) was left, with the reason under "Left as they are".
+- 2026-10-12 (Phase 3b): `scripts/update-golden.ts` was kept and given a command, because Phase 4 will change balance repeatedly and each change rewrites the golden values. It refuses to rewrite the hash, generator, square-root and serialization values.
+- 2026-10-12 (Phase 3b): A commit-message hook was added, since "no content name in a commit message" is a rule a machine can check.
+- 2026-10-12 (Phase 3b): Everything went in one push, so the phone sees one "update ready" and not several.
+
 ## Handoff
 
-- **Done:** Phases 0 to 2 approved. Phase 3a built: `src/`, `data/`, `tests/`, `scripts/`, the hook and the CI workflow, with `CLAUDE.md`, `docs/ARCHITECTURE.md` (decisions A-12 to A-22 and section 14) and this file brought in line. The built app was run in a browser on the laptop. A separate verifier failed the first build, passed the second, and passed a third, narrow look at the fixes made after that.
-- **Worked:** Asking the verifier to prove a suspected hole with a throwaway test through the real entry point. That is how it found the lost save, which no unit test of mine could have: each function was right and the wiring was wrong. Tests that lint or compile a deliberate violation, so a check that stops firing fails the build. Building labelled versions with `FS_BUILD_ID` and serving them with `npm run preview` to try the update flow on the laptop. Closing the last tab in the browser pane to stand in for a force-quit.
-- **Failed:** The first build lost a save on the recovery screen after an unreadable start. The rule for absurd `seq` values took four attempts: the verifier caught two of the wrong ones and I caught one. Two of my tests could not fail for the reason in their titles. Traps: shell heredocs break on apostrophes here, so write patch scripts with the Write tool and run the file; `cd` inside a Bash call moves the session's working directory; Python prints in cp1252 unless run with `-X utf8`; `CLAUDE.md` has 13 characters to spare; a scratch script must sit inside the repo for `node_modules` to resolve; `happy-dom` 21 and TypeScript 7 were days and months old on 2026-10-12 and were passed over for that reason; the first word on the recovery screen's list ("Run 2") can match a test that is waiting for the game screen.
-- **Next:** Wait for "approved", which Michael intends to give in the new session's prompt. Then Phase 3b, starting with save version 2 and its migration. His phone holds a version 1 save from the acceptance run, at run 2 or later, so the first 3b deploy is the first real migration; tell him what he should see.
+- **Done:** Phases 0 to 3a approved. Phase 3b built and pushed: save version 2 and its migration, the engine, the slice content, the screens, the simulator, the deferred checks, with GDD (13.5), ARCHITECTURE (A-23 to A-31, section 14), `CLAUDE.md` and this file brought in line. Two verifier passes ran before the push; their findings were fixed, bar one left by choice.
+- **Worked:** Settling the state and the migration before anything else, and keeping the migration a pure function of the record. Handing tests to agents that had not written the code, briefed to test the GDD and not the code: the engine pass found three real bugs and eight ambiguities, the UI pass four display bugs. Running the two verifiers in parallel with the test passes. Asking a verifier to prove a hole through the real entry point. Building a late-game save with the simulator and importing it through the app's own import sheet, to reach the wall in the browser in a minute. A test of what the golden replays reach, since a replay matches its own hash whatever it does.
+- **Failed:** A status line in chat gave away the kind of secret the slice holds. A scripted edit of a map file wrote an unescaped quote and broke its JSON; the content check caught it at once. The first golden replays reached no boss, no Claim and no Salvage, and passed. `requestAnimationFrame` never fires in a browser pane that is not being painted, so a walk that waited on it hung; walks are now timed by a timer. Traps: shell heredocs break on apostrophes, so write files with the Write tool and patch with a script file; a file an agent is reading can refuse a write, so write to a temporary name and rename; `CLAUDE.md` has 1 byte to spare under 8,000; agents share one scratchpad folder and overwrite each other's files there; a subagent's throwaway tests sit in `tests/` while it runs and fail the type check until it deletes them.
+- **Next:** Wait for "approved" and for Michael's rubric scores. Then give him the Phase 4 prompt for a new session. If his phone showed anything other than the map at run 1 after the update, read his export before anything else.

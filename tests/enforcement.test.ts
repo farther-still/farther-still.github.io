@@ -91,6 +91,7 @@ describe('lint: the engine is pure and deterministic', () => {
     // The purity bans hold in the exempt files and in engine tests too; only the literal rule is lifted there.
     await banned('src/engine/rng.ts', code, word);
     await banned('src/engine/probe.test.ts', code, word);
+    await banned('src/engine/probe.fixture.ts', code, word);
   });
 
   it('allows the eight Math members on the allowlist', async () => {
@@ -114,8 +115,8 @@ describe('lint: engine number literals', () => {
     await allowed('src/engine/formulas.ts', 'export const a = 0 + 1 + 2 + 100 - 1;\nexport const b = "3 is fine in text";\n');
   });
 
-  it('exempts math/, rng.ts, hash.ts and tests, whose constants are structure', async () => {
-    for (const file of ['src/engine/math/log10.ts', 'src/engine/rng.ts', 'src/engine/hash.ts', 'src/engine/probe.test.ts']) {
+  it('exempts math/, rng.ts, hash.ts, tests and test fixtures, whose constants are structure or made-up data', async () => {
+    for (const file of ['src/engine/math/log10.ts', 'src/engine/rng.ts', 'src/engine/hash.ts', 'src/engine/probe.test.ts', 'src/engine/probe.fixture.ts']) {
       await allowed(file, 'export const a = 0x9e3779b9 + 15;\n');
     }
   });
@@ -144,6 +145,10 @@ describe('lint: module boundaries (ARCHITECTURE section 2)', () => {
     ['src/platform/probe.ts', '../save/migrations'],
     ['src/engine/probe.test.ts', 'node:fs'],
     ['src/engine/probe.test.ts', '../save'],
+    // A fixture is test support, held to a test's rules: it may not reach out of the engine either.
+    ['src/engine/probe.fixture.ts', '../save'],
+    ['src/engine/probe.fixture.ts', '../../data/balance.json'],
+    ['src/engine/probe.fixture.ts', '../content'],
     ['src/content/probe.ts', '../ui/dom'],
     ['src/content/probe.ts', '../save'],
     ['src/content/probe.ts', '../platform'],
@@ -171,6 +176,8 @@ describe('lint: module boundaries (ARCHITECTURE section 2)', () => {
     ['src/engine/math/probe.ts', './tables'],
     ['src/engine/probe.ts', './math/log10'],
     ['src/engine/probe.test.ts', 'vitest'],
+    ['src/engine/probe.test.ts', './sample.fixture'],
+    ['src/engine/probe.fixture.ts', './formulas'],
     ['src/engine/math/probe.test.ts', '../rng'],
     ['src/content/probe.ts', '../engine'],
     ['src/content/probe.ts', 'zod'],

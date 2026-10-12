@@ -1,22 +1,27 @@
 // Bottom sheets: new run, export, import. A sheet is built once and is not touched by screen re-renders, so
 // text typed into it stays put.
 
+import { level, startingEnergy } from '../engine';
 import type { Content } from '../engine';
 import { canShareFile, copyText, downloadTextFile, shareTextFile } from '../platform';
 import { buildExport, checkImport, encodeTextCode, withExportRecorded } from '../save';
 import type { SlotRecord } from '../save';
 import { button, el, formatTime, line, shortBuild } from './dom';
+import { formatNumber } from './format';
 import type { Session } from './session';
 
 const sheet = (title: string, ...children: (Node | null)[]): HTMLElement =>
   el('div', { class: 'sheet', attrs: { role: 'dialog', 'aria-label': title } }, el('h2', { text: title }), ...children);
 
 const ownedCopies = (record: SlotRecord): number =>
-  Object.values(record.payload.game.profile.inventory).reduce((total, copies) => total + copies, 0);
+  Object.values(record.payload.game.profile.items).reduce((total, copies) => total + copies, 0);
 
 export const newRunSheet = (session: Session, close: () => void): HTMLElement => {
-  const { controller, updates, notices } = session;
-  const nextRun = controller.game.profile.runsStarted + 1;
+  const { controller, content, text, updates, notices, shell } = session;
+  const state = controller.game;
+  const { profile, run } = state;
+  const nextRun = profile.counters.runsStarted + 1;
+  const gained = run.tallies.itemsGained;
   const status = el('p', { class: 'muted' });
   let started = false;
 
@@ -43,11 +48,21 @@ export const newRunSheet = (session: Session, close: () => void): HTMLElement =>
       }
     }
     close();
+    shell.show('map');
   };
 
   return sheet(
     `Start run ${nextRun}?`,
-    el('p', { text: 'The counter, the steps and the aim reset. Items and the equipped item stay.' }),
+    // What the run gained and what will be lost (GDD 2.4, D-16).
+    line('Level reached', formatNumber(level(state, content.balance))),
+    line('Strongest enemy beaten', run.strongestBeaten === 0 ? 'None' : `level ${formatNumber(run.strongestBeaten)}`),
+    line('New items', gained.length === 0 ? 'None' : gained.map((id) => text.item(id)).join(', ')),
+    line('Permanent energy gained', run.tallies.claims === 0 ? 'None' : `+${run.tallies.claims * content.balance.energy.perClaim} (starting energy is now ${startingEnergy(state, content.balance)})`),
+    line('Gold that will be lost', formatNumber(run.gold)),
+    run.gold > 0 || !run.salvageUsed
+      ? el('p', { class: 'flash', text: `Still unused: ${run.gold > 0 ? `${formatNumber(run.gold)} gold` : ''}${run.gold > 0 && !run.salvageUsed ? ' and ' : ''}${run.salvageUsed ? '' : 'the Salvage attempt'}.` })
+      : null,
+    el('p', { class: 'muted', text: 'Level, stat points and gold start over. Gear, gems and permanent energy stay.' }),
     updates.state === 'ready'
       ? el(
           'div',
@@ -148,7 +163,7 @@ export const openSaveExport = async (session: Session): Promise<void> => {
         fileText,
         code: encodeTextCode(record),
         onExported: () => {
-          const runs = controller.game.profile.runsStarted;
+          const runs = controller.game.profile.counters.runsStarted;
           void controller.updateApp((app) => withExportRecorded(app, runs, Date.now()));
         },
       },
@@ -167,7 +182,7 @@ const describe = (title: string, record: SlotRecord | null): HTMLElement =>
       : el(
           'div',
           {},
-          line('Runs started', String(record.payload.game.profile.runsStarted)),
+          line('Runs started', String(record.payload.game.profile.counters.runsStarted)),
           line('Items owned', String(ownedCopies(record))),
           line('Written', formatTime(record.writtenAt)),
           line('Build', shortBuild(record.buildId)),
@@ -183,6 +198,7 @@ export const confirmReplaceSheet = (
   incoming: SlotRecord,
   problems: readonly string[],
   close: () => void,
+  migratedFrom: number | null = null,
 ): HTMLElement => {
   const { controller, notices } = session;
   const status = el('p', { class: 'muted' });
@@ -193,6 +209,11 @@ export const confirmReplaceSheet = (
     problems.length === 0
       ? null
       : el('p', { class: 'flash', text: `The incoming save is intact but fails a consistency check: ${problems.join('; ')}. It can be used anyway, and the app will ask about it again at each launch until it passes.` }),
+    // A version 1 record is the test build's dummy save. It migrates to an empty game, and the upgrade notice
+    // points at the set-aside copy of it, so the sheet says plainly what replacing with it would do.
+    migratedFrom === 1
+      ? el('p', { class: 'flash', text: 'The incoming save is from the test build. It holds nothing of the real game: replacing with it starts again from run 1, with no items.' })
+      : null,
     el('p', { text: 'The current game is first set aside, so it can be restored from Settings.' }),
     button(
       problems.length === 0 ? 'Replace the current game' : 'Replace the current game anyway',
@@ -248,7 +269,7 @@ export const importSheet = (session: Session, content: Content, close: () => voi
         return;
       }
       close();
-      session.shell.openSheet((closeConfirm) => confirmReplaceSheet(session, result.record, result.problems, closeConfirm));
+      session.shell.openSheet((closeConfirm) => confirmReplaceSheet(session, result.record, result.problems, closeConfirm, result.migratedFrom));
     },
     { class: 'primary' },
   );

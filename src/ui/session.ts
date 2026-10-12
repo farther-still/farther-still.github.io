@@ -1,6 +1,7 @@
 // What every screen is handed: the running game and the platform pieces around it.
 
-import type { Content } from '../engine';
+import type { Content, ItemId, SlotId, StatKey } from '../engine';
+import type { GameText } from '../content';
 import type { Diagnostics, PersistStatus, UpdateController } from '../platform';
 import type { BuildInfo, LocalBackend } from '../save';
 import type { GameController } from './controller';
@@ -45,6 +46,8 @@ export class Notices {
   }
 
   add(text: string): void {
+    // The same notice is not stacked: a start that was cut short and repeated would otherwise say it twice.
+    if (this.items.some((item) => item.text === text)) return;
     const id = this.items.reduce((highest, item) => Math.max(highest, item.id), 0) + 1;
     this.items = [...this.items, { id, text }];
     this.changed();
@@ -63,25 +66,40 @@ export class Notices {
   }
 }
 
-export type ScreenName = 'main' | 'settings';
+/** The tab bar's screens (GDD 8.1), and Settings, which is reached from the Run menu. */
+export type ScreenName = 'map' | 'hero' | 'gear' | 'items' | 'bestiary' | 'run' | 'settings';
 
 export type SheetBuilder = (close: () => void) => HTMLElement;
 
 export type Shell = {
   show: (screen: ScreenName) => void;
   openSheet: (build: SheetBuilder) => void;
+  closeSheet: () => void;
+  sheetOpen: () => boolean;
   rerender: () => void;
+  /** A line that appears briefly over the current screen, such as "Not enough gold". */
+  toast: (text: string) => void;
 };
 
-/** View state that must survive a re-render of Settings. */
-export type SettingsView = {
-  showLog: boolean;
-  selfTest: SelfTestResult[] | null;
+/** How many points one tap on a stat spends. */
+export type SpendAmount = 1 | 10 | 100 | 'quarter' | 'all';
+
+export type ItemFilter = 'all' | 'weapon' | 'armor' | 'accessory' | 'key' | 'owned' | 'sale';
+
+/** View state that must survive a re-render. None of it is saved: it is where the player was looking. */
+export type ViewState = {
+  settings: { showLog: boolean; selfTest: SelfTestResult[] | null };
+  hero: { tab: 'core' | 'combat'; amount: SpendAmount; help: StatKey | string | null };
+  gear: { open: SlotId | null };
+  items: { filter: ItemFilter };
+  /** Items gained since the Items or Gear screen was last opened, for the status strip's badge. */
+  unseenItems: ItemId[];
 };
 
 export type Platform = {
   build: BuildInfo;
   content: Content;
+  text: GameText;
   backend: LocalBackend;
   updates: UpdateController;
   diagnostics: Diagnostics;
@@ -93,7 +111,13 @@ export type Platform = {
 export type Session = Platform & {
   controller: GameController;
   shell: Shell;
-  settingsView: SettingsView;
-  /** The message from the last tap that the engine turned down, shown once on the main screen. */
-  flash: { text: string | null };
+  view: ViewState;
 };
+
+export const newViewState = (): ViewState => ({
+  settings: { showLog: false, selfTest: null },
+  hero: { tab: 'core', amount: 1, help: null },
+  gear: { open: null },
+  items: { filter: 'all' },
+  unseenItems: [],
+});

@@ -62,17 +62,22 @@ export const encodeTextCode = (record: SlotRecord): string => TEXT_CODE_PREFIX +
 
 export type ImportCheck =
   /** `problems` is empty for a good record. A suspect one is offered with its problems, to be used anyway or not. */
-  | { ok: true; record: SlotRecord; problems: string[] }
+  | { ok: true; record: SlotRecord; problems: string[]; /** The save version the record was stored at, if it had to be migrated; otherwise null. */ migratedFrom: number | null }
   | { ok: false; reason: string };
+
+const storedVersion = (raw: unknown): number | null => {
+  const version = isObject(raw) ? raw['saveVersion'] : undefined;
+  return typeof version === 'number' ? version : null;
+};
 
 const judge = (raw: unknown, content: Content): ImportCheck => {
   const slot = isObject(raw) && typeof raw['slot'] === 'string' ? raw['slot'] : HOT_SLOT;
   const result = classify(slot, raw, content);
   switch (result.kind) {
     case 'good':
-      return { ok: true, record: result.record, problems: [] };
+      return { ok: true, record: result.record, problems: [], migratedFrom: result.migrated ? storedVersion(raw) : null };
     case 'suspect':
-      return { ok: true, record: result.record, problems: result.problems };
+      return { ok: true, record: result.record, problems: result.problems, migratedFrom: result.migrated ? storedVersion(raw) : null };
     case 'newer':
       return { ok: false, reason: `This save was written by a newer version of the game (save version ${result.saveVersion}). Update the app, then import it.` };
     case 'damaged':

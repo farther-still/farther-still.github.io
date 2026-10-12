@@ -3,15 +3,20 @@
 //
 //   1. Nothing under reference/ is tracked by git.
 //   2. No token pattern in a tracked file.
-//   3. No content display name in unsealed tracked text (vacuous until data/strings.en.json exists in Phase 3b).
+//   3. No content display name from data/strings.en.json in unsealed tracked text, or in the message of a commit
+//      made since the previous commit. A name that is also an ordinary word the unsealed docs use can be exempted
+//      by its key in data/name-scan-exceptions.json, a sealed file.
 //   4. No ID removed from data/ids.lock.json, or changed in kind, since the previous commit.
 //   5. No existing save fixture changed since the previous commit.
 //
 // "Previous commit" is HEAD in the pre-commit hook, where the working tree holds the commit being made. In CI it
 // is the commit before the push, passed as PREVIOUS_COMMIT, since the checkout already is the new HEAD.
+//
+// With `--message <file>` it scans that one file for content names and does nothing else: this is what the
+// commit-msg hook runs, on the message git is about to keep.
 
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, gitOrNull, report, trackedFiles } from './lib';
 
@@ -43,27 +48,130 @@ export const tokenFindings = (file: string, text: string): string[] => {
   return found;
 };
 
-const stringLeaves = (value: unknown): string[] => {
-  if (typeof value === 'string') return [value];
-  if (Array.isArray(value)) return value.flatMap(stringLeaves);
-  if (typeof value === 'object' && value !== null) return Object.values(value).flatMap(stringLeaves);
-  return [];
+/** Every string in the strings file with the path of keys that leads to it, such as `tags.t1`. */
+const keyedStrings = (value: unknown, path: string): Array<{ key: string; name: string }> => {
+  if (typeof value === 'string') return [{ key: path, name: value }];
+  if (typeof value !== 'object' || value === null) return [];
+  return Object.entries(value).flatMap(([key, inner]) => keyedStrings(inner, path === '' ? key : `${path}.${key}`));
+};
+
+/** One display name the scan looks for, with every strings-file key that holds it. */
+export type ScanName = { name: string; keys: string[] };
+
+/**
+ * The names to scan for. A name is left out only when every key that holds it is in `exempt`: the scan cannot
+ * tell two uses of one word apart, so exempting the word under one key must not hide it under another.
+ */
+export const scanNames = (strings: unknown, exempt: ReadonlySet<string> = new Set()): ScanName[] => {
+  const byName = new Map<string, string[]>();
+  for (const { key, name } of keyedStrings(strings, '')) {
+    if (name.trim().length <= 1) continue;
+    const keys = byName.get(name);
+    if (keys === undefined) byName.set(name, [key]);
+    else keys.push(key);
+  }
+  return [...byName].filter(([, keys]) => !keys.every((key) => exempt.has(key))).map(([name, keys]) => ({ name, keys }));
+};
+
+export const EXCEPTIONS_FILE = 'data/name-scan-exceptions.json';
+
+/**
+ * The keys the name scan skips (ARCHITECTURE section 11), from a sealed file of the form
+ * `{ "exceptions": [{ "key": "tags.t1", "reason": "one line" }] }`. `text` is null when there is no such file,
+ * which means no exceptions. An entry without a reason, or for a key the strings file does not hold, is a problem:
+ * an exception nobody can account for is how a real leak would be waved through.
+ */
+export const readExceptions = (text: string | null, strings: unknown): { keys: Set<string>; problems: string[] } => {
+  const keys = new Set<string>();
+  if (text === null) return { keys, problems: [] };
+  const malformed = { keys, problems: [`${EXCEPTIONS_FILE} is not {"exceptions": [{"key": "<section>.<id>", "reason": "<one line>"}]}`] };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return malformed;
+  }
+  const list = typeof parsed === 'object' && parsed !== null ? (parsed as { exceptions?: unknown }).exceptions : undefined;
+  if (!Array.isArray(list)) return malformed;
+
+  const problems: string[] = [];
+  const known = new Set(keyedStrings(strings, '').map((entry) => entry.key));
+  list.forEach((entry: unknown, index) => {
+    const { key, reason } = typeof entry === 'object' && entry !== null ? (entry as { key?: unknown; reason?: unknown }) : {};
+    if (typeof key !== 'string' || key === '') {
+      problems.push(`${EXCEPTIONS_FILE} entry ${index + 1} has no key`);
+      return;
+    }
+    if (typeof reason !== 'string' || reason.trim() === '' || /[\r\n]/.test(reason)) {
+      problems.push(`${EXCEPTIONS_FILE} entry ${index + 1} (${key}) needs a one-line reason`);
+      return;
+    }
+    if (!known.has(key)) {
+      problems.push(`${EXCEPTIONS_FILE} entry ${index + 1} (${key}) is not a key in data/strings.en.json`);
+      return;
+    }
+    keys.add(key);
+  });
+  return { keys, problems };
 };
 
 const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
- * Lines of `text` that contain one of `names` as a whole name, case-sensitively. The finding gives the line and
- * the name's position in the list, never the name itself.
+ * What counts as writing a name: the whole name, in any case, with its words joined by spaces or hyphens, and
+ * with or without a plain plural ending. Part of a longer word is not the name.
  */
-export const nameFindings = (file: string, text: string, names: readonly string[]): string[] => {
-  const found: string[] = [];
-  const matchers = names.map((name) => new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(name)}(?![\\p{L}\\p{N}])`, 'u'));
+const nameMatcher = (name: string): RegExp => {
+  const words = name
+    .trim()
+    .split(/[\s-]+/)
+    .filter((word) => word !== '')
+    .map(escapeRegExp);
+  return new RegExp(`(?<![\\p{L}\\p{N}])${words.join('[\\s-]+')}(?:e?s)?(?![\\p{L}\\p{N}])`, 'iu');
+};
+
+/** Where `names` appear in `text`: the 1-based line, and which name by its place in the list. */
+export const nameHits = (text: string, names: readonly string[]): Array<{ line: number; which: number }> => {
+  const hits: Array<{ line: number; which: number }> = [];
+  const matchers = names.map(nameMatcher);
   text.split(/\r?\n/).forEach((line, index) => {
     matchers.forEach((matcher, which) => {
-      if (matcher.test(line)) found.push(`${file}:${index + 1} contains content name #${which + 1}`);
+      if (matcher.test(line)) hits.push({ line: index + 1, which });
     });
   });
+  return hits;
+};
+
+/**
+ * Lines of `text` that contain one of `names`. The finding gives the line and the name's label, which is its
+ * strings-file key where `labels` is given and its position in the list otherwise. It never gives the name itself.
+ */
+export const nameFindings = (file: string, text: string, names: readonly string[], labels?: readonly string[]): string[] =>
+  nameHits(text, names).map(({ line, which }) => `${file}:${line} contains content name ${labels?.[which] ?? `#${which + 1}`}`);
+
+const numbersOf = (text: string, names: readonly string[]): number[] => [...new Set(nameHits(text, names).map((hit) => hit.which + 1))].sort((a, b) => a - b);
+
+/**
+ * A commit message is public and cannot be taken back once pushed, so it is scanned like any unsealed file. The
+ * whole file git hands the hook is scanned, comment lines included: what git will strip is not worth guessing.
+ */
+export const messageFindings = (message: string, names: readonly string[]): string[] =>
+  numbersOf(message, names).map((number) => `the commit message contains content name #${number}`);
+
+/** The format `logFindings` reads: each commit's hash on a line, then its whole message, then a NUL. */
+export const LOG_FORMAT = '--format=%H%n%B%x00';
+
+/** The same scan over the messages of commits already made, from `git log` in `LOG_FORMAT`. */
+export const logFindings = (log: string, names: readonly string[]): string[] => {
+  const found: string[] = [];
+  for (const entry of log.split('\0')) {
+    const commit = entry.replace(/^\s+/, '');
+    if (commit === '') continue;
+    const firstBreak = commit.indexOf('\n');
+    const hash = (firstBreak < 0 ? commit : commit.slice(0, firstBreak)).slice(0, 7);
+    const message = firstBreak < 0 ? '' : commit.slice(firstBreak + 1);
+    for (const number of numbersOf(message, names)) found.push(`the message of commit ${hash} contains content name #${number}`);
+  }
   return found;
 };
 
@@ -118,7 +226,49 @@ const readWorking = (file: string): string | null => {
   return existsSync(path) ? readFileSync(path, 'utf8') : null;
 };
 
+/** The names to scan for, from the strings file and the exceptions file as they stand in the working tree. */
+const namesToScan = (problems: string[]): ScanName[] => {
+  const stringsText = readWorking('data/strings.en.json');
+  if (stringsText === null) return [];
+  let strings: unknown = null;
+  try {
+    strings = JSON.parse(stringsText);
+  } catch {
+    problems.push('data/strings.en.json is not valid JSON');
+  }
+  const exceptions = readExceptions(readWorking(EXCEPTIONS_FILE), strings);
+  problems.push(...exceptions.problems);
+  return scanNames(strings, exceptions.keys);
+};
+
+/** The commit-msg hook. It prints one line per name found, and never the name. */
+const checkMessage = (file: string | undefined): void => {
+  let message: string | null = null;
+  try {
+    if (file !== undefined && file !== '') message = readFileSync(resolve(file), 'utf8');
+  } catch {
+    message = null;
+  }
+  if (message === null) {
+    // Refused, not waved through: a hook that cannot read the message has checked nothing.
+    console.error('check-repo --message needs the path of the commit message file');
+    process.exitCode = 1;
+    return;
+  }
+  // A broken strings or exceptions file is the main check's finding, not a reason to refuse a message.
+  const names = namesToScan([]).map((entry) => entry.name);
+  const problems = messageFindings(message, names);
+  for (const problem of problems) console.error(problem);
+  if (problems.length > 0) process.exitCode = 1;
+};
+
 const main = (): void => {
+  const messageFlag = process.argv.indexOf('--message');
+  if (messageFlag >= 0) {
+    checkMessage(process.argv[messageFlag + 1]);
+    return;
+  }
+
   const problems: string[] = [];
   const files = trackedFiles();
 
@@ -126,26 +276,23 @@ const main = (): void => {
     if (file === 'reference' || file.startsWith('reference/')) problems.push(`${file} is tracked by git; reference/ must stay private`);
   }
 
-  const stringsText = readWorking('data/strings.en.json');
-  let names: string[] = [];
-  if (stringsText !== null) {
-    try {
-      names = [...new Set(stringLeaves(JSON.parse(stringsText)).filter((name) => name.trim().length > 1))];
-    } catch {
-      problems.push('data/strings.en.json is not valid JSON');
-    }
-  }
+  const names = namesToScan(problems);
+  const wanted = names.map((entry) => entry.name);
+  const labels = names.map((entry) => entry.keys.join(' and '));
 
   for (const file of files) {
     if (BINARY.test(file)) continue;
     const text = readWorking(file);
     if (text === null) continue;
     problems.push(...tokenFindings(file, text));
-    if (names.length > 0 && !isSealed(file)) problems.push(...nameFindings(file, text, names));
+    if (wanted.length > 0 && !isSealed(file)) problems.push(...nameFindings(file, text, wanted, labels));
   }
 
   const previous = previousCommit();
   if (previous !== null) {
+    // The hook scans a message before the commit is made; this catches one made without the hook. In the
+    // pre-commit hook the range is empty.
+    if (wanted.length > 0) problems.push(...logFindings(gitOrNull('log', LOG_FORMAT, `${previous}..HEAD`) ?? '', wanted));
     problems.push(...lockFindings(gitOrNull('show', `${previous}:data/ids.lock.json`), readWorking('data/ids.lock.json')));
     const before = gitOrNull('ls-tree', '-r', '--name-only', previous, 'tests/fixtures/saves/') ?? '';
     for (const file of before.split('\n').filter((name) => FIXTURE.test(name))) {

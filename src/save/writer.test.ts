@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { BUILD, CONTENT, FIXED_NOW, dump, flaky, freshIndexedDb, game, payload, record } from '../../tests/helpers';
+import { BUILD, CONTENT, FIXED_NOW, UNOWNED_ITEM, dump, flaky, freshIndexedDb, game, gameAtRun, payload, record, suspectGame } from '../../tests/helpers';
 import { LocalBackend } from './backend';
 import type { LocalStore } from './backend';
 import { classify } from './classify';
-import { CHECKPOINT_SLOTS } from './constants';
+import { CHECKPOINT_SLOTS, SAVE_VERSION } from './constants';
 import { cursorFor, loadSave } from './load';
 import { checksumMatches } from './record';
 import type { SavePayload } from './schema';
@@ -39,7 +39,10 @@ describe('SaveWriter', () => {
     const stored = (await dump(backend)).slots['hot'];
     expect(stored).toEqual(result.record);
     expect(checksumMatches(stored)).toBe(true);
-    expect(stored).toMatchObject({ slot: 'hot', seq: 1, saveVersion: 1, buildId: BUILD.buildId, contentVersion: BUILD.contentVersion, writtenAt: FIXED_NOW });
+    expect(stored).toMatchObject({ slot: 'hot', seq: 1, saveVersion: SAVE_VERSION, buildId: BUILD.buildId, contentVersion: BUILD.contentVersion, writtenAt: FIXED_NOW });
+    // Both halves of the payload are in it, exactly as they were handed over.
+    expect(result.record.payload).toEqual(payload());
+    expect(classify('hot', stored, CONTENT)).toMatchObject({ kind: 'good', migrated: false });
   });
 
   it('raises seq by one on every write', async () => {
@@ -54,7 +57,7 @@ describe('SaveWriter', () => {
 
   it('rotates five checkpoints, always replacing the one with the lowest seq', async () => {
     const w = writer();
-    for (let run = 0; run < 8; run += 1) await w.commit(payload(game({ profile: { runsStarted: run + 1 } })), { checkpoint: true });
+    for (let run = 0; run < 8; run += 1) await w.commit(payload(gameAtRun(run + 1)), { checkpoint: true });
     const held = await seqs();
     expect(Object.keys(held).sort()).toEqual([...CHECKPOINT_SLOTS, 'hot'].sort());
     // Sixteen writes: checkpoints took the odd seqs. The five newest checkpoints survive.
@@ -77,22 +80,40 @@ describe('SaveWriter', () => {
   });
 
   it('skips the checkpoint, but still writes the hot slot, when an invariant fails', async () => {
-    const broken = payload(game({ profile: { equipped: 'd02' } }));
+    const broken = payload(suspectGame());
     const result = await writer().commit(broken, { checkpoint: true });
     if (!result.ok) throw new Error('write failed');
     expect(result.checkpoint).toBe('skipped');
-    expect(result.problems.join(' ')).toContain('d02');
+    expect(result.problems.join(' ')).toContain(UNOWNED_ITEM);
     expect(Object.keys(await seqs())).toEqual(['hot']);
     expect(logged).toContain('checkpoint-skipped');
     // Loading treats that hot record the same way: suspect, never silently dropped.
     expect(classify('hot', (await dump(backend)).slots['hot'], CONTENT).kind).toBe('suspect');
   });
 
+  it('writes the checkpoint when only the run points at content that is gone, which is for run repair to settle', async () => {
+    const stale = game({
+      run: { bossesBeaten: ['e999'], lastEnemy: 'e999', marks: { s999: { stat: 'gold', percent: 200 } }, position: { zone: 'z09', x: 40, y: 40 } },
+    });
+    const result = await writer().commit(payload(stale), { checkpoint: true });
+    expect(result).toMatchObject({ ok: true, checkpoint: 'written', problems: [] });
+    expect(await seqs()).toEqual({ 'checkpoint-0': 1, hot: 2 });
+    expect(logged).toEqual([]);
+  });
+
   it.each([
-    ['a fraction where a whole number belongs', (p: SavePayload) => ({ ...p, game: { ...p.game, run: { ...p.game.run, counter: 1.5 } } })],
-    ['a number past the exact range', (p: SavePayload) => ({ ...p, game: { ...p.game, run: { ...p.game.run, counter: 2 ** 60 } } })],
-    ['not-a-number', (p: SavePayload) => ({ ...p, game: { ...p.game, run: { ...p.game.run, counter: Number.NaN } } })],
+    ['a fraction where a whole number belongs', (p: SavePayload) => ({ ...p, game: { ...p.game, run: { ...p.game.run, battleCount: 1.5 } } })],
+    ['a number past the exact range', (p: SavePayload) => ({ ...p, game: { ...p.game, run: { ...p.game.run, battleCount: 2 ** 60 } } })],
+    ['not-a-number', (p: SavePayload) => ({ ...p, game: { ...p.game, run: { ...p.game.run, battleCount: Number.NaN } } })],
     ['an unknown field', (p: SavePayload) => ({ ...p, game: { ...p.game, run: { ...p.game.run, extra: 1 } } })],
+    ['XP that is not a number', (p: SavePayload) => ({ ...p, game: { ...p.game, run: { ...p.game.run, xp: Number.NaN } } })],
+    ['a loadout missing one of its cells', (p: SavePayload) => {
+      const slots: Record<string, unknown> = { ...p.game.profile.loadouts[0]?.slots };
+      delete slots['acc5'];
+      return { ...p, game: { ...p.game, profile: { ...p.game.profile, loadouts: [{ name: '', slots }, ...p.game.profile.loadouts.slice(1)] } } };
+    }],
+    ['a setting outside its listed values', (p: SavePayload) => ({ ...p, app: { ...p.app, settings: { ...p.app.settings, playbackSpeed: 3 } } })],
+    ['a run-log entry with a field missing', (p: SavePayload) => ({ ...p, app: { ...p.app, runLog: [{ run: 1 }] } })],
   ])('refuses to write a state with %s over the good hot slot', async (_name, breakIt) => {
     const w = writer();
     const good = await w.commit(payload());
@@ -118,11 +139,11 @@ describe('SaveWriter', () => {
     await backend.write(record('hot', 4));
     const before = await dump(backend);
     const store = flaky(backend, { failWrites: 2 });
-    const changed = payload(game({ run: { counter: 999 } }));
+    const changed = payload(game({ run: { battleCount: 999 } }));
     const result = await writer(store, 5).commit(changed);
     expect(result).toMatchObject({ ok: false, reason: 'storage' });
     if (!result.ok && result.reason === 'storage') {
-      expect(result.unsaved.payload.game.run.counter).toBe(999);
+      expect(result.unsaved.payload.game.run.battleCount).toBe(999);
       expect(checksumMatches(result.unsaved)).toBe(true);
     }
     expect(logged).toEqual(['save-retry', 'save-failed']);
@@ -136,8 +157,8 @@ describe('SaveWriter', () => {
     });
     const store = flaky(backend, { gate });
     const w = writer(store);
-    const first = w.commit(payload(game({ run: { counter: 1 } })));
-    const second = w.commit(payload(game({ run: { counter: 2 } })));
+    const first = w.commit(payload(game({ run: { battleCount: 1 } })));
+    const second = w.commit(payload(game({ run: { battleCount: 2 } })));
     await Promise.resolve();
     await new Promise((resolve) => setTimeout(resolve, 10));
     // The second write has not even started while the first is uncommitted.
@@ -145,7 +166,7 @@ describe('SaveWriter', () => {
     open();
     await Promise.all([first, second]);
     expect(store.calls).toEqual(['write:hot:1', 'committed:hot:1', 'write:hot:2', 'committed:hot:2']);
-    expect(((await dump(backend)).slots['hot'] as { payload: SavePayload }).payload.game.run.counter).toBe(2);
+    expect(((await dump(backend)).slots['hot'] as { payload: SavePayload }).payload.game.run.battleCount).toBe(2);
   });
 
   it('keeps working after a failed write', async () => {
@@ -160,24 +181,24 @@ describe('SaveWriter', () => {
   describe('replaceWith (import and restore)', () => {
     it('sets the current game aside, copies it to a checkpoint, then writes the incoming one as the newest', async () => {
       const w = writer();
-      const mine = await w.commit(payload(game({ profile: { runsStarted: 12 } })));
+      const mine = await w.commit(payload(gameAtRun(12)));
       if (!mine.ok) throw new Error('write failed');
-      const incoming = payload(game({ profile: { runsStarted: 2 } }));
+      const incoming = payload(gameAtRun(2));
       const result = await w.replaceWith(incoming);
       if (!result.ok) throw new Error('replace failed');
       const after = await dump(backend);
       expect(after.quarantine).toMatchObject([{ kind: 'kept', reason: 'replaced-by-import', slot: 'hot', seq: 1, raw: mine.record }]);
-      expect(after.slots['checkpoint-0']).toMatchObject({ seq: 2, payload: { game: { profile: { runsStarted: 12 } } } });
-      expect(after.slots['hot']).toMatchObject({ seq: 3, payload: { game: { profile: { runsStarted: 2 } } } });
+      expect(after.slots['checkpoint-0']).toMatchObject({ seq: 2, payload: { game: { profile: { counters: { runsStarted: 12 } } } } });
+      expect(after.slots['hot']).toMatchObject({ seq: 3, payload: { game: { profile: { counters: { runsStarted: 2 } } } } });
       expect(w.lastGood).toEqual(result.record);
     });
 
     it('replaces nothing when the current game cannot be set aside first', async () => {
       const store = flaky(backend, { failQuarantine: true });
       const w = writer(store);
-      await w.commit(payload(game({ profile: { runsStarted: 12 } })));
+      await w.commit(payload(gameAtRun(12)));
       const before = await dump(backend);
-      const result = await w.replaceWith(payload(game({ profile: { runsStarted: 2 } })));
+      const result = await w.replaceWith(payload(gameAtRun(2)));
       expect(result).toMatchObject({ ok: false, reason: 'storage' });
       expect(await dump(backend)).toEqual(before);
     });

@@ -2,17 +2,20 @@
 
 import { newGame, repairRun } from '../engine';
 import type { Content } from '../engine';
-import { loadBundledContent } from '../content';
+import { loadBundled } from '../content';
+import type { GameText } from '../content';
 import { UpdateController, browserContainer, captureGlobalErrors, createDiagnostics, isStandalone, requestPersistence } from '../platform';
 import { LocalBackend, SaveWriter, buildExport, checkImport, loadSave, newAppState, prepareRecoveryExit } from '../save';
 import type { BuildInfo, Classified, LoadResult, QuarantineEntry, SavePayload, SlotRecord, WriteCursor } from '../save';
 import { GameController } from './controller';
 import { el } from './dom';
+import { gearScreen, itemsScreen } from './gear';
 import { haltScreen, recoveryScreen } from './recovery';
 import type { RecoveryReason, RecoveryView } from './recovery';
-import { mainScreen, settingsScreen, tabBar } from './screens';
-import { Notices } from './session';
+import { MapScreen, bestiaryScreen, heroScreen, runScreen, tabBar } from './screens';
+import { Notices, newViewState } from './session';
 import type { Platform, ScreenName, Session, SheetBuilder } from './session';
+import { settingsScreen } from './settings';
 import { exportFileName, exportSheet } from './sheets';
 
 export type AppOptions = BuildInfo & {
@@ -22,6 +25,7 @@ export type AppOptions = BuildInfo & {
 };
 
 const LAST_BUILD_KEY = 'lastBuildSeen';
+const TOAST_MS = 2600;
 
 const randomSeed = (): number => {
   const box = new Uint32Array(1);
@@ -31,6 +35,11 @@ const randomSeed = (): number => {
 
 const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
+const storedVersion = (raw: unknown): number | null => {
+  const version = typeof raw === 'object' && raw !== null ? (raw as { saveVersion?: unknown }).saveVersion : undefined;
+  return typeof version === 'number' ? version : null;
+};
+
 export const startApp = async (root: HTMLElement, options: AppOptions): Promise<void> => {
   const build: BuildInfo = { buildId: options.buildId, contentVersion: options.contentVersion };
   const diagnostics = createDiagnostics(build.buildId, Date.now);
@@ -39,21 +48,34 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
   const screenHost = el('main', { class: 'host' });
   const barHost = el('div', { class: 'bar-host' });
   const sheetHost = el('div', { class: 'sheet-layer' });
+  const toastHost = el('div', { class: 'toast' });
   sheetHost.hidden = true;
-  root.replaceChildren(screenHost, barHost, sheetHost);
+  toastHost.hidden = true;
+  root.replaceChildren(screenHost, barHost, sheetHost, toastHost);
 
+  const closeSheet = (): void => {
+    sheetHost.hidden = true;
+    sheetHost.replaceChildren();
+  };
   const openSheet = (builder: SheetBuilder): void => {
-    const close = (): void => {
-      sheetHost.hidden = true;
-      sheetHost.replaceChildren();
-    };
-    sheetHost.replaceChildren(builder(close));
+    sheetHost.replaceChildren(builder(closeSheet));
     sheetHost.hidden = false;
+  };
+  let toastTimer: ReturnType<typeof setTimeout> | null = null;
+  const toast = (words: string): void => {
+    if (words === '') return;
+    toastHost.textContent = words;
+    toastHost.hidden = false;
+    if (toastTimer !== null) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toastHost.hidden = true;
+    }, TOAST_MS);
   };
 
   let content: Content;
+  let text: GameText;
   try {
-    content = loadBundledContent();
+    ({ content, text } = loadBundled());
   } catch (error) {
     diagnostics.log('content', message(error));
     screenHost.replaceChildren(
@@ -64,7 +86,7 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
 
   const backend = new LocalBackend();
   diagnostics.attach(() => backend.handle());
-  const log = (kind: string, text: string): void => diagnostics.log(kind, text);
+  const log = (kind: string, words: string): void => diagnostics.log(kind, words);
 
   const updates = new UpdateController({
     container: options.serviceWorker ? browserContainer(navigator) : null,
@@ -80,6 +102,7 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
   const platform: Platform = {
     build,
     content,
+    text,
     backend,
     updates,
     diagnostics,
@@ -92,18 +115,46 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
 
   const runGame = async (payload: SavePayload, cursor: WriteCursor, lastGood: SlotRecord | null, commitNow: boolean): Promise<void> => {
     const writer = new SaveWriter({ store: backend, build, content, now: Date.now, log }, cursor, lastGood);
-    const controller = new GameController({ content, writer, build, randomSeed }, payload);
-    let current: ScreenName = 'main';
+    const controller = new GameController({ content, writer, build, randomSeed, now: Date.now }, payload);
+    let current: ScreenName = 'map';
+    let mapMounted = false;
 
     const render = (): void => {
       if (controller.halt !== null) {
         barHost.replaceChildren();
-        sheetHost.hidden = true;
-        sheetHost.replaceChildren();
+        closeSheet();
+        map.detach();
+        mapMounted = false;
+        screenHost.className = 'host';
         screenHost.replaceChildren(haltScreen(controller.halt, () => window.location.reload()));
         return;
       }
-      screenHost.replaceChildren(current === 'main' ? mainScreen(session) : settingsScreen(session));
+      if (current === 'map') {
+        // The map keeps its canvas between renders, so a walk in progress is not cut off.
+        if (!mapMounted) {
+          screenHost.className = 'host fixed';
+          screenHost.replaceChildren(map.element);
+          mapMounted = true;
+        }
+        map.update();
+      } else {
+        if (mapMounted) map.detach();
+        mapMounted = false;
+        screenHost.className = 'host';
+        const screen =
+          current === 'hero'
+            ? heroScreen(session)
+            : current === 'gear'
+              ? gearScreen(session)
+              : current === 'items'
+                ? itemsScreen(session)
+                : current === 'bestiary'
+                  ? bestiaryScreen(session)
+                  : current === 'run'
+                    ? runScreen(session)
+                    : settingsScreen(session);
+        screenHost.replaceChildren(screen);
+      }
       barHost.replaceChildren(tabBar(session, current));
     };
 
@@ -112,16 +163,28 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
       controller,
       shell: {
         show: (screen) => {
+          if (screen !== current) screenHost.scrollTop = 0;
           current = screen;
-          screenHost.scrollTop = 0;
           render();
         },
-        openSheet,
+        // Once the game has stopped on the save-failed screen, nothing may open over it.
+        openSheet: (builder) => {
+          if (controller.halt === null) openSheet(builder);
+        },
+        closeSheet,
+        sheetOpen: () => !sheetHost.hidden,
         rerender: render,
+        toast,
       },
-      settingsView: { showLog: false, selfTest: null },
-      flash: { text: null },
+      view: newViewState(),
     };
+    const map = new MapScreen(session);
+
+    // The first write and the first draw come before any listener is registered: if either throws, the start has
+    // failed, and nothing of this half-built game may be left subscribed to draw itself over the failed-start
+    // screen later.
+    if (commitNow) await controller.updateApp((app) => app);
+    render();
 
     controller.subscribe(render);
     platform.notices.subscribe(render);
@@ -131,13 +194,14 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
       if (document.visibilityState === 'hidden') {
         void controller.flush();
       } else {
+        controller.resume();
         void updates.check();
       }
     });
     window.addEventListener('pagehide', () => void controller.flush());
-
-    if (commitNow) await controller.updateApp((app) => app);
-    render();
+    window.addEventListener('resize', () => {
+      if (mapMounted) map.update();
+    });
 
     void requestPersistence(navigator).then((status) => {
       platform.persist.status = status;
@@ -158,23 +222,23 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
     }
   };
 
-  const play = async (record: SlotRecord, cursor: WriteCursor, lastGood: SlotRecord | null, forceCommit: boolean): Promise<void> => {
-    let game = record.payload.game;
+  const play = async (record: SlotRecord, cursor: WriteCursor, lastGood: SlotRecord | null, forceCommit: boolean, migratedFrom: number | null): Promise<void> => {
+    const stored = record.payload.game;
+    // Run repair is tried on every load, whatever content the record says it was written with: it returns the
+    // same object when the run already fits, and a migrated record always needs it (ARCHITECTURE 7.3).
+    const game = repairRun(stored, content);
     const contentChanged = record.contentVersion !== build.contentVersion;
-    if (contentChanged) {
-      const repaired = repairRun(game, content);
-      const midRun = game.run.counter > 0 || game.run.steps > 0 || game.run.target !== null;
-      if (midRun) {
-        platform.notices.add(
-          repaired === game
-            ? 'The game was updated in the middle of a run. Nothing in the run needed changing.'
-            : 'The game was updated in the middle of a run. The run pointed at something that no longer exists, which was cleared.',
-        );
-      }
-      game = repaired;
+    if (migratedFrom === 1) {
+      platform.notices.add(
+        'This save came from the test build, so it has been upgraded to the real game, which starts at run 1. The test counter and test items are gone, as planned. A copy of the old save is kept among the set-aside saves; there is nothing in it to restore.',
+      );
+    } else if (game !== stored) {
+      platform.notices.add('The game was updated in the middle of a run. Part of the run no longer fitted the new version and was put right. Nothing you keep between runs was touched.');
+    } else if (contentChanged && stored.run.battleCount > 0) {
+      platform.notices.add('The game was updated in the middle of a run. Nothing in the run needed changing.');
     }
-    // A changed content version is written at once, so the record says which content its run now fits.
-    await runGame({ game, app: record.payload.app }, cursor, lastGood, forceCommit || contentChanged);
+    // A repaired run or a changed content version is written at once, so the record says which content its run now fits.
+    await runGame({ game, app: record.payload.app }, cursor, lastGood, forceCommit || contentChanged || game !== stored);
   };
 
   const recover = (reason: RecoveryReason, records: readonly Classified[], detail: string): void => {
@@ -186,6 +250,7 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
       if (left) return;
       view.updateReady = updates.state === 'ready';
       barHost.replaceChildren();
+      screenHost.className = 'host';
       screenHost.replaceChildren(recoveryScreen(view, actions));
     };
 
@@ -223,7 +288,9 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
         else void boot();
       },
       use: (record: SlotRecord): void => {
-        void leave((cursor) => play(record, cursor, null, true));
+        const source = records.find((entry) => (entry.kind === 'good' || entry.kind === 'suspect') && entry.record === record);
+        const from = source !== undefined && (source.kind === 'good' || source.kind === 'suspect') && source.migrated ? storedVersion(source.raw) : null;
+        void leave((cursor) => play(record, cursor, null, true, from));
       },
       restore: (entry: QuarantineEntry): void => {
         const checked = checkImport(JSON.stringify(entry.raw), content);
@@ -233,7 +300,8 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
           return;
         }
         // A suspect one may be restored from here: this screen is where "use anyway" is asked.
-        void leave((cursor) => play(checked.record, cursor, null, true));
+        const from = storedVersion(entry.raw);
+        void leave((cursor) => play(checked.record, cursor, null, true, from !== null && from < checked.record.saveVersion ? from : null));
       },
       startNew: (): void => {
         if (!view.confirmNew) {
@@ -241,7 +309,7 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
           draw();
           return;
         }
-        void leave((cursor) => runGame({ game: newGame(randomSeed()), app: newAppState(Date.now()) }, cursor, null, true));
+        void leave((cursor) => runGame({ game: newGame(randomSeed(), content), app: newAppState(Date.now()) }, cursor, null, true));
       },
       checkUpdate: (): void => {
         view.status = 'Checking…';
@@ -282,11 +350,11 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
     await platform.notices.restore();
     await noteBuild();
     if (result.kind === 'new-install') {
-      await runGame({ game: newGame(randomSeed()), app: newAppState(Date.now()) }, result.cursor, null, true);
+      await runGame({ game: newGame(randomSeed(), content), app: newAppState(Date.now()) }, result.cursor, null, true);
       return;
     }
     for (const notice of result.notices) platform.notices.add(notice.text);
-    await play(result.record, result.cursor, result.record, result.rewriteHot);
+    await play(result.record, result.cursor, result.record, result.rewriteHot, result.migratedFrom);
   };
 
   try {

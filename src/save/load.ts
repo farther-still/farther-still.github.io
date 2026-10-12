@@ -7,6 +7,7 @@ import type { LocalStore, QuarantineCopy } from './backend';
 import { classify } from './classify';
 import type { Classified, ClassifyOptions, DamagedRecord, GoodRecord } from './classify';
 import { CHECKPOINT_SLOTS, HOT_SLOT, SEQ_PLAUSIBLE } from './constants';
+import { isObject } from './record';
 import type { SlotRecord } from './schema';
 
 export type LoadNotice = { kind: 'fallback' | 'hot-missing'; text: string };
@@ -30,6 +31,8 @@ export type LoadResult =
       records: Classified[];
       /** True when the hot slot does not hold this record as it stands: a fallback, or a migrated record. */
       rewriteHot: boolean;
+      /** The save version the chosen record was stored at, if it had to be migrated; otherwise null. */
+      migratedFrom: number | null;
     }
   | {
       kind: 'recovery';
@@ -117,6 +120,11 @@ export const copiesBeforeRecovery = (records: readonly Classified[]): Quarantine
 
 const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
+const storedVersion = (raw: unknown): number | null => {
+  const version = isObject(raw) ? raw['saveVersion'] : undefined;
+  return typeof version === 'number' ? version : null;
+};
+
 const readAndClassify = async (store: LocalStore, content: Content, options: ClassifyOptions): Promise<Classified[]> =>
   (await store.readSlots()).map(({ slot, raw }) => classify(slot, raw, content, options));
 
@@ -149,7 +157,7 @@ export const loadSave = async (store: LocalStore, content: Content, options: Cla
   if (skipped.some((record) => newlyKept.includes(quarantineKey(record.slot, record.raw)))) {
     notices.push({
       kind: 'fallback',
-      text: `A save could not be read, so an older one was loaded (run ${chosen.record.payload.game.profile.runsStarted}). The unreadable copy is kept: Settings, Set-aside saves.`,
+      text: `A save could not be read, so an older one was loaded (run ${chosen.record.payload.game.profile.counters.runsStarted}). The unreadable copy is kept: Settings, Set-aside saves.`,
     });
   } else if (chosen.slot !== HOT_SLOT && skipped.length === 0) {
     notices.push({ kind: 'hot-missing', text: 'The main save slot was missing, so the newest checkpoint was loaded.' });
@@ -162,6 +170,7 @@ export const loadSave = async (store: LocalStore, content: Content, options: Cla
     notices,
     records,
     rewriteHot: chosen.slot !== HOT_SLOT || chosen.migrated,
+    migratedFrom: chosen.migrated ? storedVersion(chosen.raw) : null,
   };
 };
 

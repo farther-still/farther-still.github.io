@@ -5,5 +5,5 @@
     "types": []
   },
   "include": ["./**/*.ts"],
-  "exclude": ["./**/*.test.ts"]
+  "exclude": ["./**/*.test.ts", "./**/*.fixture.ts"]
 }

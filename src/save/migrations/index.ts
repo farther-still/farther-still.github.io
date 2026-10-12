@@ -1,15 +1,16 @@
 // Ordered migrations, one per version step (ARCHITECTURE 7.4). A migration takes the whole raw record at
-// version `from` and returns it at version `from + 1`. Version 1 is the first, so the list starts empty;
-// Phase 3b adds the step from 1 to 2 that discards the dummy fields.
+// version `from` and returns it at version `from + 1`. It is a pure function of the record: no clock, no
+// random source and no content, so a fixture always migrates to the same bytes.
 
 import { SAVE_VERSION } from '../constants';
+import { migrateV1toV2 } from './v1-to-v2';
 
 export type Migration = {
   from: number;
   migrate: (record: Record<string, unknown>) => Record<string, unknown>;
 };
 
-export const MIGRATIONS: readonly Migration[] = [];
+export const MIGRATIONS: readonly Migration[] = [{ from: 1, migrate: migrateV1toV2 }];
 
 /**
  * Brings a raw record up to `target`. Throws if a step is missing or a step fails; the loader treats that

@@ -32,9 +32,9 @@ const describe = (record: Classified): string => {
   const seq = record.seq === null ? 'unreadable' : String(record.seq);
   switch (record.kind) {
     case 'good':
-      return `${record.slot}, save ${seq}: good. Run ${record.record.payload.game.profile.runsStarted}, written ${formatTime(record.record.writtenAt)}, build ${shortBuild(record.record.buildId)}.`;
+      return `${record.slot}, save ${seq}: good. Run ${record.record.payload.game.profile.counters.runsStarted}, written ${formatTime(record.record.writtenAt)}, build ${shortBuild(record.record.buildId)}.`;
     case 'suspect':
-      return `${record.slot}, save ${seq}: fails a check (${record.problems.join('; ')}). Run ${record.record.payload.game.profile.runsStarted}, written ${formatTime(record.record.writtenAt)}.`;
+      return `${record.slot}, save ${seq}: fails a check (${record.problems.join('; ')}). Run ${record.record.payload.game.profile.counters.runsStarted}, written ${formatTime(record.record.writtenAt)}.`;
     case 'damaged':
       return `${record.slot}, save ${seq}: damaged (${record.reason}).`;
     case 'newer':
@@ -71,12 +71,12 @@ export const recoveryChoices = (view: Pick<RecoveryView, 'reason' | 'records' | 
   const newestFirst = [...view.records].sort((a, b) => (b.seq ?? 0) - (a.seq ?? 0));
   for (const record of newestFirst) {
     if (record.kind === 'suspect') {
-      choices.push({ kind: 'use', record: record.record, label: `Use ${record.slot} anyway (run ${record.record.payload.game.profile.runsStarted})` });
+      choices.push({ kind: 'use', record: record.record, label: `Use ${record.slot} anyway (run ${record.record.payload.game.profile.counters.runsStarted})` });
     } else if (record.kind === 'good') {
       choices.push({
         kind: 'use',
         record: record.record,
-        label: `Use ${record.slot} (run ${record.record.payload.game.profile.runsStarted}, ${formatTime(record.record.writtenAt)})`,
+        label: `Use ${record.slot} (run ${record.record.payload.game.profile.counters.runsStarted}, ${formatTime(record.record.writtenAt)})`,
       });
     }
   }

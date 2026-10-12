@@ -21,11 +21,11 @@ A personal iPhone PWA for Michael, its only player: an auto-battle, loot-farming
 
 ## Spoilers
 
-Michael approves systems and never sees content. Sealed: `docs/sealed/` and every `data/` file except `balance.json`, `content-spec.json` and `ids.lock.json`. Never put a zone theme or content name in chat, gate reports, commit messages, STATUS or check output; say Z1–Z8, E1–E3, T1–T4, or an ID. Content review: simulator, automated checks, a separate verifier pass.
+Michael approves systems and never sees content. Sealed: `docs/sealed/` and every `data/` file except `balance.json`, `content-spec.json` and `ids.lock.json`. Never put a zone theme or content name in chat, gate reports, commit messages, STATUS, tests or check output; say Z1–Z8, E1–E3, T1–T4, or an ID. Content review: simulator, automated checks, a separate verifier pass.
 
 ## Folder map
 
-File-level roles: ARCHITECTURE section 3. Not built until Phase 3b: `src/sim/` and the content files.
+File-level roles: ARCHITECTURE section 3. What is built: section 14.
 
 | Path | Role |
 |---|---|
@@ -50,8 +50,9 @@ Give Michael exact PowerShell commands; recommend, don't list options.
 | `npm run dev` | Vite dev server; `-- --host` for the phone on LAN (layout only) |
 | `npm run check` | Typecheck, lint, tests, content, repo and prose checks. Must pass before a commit |
 | `npm run build`, `npm run check:dist`, `npm run preview` | Build; scan `dist/`; serve it on localhost to try the service worker |
-| `npm run sim -- --runs 50` | From 3b: simulator against the GDD 5.9 pacing targets |
-| `npm run refnames:build` | From 3b, local only: rebuild the hashed RH-name list |
+| `npm run sim -- --runs 50` | Simulator against GDD 5.9 |
+| `npm run golden:update` | Rewrite the golden values |
+| `npm run refnames:build` | Local only: rehash the RH names |
 
 ## Conventions
 
@@ -69,7 +70,7 @@ Give Michael exact PowerShell commands; recommend, don't list options.
 
 ## Save-change checklist
 
-1. Bump `SAVE_VERSION` and add the next ordered migration.
+1. Bump `SAVE_VERSION` and add the next ordered migration (pure, in its own file).
 2. In the same commit, add a fixture written by the new version: a full slot record with checksum. Never edit a fixture.
 3. Update the save schema and the invariant checks.
 4. Update the reset ledger (GDD 2.5) if a field was added or moved.
@@ -77,13 +78,13 @@ Give Michael exact PowerShell commands; recommend, don't list options.
 
 ## Content rules
 
-- IDs are opaque (`z01`, `e001`, `i001`), never reused or removed, recorded with their kind in `ids.lock.json`.
+- IDs are opaque (`z01`, `e001`, `i001`), never reused or removed, recorded with their kind in `ids.lock.json`. An item's slot and a boss's `boss` kind never change.
 - Display names live only in `data/strings.en.json` and follow section S5 of the sealed appendix.
 - Enemy stats come from level, zone, role and modifiers (GDD 5.4). Item lines are hand-written inside the GDD 5.6 budget; each zone names a reference loadout.
 
 ## Enforcement map
 
-All but `check:dist` run in `npm run check`, run by the pre-commit hook and CI; `tests/enforcement.test.ts` proves each ban fires. From 3b: content checks, RH-name test, battle replays.
+All but `check:dist` run in `npm run check` (hook and CI). `tests/enforcement.test.ts` and `checks.test.ts` prove each fires.
 
 | Rule | Check |
 |---|---|
@@ -92,12 +93,12 @@ All but `check:dist` run in `npm run check`, run by the pre-commit hook and CI; 
 | 4 saves | Fixture tests (migrate, byte-exact round trip, rejected records kept); schema-hash and type-equality tests |
 | 5 data and IDs | Lint rejects other number literals in the engine; ID lock compared with the previous commit |
 | 7 secrets, RH | `check-repo` (`reference/` untracked, token patterns); hashed RH-name test; `check:dist` finds RH's title |
-| Pure engine | Engine tsconfig without the DOM lib; `Math` allowlist; restricted imports |
-| Determinism | Golden replays; on-device self-test in Settings |
+| Pure engine | Engine tsconfig with no DOM lib; `Math` allowlist; restricted imports |
+| Determinism | Golden replays; self-test in Settings |
 | Content (GDD 7.9) | `scripts/check-content.ts` |
-| Spoilers | `.gitattributes -diff`; checks print IDs only; `check-repo` finds content names in unsealed text |
+| Spoilers | `.gitattributes -diff`; checks print IDs only; `check-repo` finds content names in unsealed text and commit messages |
 | PWA, phone | Tests pin database and store names; `check:dist` checks manifest, CSP, viewport tag, no `:hover` |
-| Prose | `scripts/check-prose.ts` (KICKOFF.md excluded) |
+| Prose | `scripts/check-prose.ts` (not KICKOFF.md) |
 | 1, 6, 8, 10 | Instruction only: not machine-checkable |
 
 ## Definition of done

@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { BUILD, CONTENT, FIXED_NOW, dump, flaky, freshIndexedDb, game, payload, putRaw, record, unsealed } from '../../tests/helpers';
+import { BUILD, CONTENT, FIXED_NOW, UNOWNED_ITEM, dump, flaky, freshIndexedDb, game, gameAtRun, payload, putRaw, record, recordV1, suspectGame, unsealed } from '../../tests/helpers';
+import { emptyLoadout, repairRun } from '../engine';
 import { LocalBackend, readSeq } from './backend';
 import { classify } from './classify';
-import { DB_NAME, SEQ_CEILING, SEQ_PLAUSIBLE } from './constants';
+import { DB_NAME, SAVE_VERSION, SEQ_CEILING, SEQ_PLAUSIBLE } from './constants';
 import { copiesBeforeRecovery, cursorFor, loadSave, planLoad, prepareRecoveryExit } from './load';
 import type { Migration } from './migrations';
-import { checksumOf, sealRecord } from './record';
+import { checksumMatches, checksumOf, sealRecord } from './record';
 import type { SlotRecord } from './schema';
 import { SaveWriter } from './writer';
 
@@ -16,9 +17,12 @@ beforeEach(() => {
   backend = new LocalBackend();
 });
 
+// The save version a later build of the app would write.
+const LATER = SAVE_VERSION + 1;
+
 const damage = (good: SlotRecord): unknown => ({ ...good, writtenAt: good.writtenAt + 1 });
-const suspect = (slot: SlotRecord['slot'], seq: number): SlotRecord => record(slot, seq, game({ profile: { equipped: 'd02' } }));
-const newer = (slot: string, seq: number): unknown => ({ ...record('hot', seq), slot, saveVersion: 2, future: true });
+const suspect = (slot: SlotRecord['slot'], seq: number): SlotRecord => record(slot, seq, suspectGame());
+const newer = (slot: string, seq: number): unknown => ({ ...record('hot', seq), slot, saveVersion: LATER, future: true });
 
 describe('classify', () => {
   it('calls an intact record that passes everything good', () => {
@@ -48,22 +52,25 @@ describe('classify', () => {
   });
 
   it('calls an intact record that fails an invariant suspect, and says why', () => {
+    const nothingWorn = [emptyLoadout(), emptyLoadout()];
     const cases = [
-      game({ profile: { equipped: 'd02' } }),
-      game({ profile: { inventory: { d01: -1 }, equipped: null } }),
-      game({ profile: { inventory: { d99: 1 }, equipped: null } }),
-      game({ profile: { runsStarted: 0 } }),
-      game({ run: { counter: -1 } }),
+      suspectGame(),
+      game({ profile: { items: { i002: -1 }, loadouts: nothingWorn } }),
+      game({ profile: { items: { i999: 1 }, loadouts: nothingWorn } }),
+      game({ profile: { counters: { runsStarted: 0, bestLevel: 1 } } }),
+      game({ run: { battleCount: -1 } }),
     ];
     for (const state of cases) {
       const result = classify('hot', record('hot', 3, state), CONTENT);
       expect(result.kind).toBe('suspect');
       if (result.kind === 'suspect') expect(result.problems.length).toBeGreaterThan(0);
     }
+    const worn = classify('hot', record('hot', 3, suspectGame()), CONTENT);
+    expect(worn.kind === 'suspect' && worn.problems.join(' ')).toContain(UNOWNED_ITEM);
   });
 
   it('calls a record from a later save version newer, whatever else is true of it', () => {
-    expect(classify('hot', newer('hot', 8), CONTENT)).toMatchObject({ kind: 'newer', seq: 8, saveVersion: 2 });
+    expect(classify('hot', newer('hot', 8), CONTENT)).toMatchObject({ kind: 'newer', seq: 8, saveVersion: LATER });
   });
 
   it('calls junk that merely claims a newer version damaged, not newer', () => {
@@ -91,52 +98,85 @@ describe('classify', () => {
   });
 
   describe('with a migration', () => {
-    // A stand-in for a real version step: version 0 kept the counter under another name.
-    const v0 = (seq: number): Record<string, unknown> => {
+    // A stand-in for a real version step: the version before this one kept the battle count under another name.
+    // The real step from version 1 has its own tests in migrations/v1-to-v2.test.ts.
+    const OLDER = SAVE_VERSION - 1;
+    const older = (seq: number, version = OLDER, name = 'oldCounter'): Record<string, unknown> => {
       const current = record('hot', seq);
-      const { counter, ...run } = current.payload.game.run;
+      const { battleCount, ...run } = current.payload.game.run;
       const old: Record<string, unknown> = {
         ...current,
-        saveVersion: 0,
-        payload: { ...current.payload, game: { ...current.payload.game, run: { ...run, oldCounter: counter } } },
+        saveVersion: version,
+        payload: { ...current.payload, game: { ...current.payload.game, run: { ...run, [name]: battleCount } } },
       };
       delete old['checksum'];
       return { ...old, checksum: checksumOf(old) };
     };
-    const up: Migration = {
-      from: 0,
+    const rename = (from: number, before: string, after: string): Migration => ({
+      from,
       migrate: (raw) => {
         const data = structuredClone(raw) as { saveVersion: number; payload: { game: { run: Record<string, unknown> } } };
-        data.payload.game.run['counter'] = data.payload.game.run['oldCounter'];
-        delete data.payload.game.run['oldCounter'];
-        data.saveVersion = 1;
+        const { [before]: value, ...rest } = data.payload.game.run;
+        data.payload.game.run = { ...rest, [after]: value };
+        data.saveVersion = from + 1;
         return data as unknown as Record<string, unknown>;
       },
-    };
+    });
+    const up = rename(OLDER, 'oldCounter', 'battleCount');
+    const options = { migrations: [up], target: SAVE_VERSION };
 
     it('migrates an older record and marks it migrated', () => {
-      const result = classify('hot', v0(4), CONTENT, { migrations: [up] });
-      expect(result).toMatchObject({ kind: 'good', migrated: true, seq: 4 });
-      if (result.kind === 'good') expect(result.record.payload.game.run.counter).toBe(7);
+      const result = classify('hot', older(4), CONTENT, options);
+      expect(result).toMatchObject({ kind: 'good', migrated: true, seq: 4, record: { saveVersion: SAVE_VERSION } });
+      if (result.kind !== 'good') throw new Error('expected good');
+      expect(result.record.payload.game.run.battleCount).toBe(5);
+      // The migrated record is sealed again, and the raw one is handed back as it was stored.
+      expect(checksumMatches(result.record)).toBe(true);
+      expect(result.raw).toEqual(older(4));
+    });
+
+    it('applies every step in order, whatever order the list is in', () => {
+      const oldest = older(4, OLDER - 1, 'oldestCounter');
+      const first = rename(OLDER - 1, 'oldestCounter', 'oldCounter');
+      for (const migrations of [[first, up], [up, first]]) {
+        const result = classify('hot', oldest, CONTENT, { migrations, target: SAVE_VERSION });
+        expect(result).toMatchObject({ kind: 'good', migrated: true, record: { saveVersion: SAVE_VERSION, payload: { game: { run: { battleCount: 5 } } } } });
+      }
+    });
+
+    it('judges newer against the target it is given', () => {
+      expect(classify('hot', record('hot', 4), CONTENT, { target: OLDER })).toMatchObject({ kind: 'newer', seq: 4, saveVersion: SAVE_VERSION });
     });
 
     it('calls an older record damaged when its migration is missing or throws', () => {
-      expect(classify('hot', v0(4), CONTENT, { migrations: [] })).toMatchObject({ kind: 'damaged' });
-      const broken: Migration = { from: 0, migrate: () => { throw new Error('boom'); } };
-      expect(classify('hot', v0(4), CONTENT, { migrations: [broken] })).toMatchObject({ kind: 'damaged' });
+      expect(classify('hot', older(4), CONTENT, { migrations: [] })).toMatchObject({ kind: 'damaged' });
+      const broken: Migration = { from: OLDER, migrate: () => { throw new Error('boom'); } };
+      expect(classify('hot', older(4), CONTENT, { migrations: [broken] })).toMatchObject({ kind: 'damaged' });
+      // A step that does not arrive at the next version has not done its job.
+      const stuck: Migration = { from: OLDER, migrate: (raw) => ({ ...raw }) };
+      expect(classify('hot', older(4), CONTENT, { migrations: [stuck] })).toMatchObject({ kind: 'damaged' });
+    });
+
+    it('calls an older record damaged, without throwing, when its migration hands back what cannot be sealed', () => {
+      for (const unsealable of [undefined, Number.NaN, Number.POSITIVE_INFINITY, new Date(0)]) {
+        const careless: Migration = { from: OLDER, migrate: (raw) => ({ ...up.migrate(raw), carried: unsealable }) };
+        expect(classify('hot', older(4), CONTENT, { migrations: [careless] }), String(unsealable)).toMatchObject({ kind: 'damaged', seq: 4 });
+      }
+      const nothing: Migration = { from: OLDER, migrate: () => null as unknown as Record<string, unknown> };
+      expect(classify('hot', older(4), CONTENT, { migrations: [nothing] })).toMatchObject({ kind: 'damaged', seq: 4 });
     });
 
     it('copies the raw record to quarantine before the migrated form can replace it', async () => {
-      const raw = v0(4);
+      const raw = older(4);
       await putRaw(backend, 'hot', raw);
-      const result = await loadSave(backend, CONTENT, { migrations: [up] });
-      expect(result).toMatchObject({ kind: 'ready', rewriteHot: true });
+      const result = await loadSave(backend, CONTENT, options);
+      expect(result).toMatchObject({ kind: 'ready', rewriteHot: true, migratedFrom: OLDER });
       const quarantine = await backend.listQuarantine();
       expect(quarantine).toHaveLength(1);
       expect(quarantine[0]).toMatchObject({ kind: 'routine', reason: 'before-migration', slot: 'hot', seq: 4 });
       expect(quarantine[0]?.raw).toEqual(raw);
       // Loading again stores nothing new: each record is quarantined once.
-      await loadSave(backend, CONTENT, { migrations: [up] });
+      await loadSave(backend, CONTENT, options);
       expect(await backend.listQuarantine()).toHaveLength(1);
     });
   });
@@ -190,7 +230,7 @@ describe('cursorFor', () => {
   it('continues after the highest seq of any record, usable or not, so the next write outranks them all', () => {
     expect(cursorFor([c('hot', damage(record('hot', 57))), c('checkpoint-0', record('checkpoint-0', 40))]).nextSeq).toBe(58);
     // A record from a newer version counts whether or not its checksum can be checked by this version.
-    const sealedByTheFuture = sealRecord({ ...unsealed(record('checkpoint-1', 500)), saveVersion: 2 as never });
+    const sealedByTheFuture = sealRecord({ ...unsealed(record('checkpoint-1', 500)), saveVersion: LATER as never });
     for (const fromTheFuture of [sealedByTheFuture, newer('checkpoint-1', 500)]) {
       expect(c('checkpoint-1', fromTheFuture).kind).toBe('newer');
       const cursor = cursorFor([c('hot', record('hot', 12)), c('checkpoint-1', fromTheFuture), c('checkpoint-0', suspect('checkpoint-0', 40))]);
@@ -262,12 +302,84 @@ describe('loadSave', () => {
     if (result.kind !== 'ready') throw new Error('expected ready');
     expect(result.record.seq).toBe(9);
     expect(result.rewriteHot).toBe(false);
+    expect(result.migratedFrom).toBeNull();
     expect(result.notices).toEqual([]);
     expect(result.cursor).toEqual({
       nextSeq: 10,
       checkpointSeqs: { 'checkpoint-0': 0, 'checkpoint-1': 0, 'checkpoint-2': 4, 'checkpoint-3': 0, 'checkpoint-4': 0 },
     });
     expect(await dump(backend)).toEqual(before);
+  });
+
+  // The first real migration (ARCHITECTURE 7.4): the phone holds version 1 records, written by the build before
+  // the real game. They are migrated in memory; what is in storage changes only when the app next writes.
+  it('migrates a version 1 database in memory, keeps every raw record, and writes no slot itself', async () => {
+    const stored: Record<string, unknown> = {
+      hot: recordV1('hot', 9),
+      'checkpoint-0': recordV1('checkpoint-0', 7),
+      'checkpoint-1': recordV1('checkpoint-1', 5),
+    };
+    for (const [slot, raw] of Object.entries(stored)) await putRaw(backend, slot, raw);
+    const store = flaky(backend);
+    const result = await loadSave(store, CONTENT);
+    if (result.kind !== 'ready') throw new Error('expected ready');
+    expect(result).toMatchObject({ migratedFrom: 1, rewriteHot: true, notices: [], record: { slot: 'hot', seq: 9, saveVersion: SAVE_VERSION } });
+    expect(result.record.payload.game.profile.counters.runsStarted).toBe(1);
+    expect(result.records.map((entry) => `${entry.slot}:${entry.kind}:${entry.kind === 'good' && entry.migrated}`).sort()).toEqual([
+      'checkpoint-0:good:true',
+      'checkpoint-1:good:true',
+      'hot:good:true',
+    ]);
+    expect(result.cursor).toEqual({
+      nextSeq: 10,
+      checkpointSeqs: { 'checkpoint-0': 7, 'checkpoint-1': 5, 'checkpoint-2': 0, 'checkpoint-3': 0, 'checkpoint-4': 0 },
+    });
+
+    // No slot was written, and every version 1 record has a routine copy of exactly what was stored.
+    expect(store.calls).toEqual(['quarantine:3']);
+    expect((await dump(backend)).slots).toEqual(stored);
+    const held = await backend.listQuarantine();
+    expect(held.map((entry) => `${entry.slot}:${entry.seq}:${entry.kind}:${entry.reason}`).sort()).toEqual([
+      'checkpoint-0:7:routine:before-migration',
+      'checkpoint-1:5:routine:before-migration',
+      'hot:9:routine:before-migration',
+    ]);
+    for (const entry of held) expect(entry.raw).toEqual(stored[entry.slot]);
+
+    // The app's first write puts the migrated game, its run repaired, in the hot slot. The launch after that is
+    // an ordinary one: the checkpoints are still version 1, untouched, and their copies are not made twice.
+    const writer = new SaveWriter({ store: backend, build: BUILD, content: CONTENT, now: () => FIXED_NOW, log: () => undefined }, result.cursor, result.record);
+    const written = await writer.commit({ ...result.record.payload, game: repairRun(result.record.payload.game, CONTENT) });
+    expect(written).toMatchObject({ ok: true, record: { slot: 'hot', seq: 10, saveVersion: SAVE_VERSION, buildId: BUILD.buildId } });
+    const next = await loadSave(backend, CONTENT);
+    expect(next).toMatchObject({ kind: 'ready', record: { slot: 'hot', seq: 10 }, notices: [], rewriteHot: false, migratedFrom: null });
+    const after = await dump(backend);
+    expect(after.slots['checkpoint-0']).toEqual(stored['checkpoint-0']);
+    expect(after.slots['checkpoint-1']).toEqual(stored['checkpoint-1']);
+    expect(after.quarantine).toHaveLength(3);
+  });
+
+  it('reports a migration only when the record it chose was the one migrated', async () => {
+    await putRaw(backend, 'checkpoint-0', recordV1('checkpoint-0', 5));
+    await backend.write(record('hot', 9));
+    expect(await loadSave(backend, CONTENT)).toMatchObject({ kind: 'ready', record: { seq: 9 }, rewriteHot: false, migratedFrom: null, notices: [] });
+    expect(await backend.listQuarantine()).toMatchObject([{ kind: 'routine', reason: 'before-migration', slot: 'checkpoint-0', seq: 5 }]);
+  });
+
+  it('falls back to a version 1 checkpoint past a damaged hot slot, keeping a copy of both', async () => {
+    const bad = { ...recordV1('hot', 9), writtenAt: 1 };
+    await putRaw(backend, 'hot', bad);
+    await putRaw(backend, 'checkpoint-0', recordV1('checkpoint-0', 7));
+    const result = await loadSave(backend, CONTENT);
+    if (result.kind !== 'ready') throw new Error('expected ready');
+    expect(result).toMatchObject({ record: { slot: 'checkpoint-0', seq: 7, saveVersion: SAVE_VERSION }, rewriteHot: true, migratedFrom: 1 });
+    expect(result.notices.map((notice) => notice.kind)).toEqual(['fallback']);
+    expect(result.cursor.nextSeq).toBe(10);
+    const held = await backend.listQuarantine();
+    expect(held.map((entry) => `${entry.slot}:${entry.seq}:${entry.kind}:${entry.reason}`).sort()).toEqual([
+      'checkpoint-0:7:routine:before-migration',
+      'hot:9:kept:damaged',
+    ]);
   });
 
   it('keeps a copy of a damaged hot slot before falling back, and leaves the slots alone', async () => {
@@ -447,10 +559,10 @@ describe('leaving the recovery screen', () => {
   // of no records at all, and a choice made from it wrote the hot slot as save 1 over a save 57 it had never
   // seen, with no copy kept. The exit now reads the slots as they are when the choice is made.
   it('reads the slots afresh, so a choice made after an unreadable start cannot overwrite what was never read', async () => {
-    const mine = record('hot', 57, game({ profile: { runsStarted: 12 } }));
+    const mine = record('hot', 57, gameAtRun(12));
     await backend.write(mine);
-    await backend.write(record('checkpoint-0', 40, game({ profile: { runsStarted: 8 } })));
-    const old = record('hot', 20, game({ profile: { runsStarted: 5 } }));
+    await backend.write(record('checkpoint-0', 40, gameAtRun(8)));
+    const old = record('hot', 20, gameAtRun(5));
     await backend.addQuarantine([{ slot: 'hot', kind: 'kept', reason: 'replaced-by-import', raw: old }]);
 
     const exit = await prepareRecoveryExit(backend, CONTENT);
@@ -468,7 +580,7 @@ describe('leaving the recovery screen', () => {
     const written = await writer.commit(old.payload);
     expect(written).toMatchObject({ ok: true, record: { seq: 58 } });
     const next = await loadSave(backend, CONTENT);
-    expect(next).toMatchObject({ kind: 'ready', record: { seq: 58, payload: { game: { profile: { runsStarted: 5 } } } }, notices: [], rewriteHot: false });
+    expect(next).toMatchObject({ kind: 'ready', record: { seq: 58, payload: { game: { profile: { counters: { runsStarted: 5 } } } } }, notices: [], rewriteHot: false });
   });
 
   it('changes nothing when the slots still cannot be read', async () => {

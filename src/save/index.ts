@@ -13,7 +13,7 @@ export type { Migration } from './migrations';
 export { checksumMatches, checksumOf, isObject, sealRecord, serializeRecord } from './record';
 export type { BuildInfo } from './record';
 export { appStateSchema, gameStateSchema, newAppState, payloadSchema, slotRecordSchema } from './schema';
-export type { AppState, SavePayload, SlotName, SlotRecord } from './schema';
+export type { AppState, RunLogEntry, SavePayload, SlotName, SlotRecord } from './schema';
 export { buildExport, checkImport, daysSinceExport, encodeTextCode, exportReminderDue, withExportRecorded } from './transfer';
 export type { ExportBundle, ImportCheck } from './transfer';
 export { SaveWriter } from './writer';

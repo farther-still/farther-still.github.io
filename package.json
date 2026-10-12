@@ -14,10 +14,14 @@
     "typecheck": "tsc -p src/engine/tsconfig.json && tsc -p tsconfig.json && tsc -p tsconfig.sw.json && tsc -p tsconfig.tools.json",
     "lint": "eslint .",
     "test": "vitest run",
+    "check:content": "tsx scripts/check-content.ts",
     "check:repo": "tsx scripts/check-repo.ts",
     "check:prose": "tsx scripts/check-prose.ts",
-    "check": "npm run typecheck && npm run lint && npm run test && npm run check:repo && npm run check:prose",
-    "check:dist": "tsx scripts/check-dist.ts"
+    "check": "npm run typecheck && npm run lint && npm run test && npm run check:content && npm run check:repo && npm run check:prose",
+    "check:dist": "tsx scripts/check-dist.ts",
+    "refnames:build": "tsx scripts/build-refnames.ts",
+    "sim": "tsx src/sim/cli.ts",
+    "golden:update": "tsx scripts/update-golden.ts"
   },
   "dependencies": {
     "idb": "^8.0.4",

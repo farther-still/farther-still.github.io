@@ -10,7 +10,7 @@ export const STORE_DEVICE = 'device';
 export const STORE_DIAGNOSTICS = 'diagnostics';
 
 /** Bump with a migration and a fixture: see the save-change checklist in CLAUDE.md. */
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 export const HOT_SLOT = 'hot';
 export const CHECKPOINT_SLOTS = ['checkpoint-0', 'checkpoint-1', 'checkpoint-2', 'checkpoint-3', 'checkpoint-4'] as const;
@@ -26,6 +26,9 @@ export const SEQ_PLAUSIBLE = 1099511627776;
 
 export const ROUTINE_QUARANTINE_LIMIT = 10;
 export const DIAGNOSTICS_LIMIT = 200;
+
+/** The run-duration log keeps this many finished runs. All of v1 is 70 to 140 runs (GDD 5.9). */
+export const RUN_LOG_LIMIT = 200;
 
 export const EXPORT_REMINDER_RUNS = 10;
 export const EXPORT_REMINDER_DAYS = 7;

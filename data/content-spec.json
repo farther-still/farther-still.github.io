@@ -1,0 +1,14 @@
+{
+  "completeZones": ["z01"],
+  "zones": 2,
+  "enemies": {
+    "z01": { "total": 10, "bosses": 1 },
+    "z02": { "total": 2, "bosses": 0 }
+  },
+  "items": {
+    "weapons": { "total": 5, "sold": 1 },
+    "armor": { "total": 13, "sold": 2 },
+    "accessories": { "total": 7, "sold": 2 },
+    "keys": { "total": 0, "sold": 0 }
+  }
+}

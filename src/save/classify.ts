@@ -39,14 +39,17 @@ export const classify = (slot: string, raw: unknown, content: Content, options: 
   }
   if (!checksumMatches(raw)) return damaged('checksum does not match');
 
-  let current: Record<string, unknown>;
+  let migrated: boolean;
+  let candidate: Record<string, unknown>;
   try {
-    current = migrateRecord(raw, target, migrations);
+    const current = migrateRecord(raw, target, migrations);
+    migrated = current !== raw;
+    // Sealing is inside the try: a migration that hands back something that cannot be serialized exactly has
+    // failed, and that must come out as a damaged record, never as a throw.
+    candidate = migrated ? { ...current, checksum: checksumOf(current) } : raw;
   } catch (error) {
     return damaged(`migration failed: ${error instanceof Error ? error.message : String(error)}`);
   }
-  const migrated = current !== raw;
-  const candidate = migrated ? { ...current, checksum: checksumOf(current) } : raw;
 
   const parsed = slotRecordSchema.safeParse(candidate);
   if (!parsed.success) {

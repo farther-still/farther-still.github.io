@@ -1,0 +1,4 @@
+#!/bin/sh
+# Refuses a commit whose message holds a content display name (CLAUDE.md, Spoilers): a message is public and
+# cannot be taken back once pushed. It prints which name by number, never the name. Set by `npm install`.
+exec npx --no-install tsx scripts/check-repo.ts --message "$1"
