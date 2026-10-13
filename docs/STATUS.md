@@ -4,7 +4,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Current phase
 
-**Phase 4, the balance simulator, is at its gate ⛔ and waits for the word "approved".** Michael ruled on 2026-10-13 that a lost fight is charged, as in RH (GDD R-11), and said to let things be how they are, which is read as no retuning (R-12) and put back to him in the gate report. The switch in `data/balance.json` is on, one golden value changed with it, and the documents are in line. The simulator, its findings (GDD 13.7), the verifier pass, the re-check and their fixes are under "Phase 4 working record". Four local commits, not pushed: the one push of the phase goes out once he has been told what it changes.
+**Phase 4 approved. Phase 5 has not started.** Michael approved Phase 4 on 2026-10-13 with the words "a, approved": base starting energy stays 20 (GDD R-14), and the gate is passed (R-15). He had ruled earlier the same day that a lost fight is charged, as in RH (R-11). The simulator, what it found (GDD 13.7), the verifier pass, the re-check and their fixes are under "Phase 4 working record". Phase 4 went out as one push of five commits, made after he had been told what it changes; its CI run and the check of the live site were reported to him in chat and are to be written here with Phase 5's first commit, so that recording them does not ship one more version to his phone. Phase 5, cloud backup and then content expansion, starts in a new session from the prompt he was given.
 
 **Spoiler rule for every session.** `docs/sealed/` holds zone themes and all content names. Michael does not open it. Never quote anything from it in chat, gate reports, commit messages or this file. Refer to zones as Z1–Z8, elements as E1–E3 and enemy types as T1–T4. What kind each optional secret is, and where, is sealed too: say "an optional secret".
 
@@ -52,10 +52,8 @@ Result: 1, 2, 4, 5 and 6 PASS on the laptop, with the evidence under "Phase 3b w
 
 ### PENDING
 
-- [ ] Phase 4: gate report posted 2026-10-13 ⛔ waits for the literal word "approved"
-- [ ] Phase 4: the one push, after Michael has been told what it changes; then CI read with curl and the live site checked
-- [ ] Phase 4: on approval, record it and give Michael a paste-ready prompt for Phase 5
-- [ ] Phase 5: cloud backup, then content expansion
+- [ ] Phase 5: write down here the CI run and the live-site check of the Phase 4 push, from the Phase 5 prompt
+- [ ] Phase 5: cloud backup, then content expansion. Starts in a new session, from a prompt given after the approval
 
 ### COMPLETED
 
@@ -108,6 +106,8 @@ Result: 1, 2, 4, 5 and 6 PASS on the laptop, with the evidence under "Phase 3b w
 - [x] Phase 4: rulings applied: the switch on, one golden value rewritten, tests and documents in line; three of the four lines that state the rule seen in the browser
 - [x] Salvage from the Run tab on the phone: Michael reported on 2026-10-13 that he tried it and it worked
 - [x] Phase 4: a short separate re-check of the fixes and of the rule change: the rule change and the figures held; it failed the write-up on the first Claim and on a reading recorded as a ruling; both fixed
+- [x] Phase 4: gate report posted; gate question answered (a: base energy stays 20, GDD R-14)
+- [x] Phase 4: approved by Michael, 2026-10-13
 - [x] Phase 4: separate verifier pass (2026-10-13): figures confirmed, three checks failed on what was written about them; the write-up corrected, the weak tests replaced, a sweep of base energy added
 
 ## Phase 4 working record
@@ -194,10 +194,23 @@ Verified on the laptop after the change:
 - Whether a retuned base energy holds past Z1. Every figure is from one wall.
 - When the first Claim lands. Not in Z1 on Z1's gear; after that it depends on Z2's gear, and two stand-ins for that gear disagree widely (GDD 13.7).
 
-### Still open with Michael
+### Gate question (answered 2026-10-13: a)
 
-- The verifier's leftover scratch copy of the repo, outside the project: remove it or leave it.
-- Whether "let things be how they are" was meant to cover base energy under the new rule. It was read as "yes, leave it at 20". 20 with a loss charged is about a third of a run harder for a careful player than the game he played, and 21 about 0.4 of a run easier.
+| # | Question | Michael's answer | Recorded as |
+|---|---|---|---|
+| 1 | With a loss now charged, leave base starting energy at 20, or make it 21? | a | **Ruling.** It stays 20 (GDD R-14). He approved the gate in the same reply |
+
+Not asked, and left as they are: section 5.9's retry guard that cannot fail, `goldAt` at zone edges, "no wall over 8 runs" being met at no energy, and when the first Claim lands. The two verifier agents' scratch copies of the repo are in the session's temporary folder, outside the project, and were left there; he was told.
+
+### Carried forward to Phase 5
+
+- **Content is tuned against the wrong player.** Z1 meets "runs in Z1: 4–6" for the Phase 3b player and reads 7 or 8 for a careful one, which is what Michael is. Tune new zones with `cautious` and `like-michael` beside the Phase 3b player, on two sets of seeds, and report mean differences.
+- **A wall should not hang on one drop.** Z1's hangs on i003 from e009 at 10%. Authoring Z2 onward, give a wall's key item more than one way in, or say why not.
+- **The first Claim.** Not in Z1 on Z1's gear. Run `npm run sim -- --probes` once Z2 has items and a reference loadout, and play it: does the tool see use during Z2?
+- **Section 5.9's retry guard** reads 0% for every strategy. If it is to guard anything it has to be read on gate falls.
+- **`goldAt` dips at each zone edge.** `--probes` names any shop item priced inside one; none is today. Check again when Z2's shop is authored.
+- **Not measured at all:** either energy rule at a fight cost of 2, with several bosses paying energy back, or with Claims; every row of section 5.9 that needs a later zone.
+- **The rule on his phone** was not seen before the push. Ask him what the pre-fight sheet and a lost fight's sheet say.
 
 ## Phase 3b working record
 
@@ -666,7 +679,7 @@ From the developer data files; approximate. For Phase 1 curve design, not for co
 
 ## Starting a fresh session
 
-To pick Phase 4 up where it stands, read in order: `CLAUDE.md`; this file ("Current phase", "Phase 4 working record" and "Handoff"); `docs/GDD.md` section 13.7, then 5.9 and DV-10 in 13.2; `docs/ARCHITECTURE.md` section 10. `src/sim/` is the simulator. `docs/sealed/` is needed only when content is authored or reviewed. `reference/` is needed only to check a claim about RH; start with `reference/_claude_phase0/README.md`, which is private and gitignored.
+For Phase 5, read in order: `CLAUDE.md`; this file ("Current phase", "Carried forward to Phase 5", "Phase 4 working record" and "Handoff"); the Phase 5 line of `docs/KICKOFF.md` and its save spec; `docs/ARCHITECTURE.md` section 7.5 for the backup, then sections 6, 10 and 14; `docs/GDD.md` sections 11 and 13.7, then 5.9, 7 and 10 for content. `docs/sealed/` is needed when content is authored or reviewed, and never quoted. `reference/` is needed only to check a claim about RH; start with `reference/_claude_phase0/README.md`, which is private and gitignored.
 
 ## Judgment calls
 
@@ -747,7 +760,7 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 
 ## Handoff
 
-- **Done:** Phases 0 to 3b approved. Phase 4 is at its gate. The energy rule is a switch in `data/balance.json`, and Michael ruled on 2026-10-13 that a loss is charged, as in RH (GDD R-11), with nothing else retuned (R-12). The switch is on, one golden value changed, and the documents state the ruled rule. The simulator has four strategies, the rule and balance variants as options, a CSV, a summary against every row of GDD 5.9, a test against his recorded playthrough and two probes; GDD 13.7 holds what it found. A separate verifier pass confirmed the figures and failed three checks on what was written about them; that was fixed. A short re-check of the fixes and the rule change then passed the rule and the figures and failed the write-up twice more, on the first Claim and on a reading of his words recorded as a ruling; those are fixed too. Local commits only, nothing pushed.
-- **Worked:** Stating the test for "reproduces" before trying any strategy, which is what let the verifier show the fit did not hold. Profiling before optimising: the simulator was slow in path-finding and gear scoring, not in battles. Worker processes fed by seed, so parallel runs stay byte-identical. Reading the wall out of `runs.csv` by item ID, which showed it is one drop. Running the verifier before putting the question, and checking its corrections with a second script before writing them down. Mutating the code against the tests after the verifier listed what they missed. Building the rule as a switch with its text and tests for both positions, so that the ruling was one word, one golden value and a turn of the tests.
+- **Done:** Phases 0 to 4 approved. Phase 4 built the energy switch, on by Michael's ruling so that a lost fight is charged as in RH (GDD R-11), with base energy left at 20 (R-14); rebuilt the simulator with four strategies, the rule and balance variants as options, a CSV, a summary against every row of GDD 5.9, a test against his recorded playthrough and two probes; and wrote what it found into GDD 13.7. A verifier pass and a re-check, each by a separate agent, confirmed the figures and between them failed the write-up four times; all of it was fixed. One push of five commits.
+- **Worked:** Stating the test for "reproduces" before trying any strategy, which is what let the verifier show the fit did not hold. Profiling before optimising: the simulator was slow in path-finding and gear scoring, not in battles. Worker processes fed by seed, so parallel runs stay byte-identical. Reading the wall out of `runs.csv` by item ID, which showed it is one drop. Running the verifier before putting the question, and checking its corrections with a second script before writing them down. Mutating the code against the tests after the verifier listed what they missed. Building the rule as a switch with its text and tests for both positions, so that the ruling was one word, one golden value and a turn of the tests. Holding the push until the gate question was answered, so that the phase was one update on his phone.
 - **Failed:** The first write-up said more than the figures: "reproduces him", "a run sooner", "one player in ten" and "tuned to meet 4–6" each fell to a second set of seeds or to the sweep. The paragraph about the first Claim was wrong twice: once by the author, and once more by taking the verifier's correction without testing it against the rule that gear is kept between runs. A fitted strategy was reported on the seeds it was fitted on. A reading of Michael's words went into the GDD as a ruling, and this file said a re-check had happened before it had. The lessons: give two seed sets and mean differences from the start; never report a fit on its own seeds; test a verifier's correction as hard as the claim it corrects; write down what he said and mark a reading as a reading; and record a check when it has returned, not when it is planned. Traps, added to the earlier ones: flipping the shipped rule in the working copy to look at it is refused before the ruling, and rightly; a background simulation makes the commit hook's lint tests time out, so do not commit while one runs; `--strategy all` picks up any trial entry left in `strategies.json`; do not edit `src/sim/` while a run is spawning workers; the map is a canvas, so driving the dev build means a screenshot and a tap by coordinates, and the screenshot shows place names that must not be repeated in chat.
-- **Next:** Michael's "approved", and his word on the push. The push carries three things to his phone: a new build id; a new content version, so he will see "The game was updated in the middle of a run. Nothing in the run needed changing." once if he is mid-run; and the rule, so that from then on a lost fight costs its energy and the pre-fight sheet and the Defeat sheet say so. His save needs no migration and losses already made are not charged after the fact. After the push: read CI with curl, check the live site, record both. On "approved": record it in GDD 13.7 and here, and give him a paste-ready prompt for Phase 5 (cloud backup, then content expansion), which should carry forward the two things still open with him and the findings Phase 5's content work has to meet: Z1 tuned with a quicker player than a careful one, the wall hanging on one drop, and the first Claim, whose timing depends on Z2's gear and should be measured once Z2 has items.
+- **Next:** Phase 5, in a new session, from the prompt given to Michael after the approval: cloud backup first, then content expansion. Its first commit should record the Phase 4 push's CI run and live-site check here. "Carried forward to Phase 5" above lists what its content work has to meet.
