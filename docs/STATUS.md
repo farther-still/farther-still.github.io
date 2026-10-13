@@ -4,7 +4,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Current phase
 
-**Phase 3b gate ⛔.** Michael approved Phase 3a on 2026-10-12, as the first line of the Phase 3b prompt. Phase 3b, the vertical slice, was built the same day: save version 2 with its migration, the engine, one zone and a glimpse of the next, the screens, the three deferred checks and the simulator. Two separate verifier passes ran before anything was pushed, and the first 3b push followed. The gate report was posted in two parts: the automated checks, and a playtest rubric for Michael to score on his phone. Waiting for the literal reply "approved"; answers, questions or silence are not approval. Do not start Phase 4 before it. When it comes, give Michael a paste-ready prompt for Phase 4 in a new session.
+**Phase 3b approved. Phase 4 has not started.** Michael approved Phase 3b on 2026-10-12 with the one word "Approved", at the end of a review session on his phone: the update and the first real migration, the self-test in Safari, the layout, a playtest through the Z1 gate scored on the rubric, the three gate questions, and the decisions made without asking. The record is under "Phone review" below, and his rulings are GDD section 13.6. Five changes that came out of the review were built, pushed as commit `6711b80` and confirmed on his phone. Phase 4, the balance simulator ⛔, starts in a new session from the prompt he was given at the end of that one. Its first decision is whether a loss costs energy (GDD DV-10).
 
 **Spoiler rule for every session.** `docs/sealed/` holds zone themes and all content names. Michael does not open it. Never quote anything from it in chat, gate reports, commit messages or this file. Refer to zones as Z1–Z8, elements as E1–E3 and enemy types as T1–T4. What kind each optional secret is, and where, is sealed too: say "an optional secret".
 
@@ -20,13 +20,13 @@ Stated before the work began. The gate report marks each PASS, FAIL or NOT CHECK
 6. A separate verifier pass returns pass or fail with evidence, including the content.
 7. The gate report is posted in two parts, with what one zone cost to author, and work stops.
 
-Result: 1, 2, 4, 5 and 6 PASS on the laptop, with the evidence under "Phase 3b working record". 3 is PASS with one qualification: the app was played by script, and the breakthrough run began from a simulator-made save with the missing reference gear handed over (see "Judgment calls"). 7 is the gate report itself.
+Result: 1, 2, 4, 5 and 6 PASS on the laptop, with the evidence under "Phase 3b working record". 3 is PASS with one qualification: the app was played by script, and the breakthrough run began from a simulator-made save with the missing reference gear handed over (see "Judgment calls"). 7 is the gate report itself. Check 3 has since been met by hand as well: Michael played the installed app on his phone from run 1 through the Z1 gate, which fell on run 10 (see "Phone review").
 
 ## Todo
 
 ### PENDING
 
-- [ ] Phase 3b: wait for "approved" on the gate report, and for Michael's scores on the playtest rubric
+- [ ] Phase 4: decide whether a loss costs energy, with both rules simulated to the same pacing targets (GDD DV-10). First, because every other number hangs on it
 - [ ] Phase 4: balance simulator ⛔. Starts in a new session, from a prompt given after the approval
 - [ ] Phase 5: cloud backup, then content expansion
 
@@ -68,6 +68,8 @@ Result: 1, 2, 4, 5 and 6 PASS on the laptop, with the evidence under "Phase 3b w
 - [x] Phase 3b: engine tests written from the GDD, save tests and UI wiring tests, each by a separate pass; their fixes applied
 - [x] Phase 3b: two verifier passes, content and then saves, engine and wiring; findings fixed, one left by choice
 - [x] Phase 3b: `npm run check` and `check:dist` green; first 3b push; gate report posted ⛔ in two parts, with what one zone cost to author
+- [x] Phase 3b: Michael's review on his phone, six steps, each recorded with evidence; five changes from it built, pushed as `6711b80` and confirmed on the phone
+- [x] Phase 3b: approved by Michael, 2026-10-12
 
 ## Phase 3b working record
 
@@ -141,9 +143,9 @@ Measured on Z1, for the DV-6 condition.
 
 A status line in chat during this phase named the kind of optional secret the slice holds. It did not say where. The same phrase was in this file's todo list and was removed. Nothing else sealed was put in chat, a commit message or an unsealed file; the content verifier searched 140 unsealed files and the second verifier 151.
 
-### Phone review (Michael, 2026-10-12, in progress)
+### Phone review (Michael, 2026-10-12)
 
-A review session after the gate report, on his iPhone 16 Pro from the Home Screen icon. Before it began, CI for `663583d` was read as green and the live site as serving the new build. Results are written here as he reports them and pushed once, at the end.
+A review session after the gate report, on his iPhone 16 Pro from the Home Screen icon. Before it began, CI for `663583d` was read as green and the live site as serving the new build. Results were written here as he reported them. Two pushes came out of it: the fixes, as `6711b80`, and this record with his approval. He approved with the one word "Approved" after the sixth step, having been told what was still not checked: using Salvage from the Run menu on the phone, and the band under the tab bar, which is Apple's.
 
 | Step | What | Result | Evidence |
 |---|---|---|---|
@@ -151,8 +153,8 @@ A review session after the gate report, on his iPhone 16 Pro from the Home Scree
 | 2 | Self-test in Safari | PASS | He reported "13 of 13". Safari's arithmetic matches Node's and Chromium's on every golden value and replay |
 | 3 | Layout | PASS, with the findings below | Two screen recordings, 36 and 28 seconds, read frame by frame: Map with a tap-to-walk route, Hero (both tabs), Gear with its picker, Items with its filters, Bestiary, Run, the pre-fight sheet, two battles at 2× and the loss sheet. His own words: "Nothing really has bothered me. I mean the graphics and design are very basic but it's fine for now." A win's result sheet was not in either recording |
 | 4 | Playtest and rubric | PASS on all four rubric points | He played through the Z1 gate: "That was very fun." His screenshots show the win sheet for the gate boss (level 44 to 51, the tool dropped with its line and its explanation, energy "−1, +3 back, 6 left"), the map beyond the gate with a Z2 enemy in view, a full loadout but for one armor slot, and the bestiary with the boss beaten once and unclaimed. He raised four points, P1 to P4 below. The rubric and the rest are in the table after this one |
-| 5 | Gate questions | In progress: 1 of 3 answered | Question 1, the first Claim: "a", leave it and let Phase 4 measure (GDD R-06). Questions 2 and 3 not yet asked |
-| 6 | Decisions made without asking | Not yet walked through | |
+| 5 | Gate questions | Answered: a, a, a | Question 1, the first Claim: "a", leave it and let Phase 4 measure (GDD R-06). Question 2, the armor slot labels: "a", keep them (GDD R-07). Question 3, Z1's enemy levels: "a", keep them (GDD R-08). Each was the recommended default, asked and answered one at a time |
+| 6 | Decisions made without asking | None overruled | He was walked through GDD 13.5 one row each: D-21 and D-23 to D-30, and B-01 to B-04, with D-22, D-31 and half of D-26 already settled by his answers above. He was given the commands to read the diffs of `663583d` for the GDD and `data/balance.json`, and of `6711b80`, and told that `6967658` is sealed. Asked whether he overruled any: "None." Whether he read the diffs is not known |
 
 The playtest, as he scored and reported it:
 
@@ -176,6 +178,19 @@ His rulings on P1 to P4, given with the scores: yes to P1, P2 and P3 as proposed
 - **P3, Salvage.** The engine no longer asks where the hero stands, and the `not-at-site` refusal is gone. A "Salvage…" button is on the Run menu and on the spent-run notice; the map site still opens the same sheet. A test compares a Salvage made at eight places with the one made at a site and finds them equal, which is why no golden value moved.
 - Verified on the laptop: `npm run check` PASS with 1,159 tests in 35 files; `npm run build` and `npm run check:dist` PASS; nothing changed under `data/`, `docs/sealed/`, `src/sim/`, `src/save/`, the golden values or the fixtures. The agent took out four behaviours in turn and each failed a test. Seen by eye: NOT CHECKED, on the laptop or the phone.
 - Left as they are: `CLAUDE.md` still says "44 pt tap targets … no zoom" with no exception, because it has one byte to spare and the exception for the map at far zoom is in GDD 8.3 and `docs/ARCHITECTURE.md` section 8; the Salvage sheet's title still carries the site's name; tapping a site on the map still walks the hero to it first; the loadout row does not wrap, so long loadout names will crowd the zoom button.
+
+He replied "push", and L1, L2 and P1 to P3 went out together as commit `6711b80`. Its CI run finished green, and the live page then served a new script and the style sheet whose name matches the laptop's build. He applied it and sent eight screenshots.
+
+| What | On the phone | Evidence |
+|---|---|---|
+| The update applied | PASS | Settings reads Build `6711b80`, Save version 2, last write save 504, durability strict. The Run menu is headed "Run 11" |
+| Self-test on the new build | PASS | "13 of 13 checks match." So the Salvage change moved no golden value on the phone either |
+| L1, the short page | PASS for the workaround; the band itself is not ours to fix | The new Screen line reads "874 high, page 812, insets 62 and 34: the page stops short of the screen", the numbers predicted. The tab bar's buttons sit 34 points lower than in his earlier screenshots. The band below stayed dark, so the shadow was not painted and the band cannot be drawn in; the home bar shows inside it, clear of the tab bar. The shadow has been taken out again, to go with the record's push |
+| L2, map captions | PASS | The place label nearest the right edge of the map is whole |
+| P2, zoom | PASS | The map at fourteen tiles across, the button reading "Zoom in", every caption legible |
+| P3, Salvage | PASS for the button; using it NOT CHECKED | "Salvage…" sits above "New run…" on the Run menu |
+| P1, the reminder's Later button | PASS | Asked whether the reminder came up with a Later button after the update and whether Later hid it: "Yes and yes." |
+| The run the gate fell on | Run 10, confirmed | Run times now lists run 10 as finished: 1:51, 17 wins, level 51. Sixteen wins and the boss leave 6 energy of 20, which is what his win sheet showed |
 
 Layout findings, all seen by Claude in his screenshots and recordings; Michael raised none himself. L1 and L2 are to be fixed. L3 to L5 are left for the screen's real design pass, since he called the design basic but fine for now and did not ask for a change to Gear.
 
@@ -523,7 +538,7 @@ From the developer data files; approximate. For Phase 1 curve design, not for co
 
 ## Starting a fresh session
 
-For Phase 4, read in order: `CLAUDE.md`, this file, `docs/ARCHITECTURE.md` (sections 10 and 14 first), the Phase 4 section of `docs/KICKOFF.md`, then `docs/GDD.md` sections 5.9 and 13.5. `src/sim/` is the Phase 3b simulator to build on. `docs/sealed/` is needed only when content is authored or reviewed. `reference/` is needed only to check a claim about RH; start with `reference/_claude_phase0/README.md`, which is private and gitignored.
+For Phase 4, read in order: `CLAUDE.md`, this file ("Carried forward to Phase 4" and "Phone review" first), `docs/ARCHITECTURE.md` (sections 10 and 14 first), the Phase 4 section of `docs/KICKOFF.md`, then `docs/GDD.md` sections 5.9, 13.5 and 13.6, and DV-10 in 13.2. `src/sim/` is the Phase 3b simulator to build on. `docs/sealed/` is needed only when content is authored or reviewed. `reference/` is needed only to check a claim about RH; start with `reference/_claude_phase0/README.md`, which is private and gitignored.
 
 ## Judgment calls
 
@@ -571,10 +586,18 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 - 2026-10-12 (Phase 3b): `scripts/update-golden.ts` was kept and given a command, because Phase 4 will change balance repeatedly and each change rewrites the golden values. It refuses to rewrite the hash, generator, square-root and serialization values.
 - 2026-10-12 (Phase 3b): A commit-message hook was added, since "no content name in a commit message" is a rule a machine can check.
 - 2026-10-12 (Phase 3b): Everything went in one push, so the phone sees one "update ready" and not several.
+- 2026-10-12 (Phase 3b review): His reply "Approved", with a capital, was taken as the word the gate asks for: it was his own one-word message, sent in answer to a summary that named that word.
+- 2026-10-12 (Phase 3b review): The run the gate fell on is recorded as 10 against his recollection of "about 8", because the app's own counts say 10 in two places.
+- 2026-10-12 (Phase 3b review): Layout findings L3 to L5 were left for the screens' real design pass. He had said nothing bothered him and that the design was basic but fine for now.
+- 2026-10-12 (Phase 3b review): The dead band was not filled. Laying the app out into a band that WebKit's own bug reports call unreachable could have pushed the tab bar off his screen, and it cannot be tried without a Mac. The workaround taken is the part that is safe either way (A-32).
+- 2026-10-12 (Phase 3b review): The fixes went out before the record, as their own push, because two of them could only be confirmed on the phone. That made two pushes in the session, where he had asked for one for the record.
+- 2026-10-12 (Phase 3b review): His three requests were built by a separate agent from a written brief while the review went on, and read and re-checked by Claude before the push. The brief forbade any change to the save, the simulator, the golden values and sealed files, and none was made.
+- 2026-10-12 (Phase 3b review): `CLAUDE.md` was left as it is, with one byte to spare. Its "44 pt tap targets … no zoom" now has one exception, the map at far zoom, recorded in GDD 8.3 and `docs/ARCHITECTURE.md` section 8. He was told and did not ask for a change.
+- 2026-10-12 (Phase 3b review): "Only wins are charged" had been marked Confirmed as RH's rule on the strength of a one-letter reply to five questions. It is now marked as a ruling, with RH's rule as he gave it (R-01). The lesson for later interviews: a default he accepts is a ruling, and only a fact he states himself is Confirmed.
 
 ## Handoff
 
-- **Done:** Phases 0 to 3a approved. Phase 3b built and pushed: save version 2 and its migration, the engine, the slice content, the screens, the simulator, the deferred checks, with GDD (13.5), ARCHITECTURE (A-23 to A-31, section 14), `CLAUDE.md` and this file brought in line. Two verifier passes ran before the push; their findings were fixed, bar one left by choice.
-- **Worked:** Settling the state and the migration before anything else, and keeping the migration a pure function of the record. Handing tests to agents that had not written the code, briefed to test the GDD and not the code: the engine pass found three real bugs and eight ambiguities, the UI pass four display bugs. Running the two verifiers in parallel with the test passes. Asking a verifier to prove a hole through the real entry point. Building a late-game save with the simulator and importing it through the app's own import sheet, to reach the wall in the browser in a minute. A test of what the golden replays reach, since a replay matches its own hash whatever it does.
-- **Failed:** A status line in chat gave away the kind of secret the slice holds. A scripted edit of a map file wrote an unescaped quote and broke its JSON; the content check caught it at once. The first golden replays reached no boss, no Claim and no Salvage, and passed. `requestAnimationFrame` never fires in a browser pane that is not being painted, so a walk that waited on it hung; walks are now timed by a timer. Traps: shell heredocs break on apostrophes, so write files with the Write tool and patch with a script file; a file an agent is reading can refuse a write, so write to a temporary name and rename; `CLAUDE.md` has 1 byte to spare under 8,000; agents share one scratchpad folder and overwrite each other's files there; a subagent's throwaway tests sit in `tests/` while it runs and fail the type check until it deletes them.
-- **Next:** Wait for "approved" and for Michael's rubric scores. Then give him the Phase 4 prompt for a new session. If his phone showed anything other than the map at run 1 after the update, read his export before anything else.
+- **Done:** Phases 0 to 3b approved. In the review session Michael applied the Phase 3b build on his phone, which ran the first real migration; the self-test read 13 of 13 in Safari; he played through the Z1 gate, on run 10, and passed all four points of the rubric; he answered the three gate questions a, a, a and overruled none of D-21 to D-31 or B-01 to B-04. Five changes from the review were pushed as `6711b80` and confirmed on the phone: Salvage from the Run menu, two map zoom levels, a Later button on the export reminder, the short-page workaround and map captions kept on the canvas. His rulings are GDD 13.6.
+- **Worked:** One step at a time, each recorded in this file before the next, so nothing rested on the conversation. Asking for screen recordings and reading them frame by frame with ffmpeg contact sheets (two frames a second, tiled four by two), which showed more than he reported. Checking a surprising reading against the design record before calling it a bug: the stat points, the win chance that moved, the gold at the start of a run. Checking his recollection of RH against his own recorded words before answering, which turned up a wrong "Confirmed". Looking up the dead band before fixing it: it was a known WebKit bug with his phone's exact numbers. Shipping a harmless probe with the workaround, so one screenshot settled whether the band could be drawn in. Handing the three requested changes to an agent with a brief that listed what it must not touch, then reading its diff.
+- **Failed:** The first estimate of the dead band was "a layout bug to fix"; it was an iOS fault, and saying so took a web search that should have come first. A first version of the probe used an element below the tab bar, which gave the page 96 more points to scroll to; a shadow does not. Two existing tests broke because their stand-in canvas could not measure text. Traps, added to the earlier ones: a shell heredoc breaks on an apostrophe even when quoted, so write the file with the Write tool; Python's `open(..., 'w')` can be refused on a file that was just read, so write to a temporary name and replace; the laptop's preview serves the old build from its service worker until the worker and caches are cleared; the browser pane still does not paint while the window is behind another.
+- **Next:** Phase 4, in a new session, from the prompt given to Michael at the end of the review. Start with whether a loss costs energy (GDD DV-10): give the simulator a switch for it, tune both rules to the GDD 5.9 targets, and show him the two side by side. His playthrough is the calibration point: the gate on run 10, runs of 1:50 to 3:24, 20 wins a run, four or five tries at the boss. Not yet checked on the phone: using Salvage from the Run menu.

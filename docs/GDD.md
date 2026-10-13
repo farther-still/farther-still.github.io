@@ -904,7 +904,7 @@ Three questions held for later phases, answered early on 2026-10-12:
 
 ### 13.5 Phase 3b: what building the slice settled
 
-All dated 2026-10-12. Proposed at the Phase 3b gate; each stands once the gate is approved.
+All dated 2026-10-12. Proposed at the Phase 3b gate. Michael approved the gate the same day and overruled none, so each stands as written, with three notes: D-22 and D-31 were put to him as gate questions and kept (R-07, R-08), and the second half of D-26 was withdrawn at his request (DV-9).
 
 Design decisions made while building. None changes an approved rule; each fills a gap the build exposed.
 
@@ -963,6 +963,10 @@ All dated 2026-10-12, given after he played the slice on his phone through the Z
 | R-04 | Zoom the map out, to walk or steer farther | His request; "yes" to the form proposed | **Ruling.** Two levels and a button. Logged as D-32 | 8.2, 8.3 |
 | R-05 | A way to close the export reminder | His request; "yes" to the form proposed | **Ruling.** A "Later" button hides it until the app is next opened, and it names only what is overdue. Logged as D-33. The kickoff asks for a reminder that does not block play, which this still is | `docs/ARCHITECTURE.md` 7.5 |
 | R-06 | Gate question 1, the first Claim: the tool cannot claim the Z1 boss until about level 300. Leave it for Phase 4 to measure, or soften the 90% cut now? | a: leave it | **Ruling.** The cut stays at 90%, as RH's data has it [WEB]. Phase 4 measures when Claims land across Z2 and Z3 | 2.3, 10 |
+| R-07 | Gate question 2, the armor slot labels: eight of the twelve match RH's, all plain words for parts of the body (D-22). Keep or rename? | a: keep | **Ruling.** D-22 stands, on the same reasoning as the five stat names (D-05) | 7.1 |
+| R-08 | Gate question 3, Z1's enemy levels: eight of the ten land within one level of RH's first section (D-31). Keep or shift? | a: keep | **Ruling.** D-31 stands. A level ladder is pacing, which the kickoff asks to match | 7.5 |
+| R-09 | Does he overrule any of D-21, D-23 to D-30, or B-01 to B-04? Each was put to him in one line, with the commands to read the diffs | "None." | **Ruling.** They stand | 13.5 |
+| R-10 | The Phase 3b gate | "Approved" | **Approved**, 2026-10-12, after the six steps of the review. Phase 4 starts in a new session | `docs/STATUS.md` |
 
 | ID | Decision | Reason | Where it lives |
 |---|---|---|---|

@@ -534,7 +534,7 @@ Added in the Phase 3b review, from what Michael's phone showed:
 
 | ID | Decision | Reason |
 |---|---|---|
-| A-32 | When the installed app's page is short of the screen by exactly the top inset, the app stops keeping room for the home bar and carries the tab bar's colour on below the page as a shadow. It does not try to lay anything out in the band | His iPhone 16 Pro gave a page 812 points high on a screen of 874 while still reporting a top inset of 62, leaving a dead band of 62 points under the tab bar. That is WebKit bug 301994, open since iOS 26.1 and reopened in August 2026, whose reports say the band cannot be reached from the page. Laying the app out into it would push the tab bar off the screen wherever that is true, and it cannot be tried without a Mac. Dropping the home-bar room is safe either way: the home bar lies inside the band. It wins back 34 of the 96 points being wasted. The shadow is paint only, so it adds nothing to scroll to, and it shows on the phone whether the band can be drawn in at all |
+| A-32 | When the installed app's page is short of the screen by exactly the top inset, the app stops keeping room for the home bar. It does not try to lay anything out, or to draw anything, in the band | His iPhone 16 Pro gave a page 812 points high on a screen of 874 while still reporting a top inset of 62, leaving a dead band of 62 points under the tab bar. That is WebKit bug 301994, open since iOS 26.1 and reopened in August 2026, whose reports say the band cannot be reached from the page. Laying the app out into it would push the tab bar off the screen wherever that is true, and it cannot be tried without a Mac. Dropping the home-bar room is safe either way: the home bar lies inside the band. It wins back 34 of the 96 points being wasted. The first build with this also carried the tab bar's colour on below the page as a shadow, which is paint only, to learn whether the band could be drawn in. On his phone the band stayed dark, so it is out of the page's reach, and the shadow was taken out again |
 
 Settled in Phase 3a:
 
@@ -553,6 +553,13 @@ Settled on the phone, by Michael's Phase 3a acceptance run on his iPhone 16 Pro,
 
 Nothing from the list of points to settle in Phase 3a is still open.
 
+Settled on the phone, by Michael's Phase 3b review on the same iPhone 16 Pro, 2026-10-12:
+
+- The first real migration ran as section 7.4 describes: the version 1 hot slot and its three checkpoints were each kept as a set-aside copy, and the game opened at run 1 on save version 2.
+- Safari's arithmetic matches Node's and Chromium's on every golden value and replay: the self-test read 13 of 13, on the first Phase 3b build and again on the build with the review's fixes.
+- The page is short of the screen (A-32). Settings read a screen 874 points high, a page of 812 and insets of 62 and 34. With the room for the home bar lifted, the tab bar sits 34 points lower and the home bar shows below it, clear of every control. The band under the page cannot be drawn in.
+- A choice kept in the `device` store, the map's zoom level, survived the update's reload.
+
 ## 14. Phase 3b as built
 
 What exists, so nobody has to infer it from the sections above, which describe the finished game.
@@ -564,4 +571,5 @@ What exists, so nobody has to infer it from the sections above, which describe t
 - **UI:** Map, pre-fight sheet, battle playback, result sheet, Hero, Gear, Items, Bestiary, Salvage, Run menu, New-run sheet, Settings, Recovery and the save-failed notice. Not built: the Waypoints screen and the Auto-assign screen.
 - **Checks:** everything in section 11, including the three that Phase 3a deferred: `scripts/check-content.ts`, the reference-name test with `scripts/build-refnames.ts`, and the battle golden replays.
 - **Simulator:** one strategy, as section 10 describes. Phase 4 expands it.
+- **Added at Michael's review, 2026-10-12:** Salvage from the Run menu and the spent-run notice, with the engine no longer asking where the hero stands; the map's two zoom levels, kept in the `device` store; the export reminder's Later button; the short-page reading and its one custom property (A-32); and map captions kept on the canvas. None changed the save, the content, a balance number or a golden value.
 - **Tests:** the engine's tests were written from the GDD by a separate pass, not by the engine's author, so that they check the rules and not the code. That pass changed the engine in three places and left eight readings of the GDD as questions, which are settled in GDD 13.5 (D-30). The save tests and the UI wiring tests were each rewritten by a separate pass as well; the UI one fixed four display bugs.

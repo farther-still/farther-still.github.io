@@ -227,13 +227,6 @@ p {
   background: var(--panel);
 }
 
-/* On a short page the bar's colour is carried on below the page's own edge. It is a shadow, the bar's own shape
-   set 64 points lower, because a shadow is paint only: it gives the page nothing more to scroll to. If the band
-   cannot be drawn in, nothing is lost; if it can, the band reads as part of the bar and not as a gap. */
-html[data-band-below='yes'] .tabbar {
-  box-shadow: 0 64px 0 0 var(--panel);
-}
-
 .tab {
   flex: 1 1 0;
   min-height: 48px;
