@@ -422,7 +422,7 @@ export const replaceBackupSheet = (session: Session, close: () => void): HTMLEle
   let confirmed = false;
   return sheet(
     'Overwrite the backup?',
-    el('p', { text: 'The backup holds a different game, or one that has something the game on this phone does not. Overwriting puts the game on this phone in its place.' }),
+    el('p', { text: 'The backup is not an earlier save of the game on this phone, as far as the app can tell. Overwriting puts the game on this phone in its place.' }),
     el('p', { class: 'flash', text: 'If the app was just reinstalled, the backup is the game to keep: cancel, and use Restore from backup.' }),
     el('p', { class: 'muted', text: 'Every backup is a commit in the repository, so the save being overwritten can still be found in its history on GitHub.' }),
     button(

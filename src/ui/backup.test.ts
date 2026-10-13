@@ -746,7 +746,7 @@ describe('check 5: a failure shows and does not block', () => {
   const REFUSED_REMINDER = 'The cloud backup has stopped: GitHub refused the key. The save on this phone is unaffected.';
   const MISSING_REMINDER = 'The cloud backup has stopped: GitHub found no such repository for the key. The save on this phone is unaffected.';
   /** How each sentence in Settings begins. Only one of them is ever on screen. */
-  const SENTENCES = ['GitHub refused the key.', 'GitHub found no such repository for this key.', 'GitHub could not be reached.', 'The backup did not go through', 'The backup holds a different game, or one that has something the game on this phone does not'];
+  const SENTENCES = ['GitHub refused the key.', 'GitHub found no such repository for this key.', 'GitHub could not be reached.', 'The backup did not go through', 'The backup is not an earlier save of the game on this phone'];
 
   /** A launch with a key on the phone, then a new run whose backup the service answers in `mode`. */
   const failARun = async (mode: FakeMode, ends: BackupOutcome): Promise<void> => {
@@ -917,7 +917,7 @@ describe('check 5: a failure shows and does not block', () => {
 // ---- check 6 ----
 
 describe('check 6: restore is an import', () => {
-  const UNSEEN_REMINDER = 'The cloud backup holds a different game, or one that has something this one does not, so nothing is being backed up. The save on this phone is unaffected.';
+  const UNSEEN_REMINDER = 'The cloud backup is not an earlier save of this game, as far as the app can tell, so it is being left alone. The save on this phone is unaffected.';
   const CONFIRM = 'Replace the current game?';
 
   /** The run counts the confirmation sheet sets side by side, the current game's first. */
@@ -1123,7 +1123,7 @@ describe('check 6: restore is an import', () => {
     dom.tap('Save the key');
     await keySheetClosed();
     await looked(1);
-    expect(showsStart('The backup holds a different game, or one that has something the game on this phone does not, so it was left alone.')).toBe(true);
+    expect(showsStart('The backup is not an earlier save of the game on this phone, as far as the app can tell, so it was left alone.')).toBe(true);
     expect(dom.buttons()).toEqual(expect.arrayContaining(['Restore from backup…', 'Overwrite the backup…']));
 
     await startRun(2);
@@ -2061,7 +2061,7 @@ describe('VERIFIER set 2', () => {
     await attemptEnds('left-alone');
     expect(github.writes).toEqual([]);
     openSettings();
-    const words = lines().find((line) => line.startsWith('The backup holds a different game')) ?? '';
+    const words = lines().find((line) => line.startsWith('The backup is not an earlier save of the game on this phone')) ?? '';
     const offered = dom.buttons().includes('Overwrite the backup…');
     dom.tap('Restore from backup…');
     await eventually(() => expect(showsStart('The backup cannot be restored: the file in the repository is not one this game wrote.')).toBe(true));
@@ -2259,6 +2259,45 @@ describe('the reworked guard: what the re-check pass found untested', () => {
     dom.tap('Try again');
     await eventually(() => expect(valueOf('Repository')).toBe(REPOSITORY));
     await startRun(3);
+    await backedUp();
+    expect(github.writes).toHaveLength(1);
+  });
+});
+
+// ---- added after the third pass of 2026-10-13, for the two faults in Settings it showed on the real app ----
+
+describe('Settings after an attempt that says nothing about a standing problem', () => {
+  it('still says the key was refused after the service has failed for reasons of its own', async () => {
+    await configureKey();
+    await seedGame();
+    await startApp(dom.root, OPTIONS);
+    github.mode = 401;
+    await startRun(2);
+    await attemptEnds('refused');
+    github.mode = 500;
+    await startRun(3);
+    await attemptEnds('failed');
+    expect(reminderShowing()).toBe(true);
+    openSettings();
+    expect(showsStart('The backup did not go through (GitHub answered 500).')).toBe(true);
+    expect(showsStart('Before that: GitHub refused the key.')).toBe(true);
+  });
+
+  it('does not call the key unread when only the notes about the backup could not be read', async () => {
+    await configureKey();
+    await seedGame();
+    const getDevice = LocalBackend.prototype.getDevice;
+    vi.spyOn(LocalBackend.prototype, 'getDevice').mockImplementation(async function (this: LocalBackend, key: string): Promise<unknown> {
+      if (key === BACKUP_STATE) throw new Error('simulated: the notes could not be read');
+      return getDevice.call(this, key);
+    });
+    await startApp(dom.root, OPTIONS);
+    await mapShows();
+    openSettings();
+    // The key is there and in use, and Settings says so: what it does and what it says agree.
+    expect(valueOf('Repository')).toBe(REPOSITORY);
+    expect(showsStart('The backup settings could not be read')).toBe(false);
+    await startRun(2);
     await backedUp();
     expect(github.writes).toHaveLength(1);
   });

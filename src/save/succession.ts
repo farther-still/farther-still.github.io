@@ -139,15 +139,24 @@ const finishedTheirRun = (mine: SavePayload, theirs: SavePayload): boolean => {
 };
 
 /**
- * True when `mine` passes every test that `theirs` played further would pass: the same game; everything kept
- * between runs still held; every run `theirs` had finished filed exactly so; and either the same run further
- * on, or a later run that finished the one `theirs` was in.
+ * True when `mine` passes every test that `theirs` played further would pass: the same game; what is kept
+ * between runs and never goes down still held; every run `theirs` had finished filed exactly so, as far as
+ * `mine`'s log still reaches; and either the same run further on, or a later run that finished the one `theirs`
+ * was in.
  *
- * What it cannot see, and so does not judge: how loadouts are arranged and named, settings, and within a run
- * the gold, the points spent and where the hero stands. A later state changes those freely. So one case passes
- * that is not `theirs` played further: a save that went back to the start of the very run `theirs` is in, and
- * has since been played past every count `theirs` holds. What `theirs` had of those arrangements is then
- * replaced. Nothing listed above is lost by it.
+ * It is a set of tests and not a proof, and it says yes to three kinds of save that are not `theirs` played
+ * further. All three need the phone to have gone back to an earlier save first. None loses an item, a Claim, a
+ * win, a secret, a waypoint or a loadout slot.
+ *
+ * - The same run, after going back to any earlier point of it and playing past every count `theirs` holds.
+ *   What `theirs` had of loadout arrangement, settings, gold and points is replaced.
+ * - A later run, after going back inside the run `theirs` is in and then finishing that run with at least its
+ *   wins, losses and play time. The same is replaced, and gems too: gems are spent as well as gained, so a
+ *   later run cannot be held to them, and a gem `theirs` gained that the replay did not is lost.
+ * - More than a full log of runs later (`RUN_LOG_LIMIT`), any earlier parting of the ways: the runs that would
+ *   show it have been let go from the log.
+ *
+ * A save that differs from `theirs` only in what is not judged at all, such as a setting, passes either way.
  */
 export const succeeds = (mine: SavePayload, theirs: SavePayload): boolean => {
   if (begunAt(mine) !== begunAt(theirs)) return false;

@@ -671,6 +671,50 @@ describe('CloudBackup: a problem the service reported is not forgotten by an att
   });
 });
 
+describe('CloudBackup: reading its settings again', () => {
+  it('leaves an attempt alone that is on its way under the same key', async () => {
+    let open: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    const backup = new CloudBackup({
+      device,
+      fetch: async (url, init) => {
+        await gate;
+        return github.fetch(url, init);
+      },
+      timer: timer.timer,
+      now: () => clock,
+      log: (kind, message) => logged.push(`${kind}: ${message}`),
+    });
+    await backup.setKey({ owner: OWNER, repo: REPO, token });
+    backup.runEnded(run(2, 5));
+    await settle();
+    // Settings' "Try again" reads the key while the attempt is still out. It is the same key.
+    await backup.restore();
+    open();
+    await settle();
+    expect(github.file?.text).toBe(serializeRecord(run(2, 5)));
+    expect(backup.status.lastAttempt?.outcome).toBe('ok');
+  });
+
+  it('reads the key when the notes cannot be read, and says nothing is known of the backup', async () => {
+    const first = await withKey();
+    first.runEnded(run(2, 5));
+    await settle();
+    const notesFail: DeviceStore = {
+      getDevice: (key) => (key === BACKUP_STATE ? Promise.reject(new Error('unreadable')) : device.getDevice(key)),
+      setDevice: (key, value) => device.setDevice(key, value),
+    };
+    const backup = new CloudBackup({ device: notesFail, fetch: github.fetch, timer: timer.timer, now: () => clock, log: (kind, message) => logged.push(`${kind}: ${message}`) });
+    await backup.restore();
+    expect(backup.status).toEqual({ repository: `${OWNER}/${REPO}`, lastOk: null, lastAttempt: null, standing: null, busy: false, unread: false });
+    backup.runEnded(run(3, 9));
+    await settle();
+    expect(backup.status.lastAttempt?.outcome).toBe('ok');
+  });
+});
+
 describe('cleanToken', () => {
   it('takes out what a paste can pick up and leaves the key', () => {
     const key = madeUpKey('clean');

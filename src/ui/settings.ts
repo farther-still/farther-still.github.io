@@ -180,8 +180,9 @@ export const settingsScreen = (session: Session): HTMLElement => {
             cloud.lastAttempt === null || cloud.lastAttempt.outcome === 'ok'
               ? null
               : el('p', { class: 'flash', text: backupWords(cloud.lastAttempt.outcome, cloud.lastAttempt.status) }),
-            // An attempt that reached nobody says nothing about a problem the service reported before it.
-            cloud.lastAttempt?.outcome === 'unreachable' && backup.needsAttention && cloud.standing !== null
+            // An attempt that reached nobody, or that the service failed for reasons of its own, says nothing
+            // about a problem reported before it. That problem is still shown.
+            (cloud.lastAttempt?.outcome === 'unreachable' || cloud.lastAttempt?.outcome === 'failed') && backup.needsAttention && cloud.standing !== null
               ? el('p', { class: 'flash', text: `Before that: ${backupWords(cloud.standing, null)}` })
               : null,
             el(

@@ -30,7 +30,8 @@ export const MEDIA_PATTERNS: ReadonlyArray<{ name: string; pattern: RegExp }> = 
 ];
 
 // URL-shaped text that is an identifier or a parsing template, not a place anything is loaded from. Each entry
-// names where it comes from. Anything else fails, and the policy's `connect-src` blocks it at run time too.
+// names where it comes from. Any other URL written out plainly fails. This is a tripwire and not a proof: text
+// put together at run time is not followed. What stops a call is the policy's `connect-src`, pinned below.
 // `tests/checks.test.ts` pins this list, so that adding to it takes a second, deliberate edit.
 export const ALLOWED_URLS: readonly RegExp[] = [
   // XML namespaces (SVG, XHTML).

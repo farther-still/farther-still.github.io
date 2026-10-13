@@ -14,9 +14,9 @@ export const BACKUP_KEY = 'backupKey';
 export const BACKUP_STATE = 'backupState';
 
 /**
- * How an attempt ended. `left-alone` is the one that is not a fault: the backup holds a different game, or one
- * that keeps something the game on this phone does not, so it was not replaced. The player restores it or says
- * to overwrite it.
+ * How an attempt ended. `left-alone` is the one that is not a fault: the backup does not pass as an earlier
+ * save of the game on this phone (another game, one that went back, a file this build cannot read), so it was
+ * not replaced. The player restores it or says to overwrite it.
  */
 export type BackupOutcome = 'ok' | 'unreachable' | 'refused' | 'not-found' | 'left-alone' | 'failed';
 
@@ -129,7 +129,16 @@ export class CloudBackup {
    */
   async restore(): Promise<void> {
     try {
-      this.key = readKey(await this.deps.device.getDevice(BACKUP_KEY));
+      const key = readKey(await this.deps.device.getDevice(BACKUP_KEY));
+      // The same key read again is the same key: an attempt on its way under it is not made to drop itself.
+      if (key === null || this.key === null || key.owner !== this.key.owner || key.repo !== this.key.repo || key.token !== this.key.token) this.key = key;
+      this.unread = false;
+    } catch (error) {
+      this.unread = true;
+      this.deps.log('backup', `could not read the backup settings (${kindOf(error)})`);
+    }
+    // The notes are for showing only. If they cannot be read the backup still works, and nothing is known of it.
+    try {
       const state = await this.deps.device.getDevice(BACKUP_STATE);
       if (isObject(state)) {
         this.lastOk = readOk(state['lastOk']);
@@ -137,10 +146,8 @@ export class CloudBackup {
         const standing = readOutcome(state['standing']);
         this.standing = standing !== null && STANDS.includes(standing) ? standing : null;
       }
-      this.unread = false;
     } catch (error) {
-      this.unread = true;
-      this.deps.log('backup', `could not read the backup settings (${kindOf(error)})`);
+      this.deps.log('backup', `could not read the backup notes (${kindOf(error)})`);
     }
     this.notify();
   }
@@ -199,9 +206,9 @@ export class CloudBackup {
   }
 
   /**
-   * Removes the key from this install and drops the notes. Nothing in the repository is touched, and an attempt
-   * already on its way does not write. False if the key could not be removed from the store, in which case it
-   * is still there and still in use.
+   * Removes the key from this install and drops the notes. Nothing in the repository is touched. An attempt
+   * that is still reading the file does not go on to write; a write already sent cannot be called back. False
+   * if the key could not be removed from the store, in which case it is still there and still in use.
    */
   async forget(): Promise<boolean> {
     try {

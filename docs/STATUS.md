@@ -4,7 +4,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Current phase
 
-**Phase 5 has begun; nothing is built.** It started on 2026-10-13 in a new session, from the prompt Michael was given after he approved Phase 4. Its first commit records the Phase 4 push's CI run and the check of the live site, under "Phase 5 working record"; it and the commits after it are held and go out with 5a's push, so that recording them does not ship one more version to his phone. The plan is agreed: three parts, each ending at a gate ("Phase 5 plan and success checks"). Next: the backend for the cloud backup is put to him as one question, with what he asked to be told about the credential, and 5a is built once he has answered. He has been asked what his phone shows under the charged-loss rule and has not yet said. Phase 5 is cloud backup and then content expansion.
+**Phase 5a is built and checked on the laptop; nothing is pushed.** It started on 2026-10-13 in a new session, from the prompt Michael was given after he approved Phase 4. Its first commit records the Phase 4 push's CI run and the check of the live site, under "Phase 5 working record"; it and the commits after it are held and go out with 5a's push, so that recording them does not ship one more version to his phone. The plan is agreed: three parts, each ending at a gate ("Phase 5 plan and success checks"). The cloud backup is built: a private GitHub repository on his personal account, a key with no expiry (GDD R-16, R-17). It went through a separate test pass, a verifier pass that failed it, a re-check that failed the rebuild as a rule, and a third narrow pass, after which he said to stop checking; all four are under "Phase 5 working record", with what is left as a known limit. Next: he is told what the push changes, the push goes on his word, and he makes his phone acceptance run, which is the only check of the real service there is. Then gate 5a. He has been asked what his phone shows under the charged-loss rule and has not yet said. Phase 5 is cloud backup and then content expansion.
 
 **Phase 4 approved.** Michael approved Phase 4 on 2026-10-13 with the words "a, approved": base starting energy stays 20 (GDD R-14), and the gate is passed (R-15). He had ruled earlier the same day that a lost fight is charged, as in RH (R-11). The simulator, what it found (GDD 13.7), the verifier pass, the re-check and their fixes are under "Phase 4 working record". Phase 4 went out as one push of five commits, made after he had been told what it changes.
 
@@ -113,7 +113,9 @@ Result: 1, 2, 4, 5 and 6 PASS on the laptop, with the evidence under "Phase 3b w
 ### PENDING
 
 - [ ] Phase 5: what Michael's phone shows under the charged-loss rule: asked on 2026-10-13 for the Build line, the pre-fight sheet's cost line and a lost fight's energy line, not yet answered
-- [ ] Phase 5a: cloud backup. The backend choice goes to him as one question with a recommendation; before building he is told where the credential lives, who can read it, what a leak or an expiry does to his save, and what he does by hand. Ends at a gate with a phone acceptance run: back up, delete the app, reinstall, restore
+- [ ] Phase 5a: tell him what the push changes; push on his word; CI and the live site; then his acceptance run, with the steps given to him
+- [ ] Phase 5a: gate report, after the acceptance run; stop for his "approved"
+- [ ] Carried forward from 5a: bring the third pass's random walks into the repo or write their like, so that a test added to `succeeds` which only buying, Salvage, a Claim, run repair or a clock set back can fail is caught; the limits F1, F2 and F6 in the working record; whether iOS offers to keep the key's box in its own password store
 - [ ] Phase 5b: content expansion, Z2 first, meeting the three findings under "Carried forward to Phase 5". Before anything past Z2 is authored he is told how many zones are proposed and what each costs
 
 ### COMPLETED
@@ -122,6 +124,7 @@ Result: 1, 2, 4, 5 and 6 PASS on the laptop, with the evidence under "Phase 3b w
 - [x] Phase 5: success checks, the split and the gates put to Michael before any work; agreed with his "A" (2026-10-13)
 - [x] Phase 5a: the backend put to him as one question, with what he asked to be told about the credential; answered "a", a private GitHub repository (2026-10-13)
 - [x] Phase 5a: whether the key ever expires; answered a, never (2026-10-13)
+- [x] Phase 5a: cloud backup built; tested by a separate pass, failed by a verifier, rebuilt, failed as a rule by a re-check, tightened, and looked at by a third pass, after which he said to stop checking (2026-10-13)
 
 - [x] Step 0: `git init`, `.gitignore` (verified `reference/` ignored before first commit), `docs/KICKOFF.md` verbatim, stub `CLAUDE.md`, this file, first commit
 - [x] Phase 0: read `reference/` (coverage and its one limit are listed under "Reading coverage")
@@ -192,6 +195,7 @@ Both checks below were read again in the Phase 5 session, before this was writte
 | # | Question | Michael's answer | Recorded as |
 |---|---|---|---|
 | 1 | Where the backup copies are kept: (a) a private repository on GitHub, recommended, or (b) Supabase's free tier | "a" | **Ruling.** A private GitHub repository, written through the contents API with a fine-grained token limited to that one repository. He was told in the same message where the key lives on the phone, who can read it, what a leak or an expiry does to his save, and what he does by hand, and asked nothing further about them |
+| 3 | Whether to let the third pass finish and then stop, or stop it at once. Put to him after he asked how necessary this part was | "A" | **Ruling.** Let it finish, then stop. What it finds that does not threaten ordinary play is written down as a known limit and not fixed in this phase. No fourth round |
 | 2 | Whether the key ever expires: (a) never, recommended, or (b) after a year. Put to him while 5a was being built, since nothing in the code hangs on it | "The answer for that is a" | **Ruling.** The key is made with no expiry (GDD R-17). He was told with the question that the backup repository would then go on his personal GitHub account and not in the `farther-still` organization, where keys are capped at 366 days by default. Told later that this half was a default and not his ruling, he replied "Personal account is fine": **Ruling.** The backup repository is on his personal account. It is in GDD R-17 |
 
 ### 5a: what was built (2026-10-13)
@@ -261,7 +265,34 @@ A second separate agent was given commit `db159a8`, the verifier's five faults a
   - **The documents** say what the scan is, a tripwire for an address written out plainly and not a proof, and the eight statements are corrected.
 - **The author's breaks of the tightened rule:** 32. Thirty failed a test at once. One of the other two cannot change an answer, since a later test refuses the same saves. The other, a full log excusing any missing run, got a test and now fails it.
 - **What the re-check could not check:** the real service, a real phone, and a storage read that hangs and does not fail.
-- **Fixed by the author afterwards.** A third, narrow pass looks only at what changed since `db159a8`, and its ruling is recorded here when it has returned.
+- **Fixed by the author afterwards,** and looked at by a third, narrow pass: next section.
+
+### 5a: third, narrow pass (2026-10-13), and where the checking stopped
+
+A third separate agent was given only what changed between `db159a8` and `581f50d`. It was told not to read this file. While it ran, Michael asked what was still running, said it seemed to be taking a long time, and asked how necessary this part was. He was given two choices: (a) let the pass finish and then stop, with whatever it found that does not threaten ordinary play written down as a known limit and not fixed in this phase, and no fourth round; or (b) stop it and go to the gate with the last corrections marked not checked by a separate pass. He answered "A".
+
+- **Its ruling, six checks.**
+  1. The three commands, and nothing shipped moved: PASS.
+  2. No false "no": PASS. This was the check that bears on ordinary play, since a rule that refuses a true later save stops the backups and nags. It found none, by reading every writer of every field the rule reads, and by its own walks through the real loader, writer and controller: about 1.07 million pairs of a save and a true ancestor, none refused. Its walks reached what the repo's own test does not: buying, a loadout slot, Salvage with and without the boost, a Claim, lost fights, a migrated version 1 save, relaunches, a clock set back, run repair, a fallback to the newest checkpoint, a restore of the backup, a full log.
+  3. Remaining false "yes": FAIL. The re-check's cases pass now, the verifier's U1b among them, but for the two that GDD already said the rule does not judge. It found two more kinds outside what GDD then admitted: F1 and F2 below.
+  4. The softened case: PASS. U1b is byte for byte what the verifier wrote; W6 is stronger than it was.
+  5. The smaller changes: PASS for where the backup stands and for "Try again"; a narrow FAIL in Settings, F5 below.
+  6. The documents: FAIL, seven statements.
+- **Written down as known limits, not fixed, by his answer.** All are in GDD section 11 under "What the rule cannot see". None is reachable by play; each needs the phone to have gone back to an earlier save first.
+  - **F1.** A game that fell back inside the very run the backup is in, and then finishes that run with at least the backup's wins, losses and play time, replaces the backup without asking at the next run's start. What the backup had of loadout arrangement and settings goes, and so does any gem its run gained that the replay did not. While the run lasts the rule holds.
+  - **F2.** More than 200 runs after two saves parted, the log no longer shows it and the later one passes.
+  - **Within one run,** a replay from any earlier point of it, not only its start, passes once it is past every count: the admitted case, stated too narrowly before.
+  - **F6.** If a key is saved again while one attempt is on its way and two runs end meanwhile, an older record can be sent after a newer one and be left alone, and the reminder shows wrongly until the next run ends. It needs the key sheet in the middle of an attempt.
+- **Fixed, small, by the author, and not looked at by a separate pass:**
+  - Settings now still says a key was refused after the service fails for reasons of its own (F5).
+  - A key that reads is shown as set even if the notes about the backup cannot be read; before, Settings said nothing was being backed up while a backup was sent. Reading the settings again no longer makes an attempt under the same key drop itself.
+  - The words for a backup that was left alone are now true of every way it comes about, a newer version's file and a game that went back included: "not an earlier save of the game on this phone, as far as the app can tell".
+  - Seven statements in the documents, two docstrings and a comment in the build scan.
+- **What it showed about the tests, left as it is:**
+  - The repo's random-play test does less than `docs/ARCHITECTURE.md` had claimed for it. Its walks never buy, never use Salvage, never make a Claim, never relaunch. The document now says what it catches and what it does not. The third pass's own walks did the rest and are not in the repo; they are in the session's scratch folder, which does not last.
+  - The app-level tests freeze the clock, so they cannot see the half of the rule that rests on time: with a frozen clock a replayed empty run is filed exactly as the first was. On a phone the two differ by milliseconds.
+- **Verified by the author after these last fixes:** `npm run check` with 1,471 tests in 44 files, `npm run build` and `npm run check:dist`: PASS. Golden values, fixtures, `data/`, the save schema, its constants and its migrations: the same bytes as `06af802`.
+- **Not checked by anyone:** the real service; the phone. That is his acceptance run.
 
 ### 5a: what was looked up before the backend question (2026-10-13)
 
@@ -941,6 +972,9 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 - 2026-10-13 (Phase 5a): After the re-check, the rule was tightened with the run's seed and the log of finished runs, which a save already holds, and not with a new field. What it still cannot tell is stated in GDD section 11 and was not papered over: no test can be written for it without a history the save does not keep.
 - 2026-10-13 (Phase 5a): The run's lists of IDs were left out of the rule on purpose, since run repair may shorten them after an update and an ordinary game would then find its backup left alone (A-46).
 - 2026-10-13 (Phase 5a): The build scan was not widened to catch addresses put together at run time. It was never able to, before this phase or in it; the documents now say what it is. The policy is what stops a call.
+- 2026-10-13 (Phase 5a): After the third pass, by his answer, four faults in the rule were written down and not fixed (F1, F2, the admitted case stated more widely, F6). Three small things were fixed without a further pass: two in what Settings shows and the wording for a backup that was left alone. They change what is shown and not what is sent or replaced, and each has a test.
+- 2026-10-13 (Phase 5a): The third pass's wider random walks were not brought into the repo. They would have been new test code that nobody had looked at, added after he had asked for the checking to stop. They are named under "carried forward".
+- 2026-10-13 (Phase 5a): His question about how necessary the checking was got an answer in three named views, as his own rules ask for an evaluative question, and one recommendation.
 - 2026-10-13 (Phase 5a): The verifier ran nine mutations in the main working tree for about four minutes before moving to copies, and left one file mutated when it stopped that runner; it restored the file and said so. The author's full check was not running in that window.
 
 ## Handoff
