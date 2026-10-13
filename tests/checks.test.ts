@@ -323,6 +323,10 @@ describe('check-dist', () => {
     expect(urlFindings('a.js', policy).length).toBeGreaterThan(0);
     expect(urlFindings('index.html', policy.replace(`${BACKUP_ORIGIN}; `, `${BACKUP_ORIGIN};x `)).length).toBeGreaterThan(0);
     expect(urlFindings('index.html', `<a href="${BACKUP_ORIGIN}/x">`).length).toBeGreaterThan(0);
+    expect(urlFindings('index.html', `<a href="${BACKUP_ORIGIN};">`).length).toBeGreaterThan(0);
+    expect(urlFindings('index.html', `<p>(${BACKUP_ORIGIN}; y</p>`).length).toBeGreaterThan(0);
+    expect(urlFindings('index.html', `<p>see ${BACKUP_ORIGIN};y</p>`).length).toBeGreaterThan(0);
+    expect(urlFindings('index.html', `content="connect-src ${BACKUP_ORIGIN};"`).length).toBeGreaterThan(0);
   });
 
   it('pins the list of URL shapes that are let through, so that adding one is a deliberate act', () => {

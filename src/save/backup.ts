@@ -28,12 +28,15 @@ export type BackupStatus = {
   lastOk: { at: number; seq: number; run: number } | null;
   lastAttempt: BackupAttempt | null;
   /**
-   * What the service last said, when it said anything: the result of the newest attempt that got an answer.
-   * An attempt that reached nobody does not change it, so a refused key is still known to be refused after a
-   * run finished offline.
+   * Where the backup stands: the newest result that says something about the key or the file, which is one of
+   * `ok`, `refused`, `not-found` and `left-alone`. An attempt that reached nobody, or that the service failed
+   * for reasons of its own, does not change it, so a refused key is still known to be refused after a run
+   * finished offline. Entering a key clears it, since nothing is known of the new one yet.
    */
   standing: BackupOutcome | null;
   busy: boolean;
+  /** True when the key could not be read from this phone's storage at this launch. It is not known to be unset. */
+  unread: boolean;
 };
 
 /** The part of local storage the backup may use: the `device` store and nothing else. */
@@ -82,6 +85,9 @@ const readKey = (raw: unknown): CloudKey | null =>
 
 const OUTCOMES: readonly BackupOutcome[] = ['ok', 'unreachable', 'refused', 'not-found', 'left-alone', 'failed'];
 
+/** The results that say something about the key or the file, as against the network or the service's own state. */
+const STANDS: readonly BackupOutcome[] = ['ok', 'refused', 'not-found', 'left-alone'];
+
 const readOutcome = (raw: unknown): BackupOutcome | null => (OUTCOMES.includes(raw as BackupOutcome) ? (raw as BackupOutcome) : null);
 
 const readAttempt = (raw: unknown): BackupAttempt | null => {
@@ -109,13 +115,18 @@ export class CloudBackup {
   private lastAttempt: BackupAttempt | null = null;
   private standing: BackupOutcome | null = null;
   private waiting: SlotRecord | null = null;
+  private unread = false;
   private inFlight = 0;
   private chain: Promise<unknown> = Promise.resolve();
   private readonly listeners = new Set<() => void>();
 
   constructor(private readonly deps: BackupDeps) {}
 
-  /** Reads the key and the notes at startup. A store that cannot be read leaves the backup off; it never throws. */
+  /**
+   * Reads the key and the notes. A store that cannot be read leaves the backup off for now and says so in the
+   * status, so that Settings does not call a key unset when it only could not be read. It never throws, and it
+   * can be called again.
+   */
   async restore(): Promise<void> {
     try {
       this.key = readKey(await this.deps.device.getDevice(BACKUP_KEY));
@@ -123,11 +134,15 @@ export class CloudBackup {
       if (isObject(state)) {
         this.lastOk = readOk(state['lastOk']);
         this.lastAttempt = readAttempt(state['lastAttempt']);
-        this.standing = readOutcome(state['standing']);
+        const standing = readOutcome(state['standing']);
+        this.standing = standing !== null && STANDS.includes(standing) ? standing : null;
       }
+      this.unread = false;
     } catch (error) {
+      this.unread = true;
       this.deps.log('backup', `could not read the backup settings (${kindOf(error)})`);
     }
+    this.notify();
   }
 
   get configured(): boolean {
@@ -141,6 +156,7 @@ export class CloudBackup {
       lastAttempt: this.lastAttempt,
       standing: this.standing,
       busy: this.inFlight > 0,
+      unread: this.unread,
     };
   }
 
@@ -173,6 +189,7 @@ export class CloudBackup {
       return false;
     }
     this.key = next;
+    this.unread = false;
     if (!sameRepository) this.lastOk = null;
     this.lastAttempt = null;
     this.standing = null;
@@ -273,7 +290,7 @@ export class CloudBackup {
     if (result.outcome === 'ok') {
       this.lastOk = { at: this.lastAttempt.at, seq: record.seq, run: record.payload.game.profile.counters.runsStarted };
     }
-    if (result.outcome !== 'unreachable') this.standing = result.outcome;
+    if (STANDS.includes(result.outcome)) this.standing = result.outcome;
     // One line when the result changes, not one per run: a week of offline play must not fill the log.
     if (result.outcome !== 'ok' && result.outcome !== before) {
       this.deps.log('backup', `${result.outcome}${result.status === null ? '' : ` (HTTP ${result.status})`}`);

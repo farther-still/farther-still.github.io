@@ -161,11 +161,17 @@ export const settingsScreen = (session: Session): HTMLElement => {
     ),
     section(
       'Cloud backup',
-      ...(cloud.repository === null
+      ...(cloud.unread
         ? [
-            el('p', { class: 'muted', text: 'Off. With a key for a private GitHub repository of yours, a copy of the save is sent there after every run. The save on this phone stays the real one.' }),
-            button('Set up…', () => shell.openSheet((close) => backupKeySheet(session, close)), { class: 'primary' }),
+            // Not "off": the key may be there. Setting one up now would only be needed if it is truly gone.
+            el('p', { class: 'flash', text: 'The backup settings could not be read from this phone’s storage just now, so nothing is being backed up. The save is unaffected. Try again, or close the app fully and open it.' }),
+            button('Try again', () => void backup.restore().then(() => shell.rerender())),
           ]
+        : cloud.repository === null
+          ? [
+              el('p', { class: 'muted', text: 'Off. With a key for a private GitHub repository of yours, a copy of the save is sent there after every run. The save on this phone stays the real one.' }),
+              button('Set up…', () => shell.openSheet((close) => backupKeySheet(session, close)), { class: 'primary' }),
+            ]
         : [
             line('Repository', cloud.repository),
             line('Key', 'Set, on this phone only'),

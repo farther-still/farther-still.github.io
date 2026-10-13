@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { FakeGitHub, ManualTimer, madeUpKey, shaOf } from '../../tests/fake-github';
-import { FIXED_NOW, gameAtRun, record, unsealed } from '../../tests/helpers';
+import { FIXED_NOW, gameAtRun, payload, record, unsealed } from '../../tests/helpers';
 import { BACKUP_KEY, BACKUP_STATE, CloudBackup, cleanToken, parseRepository } from './backup';
+import { RUN_LOG_LIMIT } from './constants';
 import type { DeviceStore } from './backup';
 import { checksumOf, sealRecord, serializeRecord } from './record';
 import type { SavePayload, SlotRecord } from './schema';
@@ -52,7 +53,42 @@ const settle = async (): Promise<void> => {
   for (let i = 0; i < 40; i += 1) await new Promise<void>((resolve) => setImmediate(resolve));
 };
 
-const run = (runsStarted: number, seq: number): SlotRecord => record('hot', seq, gameAtRun(runsStarted));
+/** The first run of the one game these tests play: nothing filed in its log yet. */
+const firstRun = (): SavePayload => {
+  const start = payload(gameAtRun(1));
+  return { ...start, app: { ...start.app, runTiming: { startedAt: FIXED_NOW - 86_400_000, activeMs: 0 }, runLog: [] } };
+};
+
+/** A save played on into its next run, as the game does it: the run is filed in the log and the next has a seed of its own. */
+const playedOn = (from: SavePayload): SavePayload => {
+  const finished = from.game.profile.counters.runsStarted;
+  const entry = {
+    run: finished,
+    startedAt: from.app.runTiming.startedAt,
+    endedAt: from.app.runTiming.startedAt + 600_000,
+    activeMs: from.app.runTiming.activeMs + 60_000,
+    wins: from.game.run.tallies.wins,
+    losses: from.game.run.tallies.losses,
+    level: 4,
+    strongest: 4,
+  };
+  return {
+    game: { profile: { ...from.game.profile, counters: { ...from.game.profile.counters, runsStarted: finished + 1 } }, run: { ...from.game.run, seed: from.game.run.seed + 1 } },
+    app: { ...from.app, runTiming: { startedAt: entry.endedAt, activeMs: 0 }, runLog: [...from.app.runLog, entry].slice(-RUN_LOG_LIMIT) },
+  };
+};
+
+const runs = new Map<number, SavePayload>();
+/** Run `runsStarted` of that game. Each is the one before it played on, so a later one follows from every earlier one. */
+const atRun = (runsStarted: number): SavePayload => {
+  const known = runs.get(runsStarted);
+  if (known !== undefined) return known;
+  const made = runsStarted <= 1 ? firstRun() : playedOn(atRun(runsStarted - 1));
+  runs.set(runsStarted, made);
+  return made;
+};
+
+const run = (runsStarted: number, seq: number): SlotRecord => sealRecord({ ...unsealed(record('hot', seq)), payload: atRun(runsStarted) });
 
 const changed = (base: SlotRecord, change: (payload: SavePayload) => SavePayload): SlotRecord => sealRecord({ ...unsealed(base), payload: change(base.payload) });
 
@@ -89,7 +125,7 @@ describe('CloudBackup: off until a key is entered', () => {
     expect((await backup.look()).ok).toBe(false);
     expect(github.calls).toEqual([]);
     expect(backup.configured).toBe(false);
-    expect(backup.status).toEqual({ repository: null, lastOk: null, lastAttempt: null, standing: null, busy: false });
+    expect(backup.status).toEqual({ repository: null, lastOk: null, lastAttempt: null, standing: null, busy: false, unread: false });
     expect(backup.needsAttention).toBe(false);
   });
 
@@ -493,7 +529,7 @@ describe('CloudBackup: when the game on the phone changes while something is on 
     await settle();
     expect(github.writes).toEqual([]);
     expect(github.file).toBeNull();
-    expect(backup.status).toEqual({ repository: null, lastOk: null, lastAttempt: null, standing: null, busy: false });
+    expect(backup.status).toEqual({ repository: null, lastOk: null, lastAttempt: null, standing: null, busy: false, unread: false });
     expect(device.values.get(BACKUP_STATE)).toEqual({ lastOk: null, lastAttempt: null, standing: null });
   });
 
@@ -599,7 +635,38 @@ describe('CloudBackup: a problem the service reported is not forgotten by an att
     github.mode = 500;
     backup.runEnded(run(2, 5));
     await settle();
-    expect(backup.status.standing).toBe('failed');
+    expect(backup.status.lastAttempt?.outcome).toBe('failed');
+    expect(backup.status.standing).toBeNull();
+    expect(backup.needsAttention).toBe(false);
+  });
+
+  it('does not let the service\'s own failures, or its limit on calls, clear a problem it reported', async () => {
+    const backup = await withKey();
+    github.mode = 401;
+    backup.runEnded(run(2, 5));
+    await settle();
+    for (const arrange of [() => (github.mode = 500), () => (github.mode = 'offline'), () => ((github.mode = 'normal'), (github.rateLimited = true))]) {
+      arrange();
+      backup.runEnded(run(3, 9));
+      await settle();
+      expect(backup.status.standing).toBe('refused');
+      expect(backup.needsAttention).toBe(true);
+    }
+    // Stored notes from a build that kept other results as standing are read as nothing known.
+    device.values.set(BACKUP_STATE, { lastOk: null, lastAttempt: null, standing: 'failed' });
+    const restarted = make();
+    await restarted.restore();
+    expect(restarted.status.standing).toBeNull();
+  });
+
+  it('knows nothing of a key just entered, until the service has answered for it', async () => {
+    const backup = await withKey();
+    github.mode = 401;
+    backup.runEnded(run(2, 5));
+    await settle();
+    expect(backup.needsAttention).toBe(true);
+    await backup.setKey({ owner: OWNER, repo: REPO, token });
+    expect(backup.status.standing).toBeNull();
     expect(backup.needsAttention).toBe(false);
   });
 });
@@ -667,7 +734,7 @@ describe('CloudBackup: the key stays in the device store', () => {
     const calls = github.calls.length;
     await backup.forget();
     expect(JSON.stringify([...device.values.values()])).not.toContain(token);
-    expect(backup.status).toEqual({ repository: null, lastOk: null, lastAttempt: null, standing: null, busy: false });
+    expect(backup.status).toEqual({ repository: null, lastOk: null, lastAttempt: null, standing: null, busy: false, unread: false });
     backup.runEnded(run(3, 9));
     await settle();
     expect(github.calls).toHaveLength(calls);
@@ -680,7 +747,13 @@ describe('CloudBackup: the key stays in the device store', () => {
     const restarted = make();
     await expect(restarted.restore()).resolves.toBeUndefined();
     expect(restarted.configured).toBe(false);
+    // Off, but not known to be unset: Settings must not offer to set a key up over one that is there.
+    expect(restarted.status.unread).toBe(true);
     expect(logged.some((line) => line.startsWith('backup: could not read'))).toBe(true);
+    device.failing = false;
+    await restarted.restore();
+    expect(restarted.status.unread).toBe(false);
+    expect(restarted.configured).toBe(true);
   });
 
   it('says so when the key cannot be stored, and does not use it', async () => {
@@ -705,7 +778,7 @@ describe('CloudBackup: the key stays in the device store', () => {
     device.values.set(BACKUP_STATE, { seenSha: 7, lastOk: 'yesterday', lastAttempt: { at: 1, outcome: 'splendid' } });
     const backup = make();
     await backup.restore();
-    expect(backup.status).toEqual({ repository: null, lastOk: null, lastAttempt: null, standing: null, busy: false });
+    expect(backup.status).toEqual({ repository: null, lastOk: null, lastAttempt: null, standing: null, busy: false, unread: false });
   });
 });
 

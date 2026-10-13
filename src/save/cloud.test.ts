@@ -124,6 +124,18 @@ describe('GitHubBackend: reading', () => {
     expect(await backend().read()).toEqual({ ok: false, failure: 'failed', status: 200 });
   });
 
+  it('says the same of a file whose content cannot be decoded', async () => {
+    const undecodable: typeof github.fetch = (url, init) =>
+      (init.method ?? 'GET') === 'GET' && url.endsWith(`/contents/${BACKUP_FILE}`)
+        ? Promise.resolve(new Response(JSON.stringify({ type: 'file', encoding: 'base64', content: '%%% not base64 %%%', sha: 'v1' }), { status: 200 }))
+        : github.fetch(url, init);
+    const cloud = new GitHubBackend({ owner: OWNER, repo: REPO, token }, undecodable, timer.timer);
+    expect(await cloud.read()).toEqual({ ok: true, value: { text: null, sha: 'v1' } });
+    // Bytes that are base64 but not text are no better.
+    const notText: typeof github.fetch = () => Promise.resolve(new Response(JSON.stringify({ type: 'file', encoding: 'base64', content: btoa(String.fromCharCode(255, 254, 253)), sha: 'v2' }), { status: 200 }));
+    expect(await new GitHubBackend({ owner: OWNER, repo: REPO, token }, notText, timer.timer).read()).toEqual({ ok: true, value: { text: null, sha: 'v2' } });
+  });
+
   it('says a file is there, by its version, when it is not handed over as text', async () => {
     const sha = github.seed('x'.repeat(40));
     github.opaque = true;

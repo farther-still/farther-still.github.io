@@ -38,7 +38,7 @@ export const newRunSheet = (session: Session, close: () => void): HTMLElement =>
     }
     if (outcome.checkpoint === 'skipped') {
       notices.add(
-        `A checkpoint was skipped because the save failed a consistency check (${outcome.problems.join('; ')}). Export your save from Settings.${session.backup.configured ? ' The cloud backup was not updated either: it still holds the last save that passed.' : ''}`,
+        `A checkpoint was skipped because the save failed a consistency check (${outcome.problems.join('; ')}). Export your save from Settings.${session.backup.configured ? ' The cloud backup was not updated either.' : ''}`,
       );
     }
     if (thenUpdate) {
@@ -331,9 +331,9 @@ export const backupKeySheet = (session: Session, close: () => void): HTMLElement
           status.textContent = 'The key could not be stored on this phone.';
           return;
         }
-        // The first backup is the test of the key. It replaces nothing it should not: a backup this phone has
-        // not seen is left alone, and Settings then offers the choice. The sheet does not wait for it: the
-        // network can take its time, and Settings shows the attempt and then its result.
+        // The first backup is the test of the key. It replaces nothing it should not: a backup the game on
+        // this phone does not follow from is left alone (GDD D-40), and Settings then offers the choice. The
+        // sheet does not wait for it: the network can take its time, and Settings shows the attempt and its result.
         close();
         shell.rerender();
         await controller.flush();
@@ -416,13 +416,13 @@ export const openBackupRestore = (session: Session): void => {
   });
 };
 
-/** The other answer to a backup this phone has not seen: overwrite it with the game on this phone. The words differ from the restore sheet's on purpose, so the two cannot be taken for each other. */
+/** The other answer to a backup that was left alone: overwrite it with the game on this phone. The words differ from the restore sheet's on purpose, so the two cannot be taken for each other. */
 export const replaceBackupSheet = (session: Session, close: () => void): HTMLElement => {
   const { backup, controller, shell } = session;
   let confirmed = false;
   return sheet(
     'Overwrite the backup?',
-    el('p', { text: 'The backup holds a save this phone has not seen. Overwriting puts the game on this phone in its place.' }),
+    el('p', { text: 'The backup holds a different game, or one that has something the game on this phone does not. Overwriting puts the game on this phone in its place.' }),
     el('p', { class: 'flash', text: 'If the app was just reinstalled, the backup is the game to keep: cancel, and use Restore from backup.' }),
     el('p', { class: 'muted', text: 'Every backup is a commit in the repository, so the save being overwritten can still be found in its history on GitHub.' }),
     button(

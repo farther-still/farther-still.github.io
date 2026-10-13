@@ -2,7 +2,8 @@
 // IndexedDB, the content that ships and a stand-in for the one service the backup talks to. What `CloudBackup`
 // and `GitHubBackend` do on their own is tested beside them in src/save/. These tests are about what the game
 // and the backup can do to each other: that the game never waits on the backup, that the backup never reaches a
-// slot, that a backup this install has not seen is never written over, and that the key stays where it was put.
+// slot, that a backup the game on the phone does not follow from is never written over, and that the key stays
+// where it was put.
 // Each group names the Phase 5a success check in docs/STATUS.md it answers to.
 //
 // Four tests hold places where the code and what was written about it parted ways when these tests were
@@ -164,7 +165,7 @@ const deviceStore = async (): Promise<Record<string, unknown>> => {
   return held;
 };
 
-type Notes = { seenSha: string | null; sentChecksum: string | null; lastOk: { at: number; seq: number; run: number } | null; lastAttempt: BackupAttempt | null };
+type Notes = { lastOk: { at: number; seq: number; run: number } | null; lastAttempt: BackupAttempt | null; standing: BackupOutcome | null };
 
 /** What this install remembers about its backup, as the `device` store holds it. Empty until there is something. */
 const notes = async (): Promise<Partial<Notes>> => ((await deviceStore())[BACKUP_STATE] ?? {}) as Partial<Notes>;
@@ -706,13 +707,18 @@ describe('check 4: a backup after each run', () => {
     dom.tap('Check');
     dom.tap('Replace the current game anyway');
     await eventually(async () => expect((await hot()).payload.game.profile.counters.runsStarted).toBe(3));
-    // A save that fails a check is not sent by itself, on import or at a run's end. It is sent here by hand,
-    // which is allowed as an export is, so that the file is this game's and what follows tests the skipped run.
+    // A save that fails a check is not sent by itself, on import or at a run's end. Nor is this one the game
+    // the backup was made from, so "Back up now" leaves the file alone. It is put there by the overwrite he may
+    // ask for, which sends whatever the save holds, as an export does; what follows then tests the skipped run.
     await settle(60);
     expect(github.file?.text).toBe(serializeRecord(good));
     openSettings();
     dom.tap('Back up now');
-    await eventually(async () => expect(github.file?.text).toBe(serializeRecord(await hot())));
+    await attemptEnds('left-alone');
+    expect(github.file?.text).toBe(serializeRecord(good));
+    dom.tap('Overwrite the backup…');
+    dom.tap('Overwrite the backup with this game');
+    await attemptEnds('ok');
     const overwritten = github.file?.text;
     expect(overwritten).toBe(serializeRecord(await hot()));
     const writesBefore = github.writes.length;
@@ -726,7 +732,7 @@ describe('check 4: a backup after each run', () => {
     await settle(80);
     expect(checkInvariants((await hot()).payload.game, WORLD)).not.toEqual([]);
     expect(showsStart('A checkpoint was skipped because the save failed a consistency check')).toBe(true);
-    expect(lines().some((line) => line.endsWith('The cloud backup was not updated either: it still holds the last save that passed.'))).toBe(true);
+    expect(lines().some((line) => line.endsWith('The cloud backup was not updated either.'))).toBe(true);
     // Nothing was sent and nothing was asked: the file is as the player left it.
     expect(github.writes).toHaveLength(writesBefore);
     expect(github.calls).toHaveLength(callsBefore);
@@ -1092,7 +1098,7 @@ describe('check 6: restore is an import', () => {
     expect(reminderShowing()).toBe(false);
   });
 
-  it('never writes over a backup this install has not seen: not when the key is entered, not after a run, not from "Back up now", not after a relaunch', async () => {
+  it('never writes over the backup of another game: not when the key is entered, not after a run, not from "Back up now", not after a relaunch', async () => {
     const text = serializeRecord(otherGame());
     const sha = github.seed(text);
     await seedGame();
@@ -1225,8 +1231,7 @@ describe('check 6: restore is an import', () => {
   // own, but with the reason GDD D-40 gives for it. The guard knew the install, not the game: when the save on
   // the phone went bad and a new game was started from the recovery screen, the first finished run of that new
   // game replaced the backup of the old one. Importing a save and using an older checkpoint went the same way.
-  // Any choice on the recovery screen, and any save put in the game's place except the backup's own, now makes
-  // the backup one this install has not seen.
+  // The guard now compares the two saves at every attempt, and a new game is not the old one played further.
   it('does not put a new game, started from the recovery screen, in place of the backup of the game this phone had', async () => {
     await seedGame(40, 57);
     await configureKey();
@@ -1482,7 +1487,7 @@ describe('check 7: the key stays where it was put', () => {
     dom.tap('Back up now');
     await attemptEnds('left-alone');
     await eventually(() => expect(dom.buttons()).toContain('Overwrite the backup…'));
-    look('Settings with a backup this phone has not seen');
+    look('Settings with a backup that was left alone');
     dom.tap('Overwrite the backup…');
     look('the overwrite sheet');
     dom.tap('Cancel');
@@ -1706,11 +1711,12 @@ describe('check 8: one address and no more', () => {
 // Written by the separate verifier of 2026-10-13 against the first build of the guard, which rested on what the
 // install remembered. Each states the safe behaviour, and most of them failed then. They are kept as tests of
 // the guard that replaced it, which compares the two saves. What the author changed in them, and nothing else:
-// the name of the result and the wording on screen; in U1b, a fight, so that the later save keeps something the
-// earlier one does not (two saves that keep exactly the same things may replace each other, and nothing is
-// lost); in U3, the line that read a note the new guard does not keep, and its last check, which now looks at every commit for the empty game where it looked for any change to the file, since the restored game is itself written back; in U4, the check that a simulated write
+// the name of the result and the wording on screen; in U3, the line that read a note the new guard does not keep, and its last check, which now looks at every commit for the empty game where it looked for any change to the file, since the restored game is itself written back; in U4, the check that a simulated write
 // failure was used up, since nothing is written at that moment any more, and a relaunch added at the end; in W1
-// and W6, the expectations, which recorded the fault as it was seen and now record its cure.
+// and W6, the expectations, which recorded the fault as it was seen and now record its cure. U1b is as written:
+// the author had first added a fight to it, the re-check pass called that a weakening, and it was: the guard
+// then compared what two saves hold and could not tell a run begun again from the run it replaced. It now can,
+// by the run's seed, and the fight is gone.
 describe('VERIFIER U1: automatic fallback past a damaged record at load', () => {
   it('U1a hot slot damaged after a mid-run Back up now: the fallback game must not replace the more advanced backup without asking', async () => {
     await seedGame(40, 57);
@@ -1745,7 +1751,6 @@ describe('VERIFIER U1: automatic fallback past a damaged record at load', () => 
     await startApp(dom.root, OPTIONS);
     await startRun(41);
     await backedUp();
-    await fightOnce();
     await startRun(42);
     const kept = await backedUp();
     expect(kept.payload.game.profile.counters.runsStarted).toBe(42);
@@ -2067,9 +2072,10 @@ describe('VERIFIER set 2', () => {
     openSettings();
     dom.tap('Overwrite the backup…');
     dom.tap('Overwrite the backup with this game');
-    github.opaque = false;
     await attemptEnds('ok');
+    expect(github.writes).toHaveLength(1);
     expect(github.file?.text).toBe(serializeRecord(await hot()));
+    github.opaque = false;
     dom.tap('Map');
     await eventually(() => expect(reminderShowing()).toBe(false));
   });
@@ -2157,5 +2163,103 @@ describe('the reworked guard: what a pass of deliberate breaks found untested', 
     openSettings();
     expect(showsStart('GitHub could not be reached.')).toBe(true);
     expect(showsStart('Before that: GitHub refused the key.')).toBe(true);
+  });
+});
+
+// ---- added after the re-check pass of 2026-10-13, for what it found untested ----
+
+describe('the reworked guard: what the re-check pass found untested', () => {
+  // Every other test that puts "another game" in the backup also puts it ahead in runs, so the run count alone
+  // would pass them. Here the phone's game is the one ahead, by runs and by a fight, and it is still another game.
+  it('leaves another game alone even when the game on the phone is the one further on', async () => {
+    const thin = sealRecord({ ...unsealed(otherGame()), payload: { game: realGame(2, 777), app: newAppState(FIXED_NOW - 9000) } });
+    github.seed(serializeRecord(thin));
+    await seedGame(40, 57);
+    await configureKey();
+    await startApp(dom.root, OPTIONS);
+    await mapShows();
+    await fightOnce();
+    await startRun(41);
+    await attemptEnds('left-alone');
+    await startRun(42);
+    await settle(60);
+    expect(github.writes).toEqual([]);
+    expect(github.file?.text).toBe(serializeRecord(thin));
+    expect(reminderShowing()).toBe(true);
+  });
+
+  it('after a reinstall, leaves the backup alone however far the new game is played before the key is entered', async () => {
+    const thin = realRecord('hot', 5, realGame(2));
+    github.seed(serializeRecord(thin));
+    // A new install: a new game, begun now, played for five runs and a fight before the key goes in.
+    await startApp(dom.root, OPTIONS);
+    await gameShowsRun(1);
+    await fightOnce();
+    for (let run = 2; run <= 6; run += 1) await startRun(run);
+    typeKey(REPOSITORY, token);
+    dom.tap('Save the key');
+    await keySheetClosed();
+    await attemptEnds('left-alone');
+    await startRun(7);
+    await settle(60);
+    expect(github.writes).toEqual([]);
+    expect(github.file?.text).toBe(serializeRecord(thin));
+  });
+
+  it('looks at the backup at once for a set-aside save restored from the recovery screen, and sends none that fails a check', async () => {
+    // Two set-aside saves on a phone whose newest save stops on the recovery screen: one good, one that fails.
+    const good = realRecord('hot', 20, realGame(5));
+    const failing = realRecord('hot', 30, suspectGame(6));
+    await seed(async (backend) => {
+      await putRaw(backend, 'hot', realRecord('hot', 40, suspectGame(7)));
+      await backend.addQuarantine([
+        { slot: 'hot', kind: 'kept', reason: 'replaced-by-import', raw: good },
+        { slot: 'hot', kind: 'kept', reason: 'set-aside', raw: failing },
+      ]);
+    });
+    await configureKey();
+    await startApp(dom.root, OPTIONS);
+    await eventually(() => expect(dom.buttons().some((label) => label.startsWith('Restore set-aside hot, save 30'))).toBe(true));
+    dom.tap(/^Restore set-aside hot, save 30/);
+    await gameShowsRun(6);
+    await settle(80);
+    // The failing one is not sent by itself, nor looked at against the backup.
+    expect(github.calls).toEqual([]);
+
+    await relaunch();
+    await eventually(() => expect(dom.buttons().some((label) => label.startsWith('Restore set-aside hot, save 20'))).toBe(true));
+    dom.tap(/^Restore set-aside hot, save 20/);
+    await gameShowsRun(5);
+    // The good one is: there is no backup yet, so it becomes the backup before any run is finished.
+    const sent = await backedUp();
+    expect(sent.payload.game.profile.counters.runsStarted).toBe(5);
+    expect(github.writes).toHaveLength(1);
+  });
+
+  it('does not call the backup "off", or offer to set a key up, when the key could not be read at this launch', async () => {
+    await configureKey();
+    await seedGame();
+    const getDevice = LocalBackend.prototype.getDevice;
+    let failing = true;
+    vi.spyOn(LocalBackend.prototype, 'getDevice').mockImplementation(async function (this: LocalBackend, key: string): Promise<unknown> {
+      if (key === BACKUP_KEY && failing) throw new Error('simulated: the device store could not be read');
+      return getDevice.call(this, key);
+    });
+    await startApp(dom.root, OPTIONS);
+    await mapShows();
+    openSettings();
+    expect(showsStart('The backup settings could not be read from this phone’s storage just now')).toBe(true);
+    expect(dom.buttons()).not.toContain('Set up…');
+    await startRun(2);
+    await settle(60);
+    expect(github.calls).toEqual([]);
+    // The store answers again: "Try again" brings the key back, and the next run backs up.
+    failing = false;
+    openSettings();
+    dom.tap('Try again');
+    await eventually(() => expect(valueOf('Repository')).toBe(REPOSITORY));
+    await startRun(3);
+    await backedUp();
+    expect(github.writes).toHaveLength(1);
   });
 });
