@@ -4,7 +4,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Current phase
 
-**Phase 5 has begun; nothing is built.** It started on 2026-10-13 in a new session, from the prompt Michael was given after he approved Phase 4. Its first commit records the Phase 4 push's CI run and the check of the live site, under "Phase 5 working record"; that commit is held and goes out with the next push, so that recording them does not ship one more version to his phone. Next, in this order: he is asked what his phone shows under the charged-loss rule; the phase's success checks, its split and its gates are put to him; and nothing is built until he has given his word on that plan. Phase 5 is cloud backup and then content expansion.
+**Phase 5 has begun; nothing is built.** It started on 2026-10-13 in a new session, from the prompt Michael was given after he approved Phase 4. Its first commit records the Phase 4 push's CI run and the check of the live site, under "Phase 5 working record"; it and the commits after it are held and go out with 5a's push, so that recording them does not ship one more version to his phone. The plan is agreed: three parts, each ending at a gate ("Phase 5 plan and success checks"). Next: the backend for the cloud backup is put to him as one question, with what he asked to be told about the credential, and 5a is built once he has answered. He has been asked what his phone shows under the charged-loss rule and has not yet said. Phase 5 is cloud backup and then content expansion.
 
 **Phase 4 approved.** Michael approved Phase 4 on 2026-10-13 with the words "a, approved": base starting energy stays 20 (GDD R-14), and the gate is passed (R-15). He had ruled earlier the same day that a lost fight is charged, as in RH (R-11). The simulator, what it found (GDD 13.7), the verifier pass, the re-check and their fixes are under "Phase 4 working record". Phase 4 went out as one push of five commits, made after he had been told what it changes.
 
@@ -12,7 +12,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Phase 5 plan and success checks
 
-**Proposed to Michael on 2026-10-13, before any work. Not yet agreed: nothing is built until he gives his word on it, and what he says is written here as he said it.** Each gate report marks its checks PASS, FAIL or NOT CHECKED with evidence.
+**Proposed to Michael on 2026-10-13, before any work, and agreed the same day.** His first reply was "Can you explain your question a little more clearly to me". The question was then put again in plain terms: how many times the work stops for his "approved", three times (a, recommended) or twice (b), with the two lists of checks named as promises and not choices, which a letter would accept as written. He answered "A". **Read as:** the split below with its three gates, and the success checks as they stand. The second half is a reading: he was told a letter would accept them and said nothing about any one check. Each gate report marks its checks PASS, FAIL or NOT CHECKED with evidence.
 
 ### The split
 
@@ -47,7 +47,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 1. The three commands pass. `check-content` passes with `data/content-spec.json` at Z2's full counts from GDD 7.5: 11 enemies, 2 of them bosses. The ID lock only grows.
 2. What he ruled stays (R-12, R-14). Base energy, the energy rule and Z1's row of the zone table are unchanged, and every Z1 enemy, item, drop and map tile is the same as at `06af802`, shown by a comparison by ID. Any other existing number in `data/balance.json` that tuning moves is listed in the gate report with before and after and has a decisions-log entry; a golden value changes only with one.
 3. His save carries over. A save written on build `06af802`, with the hero past the Z1 gate, loads on the new build with `profile` the same bytes and a run that is valid. If a save field is needed, the save-change checklist.
-4. Tuned against three players on two sets of seeds: `climb-then-collect`, `cautious` and `like-michael`, at least 200 players each. Tuning looks only at seeds 1 to 200. It stops when both careful players' median runs per Z2 wall is inside 4–6, or after six tuning passes, whichever comes first, and the numbers are then frozen. Seeds 5001 to 5200 are run once after the freeze and reported whatever they say. Every figure is a median with its 10th and 90th percentiles, every comparison a mean difference with its standard error, and the share of players over 8 runs is given for all three. Aiming 4–6 at the careful players, with the Phase 3b player reported beside them, is a reading of his instruction and is put to him with the plan.
+4. Tuned against three players on two sets of seeds: `climb-then-collect`, `cautious` and `like-michael`, at least 200 players each. Tuning looks only at seeds 1 to 200. It stops when both careful players' median runs per Z2 wall is inside 4–6, or after six tuning passes, whichever comes first, and the numbers are then frozen. Seeds 5001 to 5200 are run once after the freeze and reported whatever they say. Every figure is a median with its 10th and 90th percentiles, every comparison a mean difference with its standard error, and the share of players over 8 runs is given for all three. Aiming 4–6 at the careful players, with the Phase 3b player reported beside them, is a reading of his instruction. It was named as a reading in the plan put to him and he raised nothing against it, which is not a ruling.
 5. No wall hangs on one drop. A probe gives, for each Z2 boss, the level at which it falls in the zone's reference loadout and with each single item taken out; an item whose absence puts that level past what a run in the zone reaches is a key item. Each key item has at least two ways in besides Salvage, or the gate report says why not. From `runs.csv`: the share of gate falls with each key item owned, and the win chance at the gate at the end of the runs before the breakthrough, beside Z1's.
 6. The first Claim. `--probes` with Z2's reference loadout gives the level at which the tool beats each boss. The simulator gives, for each player and seed set, the run of the first Claim and the share of players who make one before Z2's gate falls. The gate report says in one sentence when the tool first sees use.
 7. `goldAt`: `--probes` names no Z2 shop item priced inside the dip at the Z1–Z2 edge, levels 41 to 53, or the gate report lists each one.
@@ -110,14 +110,15 @@ Result: 1, 2, 4, 5 and 6 PASS on the laptop, with the evidence under "Phase 3b w
 
 ### PENDING
 
-- [ ] Phase 5: ask Michael what his phone shows under the charged-loss rule: the pre-fight sheet's cost line and a lost fight's sheet
-- [ ] Phase 5: state measurable success checks and propose the split and the gates; wait for his word before building
+- [ ] Phase 5: what Michael's phone shows under the charged-loss rule: asked on 2026-10-13 for the Build line, the pre-fight sheet's cost line and a lost fight's energy line, not yet answered
+- [ ] Phase 5a: the backend question, then one on how long the credential lasts and where the backup is kept; build only after both
 - [ ] Phase 5a: cloud backup. The backend choice goes to him as one question with a recommendation; before building he is told where the credential lives, who can read it, what a leak or an expiry does to his save, and what he does by hand. Ends at a gate with a phone acceptance run: back up, delete the app, reinstall, restore
 - [ ] Phase 5b: content expansion, Z2 first, meeting the three findings under "Carried forward to Phase 5". Before anything past Z2 is authored he is told how many zones are proposed and what each costs
 
 ### COMPLETED
 
 - [x] Phase 5: the Phase 4 push's CI run and the check of the live site written down, both read again in this session (2026-10-13)
+- [x] Phase 5: success checks, the split and the gates put to Michael before any work; agreed with his "A" (2026-10-13)
 
 - [x] Step 0: `git init`, `.gitignore` (verified `reference/` ignored before first commit), `docs/KICKOFF.md` verbatim, stub `CLAUDE.md`, this file, first commit
 - [x] Phase 0: read `reference/` (coverage and its one limit are listed under "Reading coverage")
@@ -182,6 +183,17 @@ Both checks below were read again in the Phase 5 session, before this was writte
 - **CI:** run 38408310068, the repo's tenth, for the push whose head is `06af8027a114f81f5e7374b76e26fcd36be8b592`. Completed with conclusion `success`; the `check` job succeeded at 13:51:21 UTC and the `deploy` job at 13:51:43 UTC on 2026-10-13. `https://github.com/farther-still/farther-still.github.io/actions/runs/38408310068`. Read from GitHub's REST API. PASS.
 - **The live site:** `https://farther-still.github.io/` answered 200. The one script the page asks for holds that full commit hash as its build, the balance table inside it has `chargeLosses` on, and the page carries the pinned content security policy, `connect-src 'self'` included. Read with curl. PASS.
 - **On Michael's phone:** NOT CHECKED. He is asked what the pre-fight sheet's cost line and a lost fight's sheet say.
+
+### 5a: what was looked up before the backend question (2026-10-13)
+
+From GitHub's and Supabase's own documentation, read in this session. Nothing here has been tried.
+
+- GitHub's REST API answers calls made by a page on any origin, and lets such a call carry an `Authorization` header. So an installed web app can write to a repository with a token and no server in between.
+- A fine-grained token can be made with no expiry: the form's own words are that infinite lifetimes are allowed but may be blocked by a maximum lifetime policy. An organization's default policy caps a fine-grained token at 366 days; a personal account has no such policy. A token made by an organization's owner needs no approval. Whether an owner can lift the cap: NOT CHECKED, the page does not say.
+- GitHub removes a token that has not been used for a year. The page says so of classic tokens; for fine-grained ones NOT CHECKED.
+- Replacing a file through the contents API needs the current file's `sha`, and the call can answer 404, 409 or 422. A file of up to 1 MB is read back whole. The version 2 fixture is 2,269 bytes.
+- The permission a fine-grained token needs for that call is taken to be "Contents: read and write". That is from memory, not from a page read in this session, and is to be confirmed on the token form when he makes one. Every token can also read public repositories, as anyone can.
+- Supabase pauses a free project after a week of low activity. Its current documentation gives a year in which to restore one; an older announcement said 90 days.
 
 ## Phase 4 working record
 
