@@ -10,6 +10,62 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 **Spoiler rule for every session.** `docs/sealed/` holds zone themes and all content names. Michael does not open it. Never quote anything from it in chat, gate reports, commit messages or this file. Refer to zones as Z1–Z8, elements as E1–E3 and enemy types as T1–T4. What kind each optional secret is, and where, is sealed too: say "an optional secret".
 
+## Phase 5 plan and success checks
+
+**Proposed to Michael on 2026-10-13, before any work. Not yet agreed: nothing is built until he gives his word on it, and what he says is written here as he said it.** Each gate report marks its checks PASS, FAIL or NOT CHECKED with evidence.
+
+### The split
+
+| Part | What | Ends at |
+|---|---|---|
+| 5a | Cloud backup: a `CloudBackend` behind the `SaveBackend` interface, a backup after each run, restore through the import path, and its part of Settings | ⛔ Gate 5a, after his phone acceptance run |
+| 5b | Z2 in full, tuned and measured against the three Phase 4 findings, with the Auto-assign screen, which unlocks at level 250 and so is reached inside Z2 | ⛔ Gate 5b, with what Z2 cost and how many more zones are proposed |
+| 5c | The zones he agrees to at gate 5b, with the systems they bring: waypoints start at Z3 | ⛔ Gate 5c |
+
+- **Questions before building 5a, one at a time:** the backend, with a recommendation; then where the credential lives on the phone, who can read it, what a leak or an expiry does to his save, and what he does by hand.
+- **Pushes:** one for 5a's build ahead of his acceptance run, which also carries this record; one for Z2 at gate 5b. Each goes after he has been told what it changes and while no question is open. A further push only for something his phone finds.
+- **Before each gate report:** a separate verifier pass that returns pass or fail with evidence; its corrections are tested as hard as the claims they correct; a check is recorded once it has returned.
+- **5c's checks** are stated at gate 5b, for the zones agreed then.
+
+### Success checks, 5a: cloud backup
+
+1. `npm run check`, `npm run build` and `npm run check:dist` pass. `tests/golden/golden.json`, both save fixtures and every file under `data/` are the same bytes as at `06af802`.
+2. No save-data change unless one is forced. The credential, the backup's settings and its status are kept in the `device` store, which is outside every save, so `SAVE_VERSION` stays 2 and the schema-hash test does not move. If the build shows that a save field is needed after all, he is told before it is added and it follows the save-change checklist: version 3, a migration, a fixture, and fixtures 1 and 2 still loading.
+3. The local save stays the source of truth. Tests through the real `startApp`, with a backup that never answers, one that rejects, one that throws at once, and one that answers each of 401, 403, 404, 409, 422 and 500: in every case the new run's checkpoint and hot slot are committed before the backup is tried and are the same bytes as with backup off, the next input is taken without waiting for the backup, and the backup code makes no write to the `slots` store.
+4. A backup after each run. Confirming a new run with backup on sends exactly one upload, of the newest good record, and what is sent passes that record's own checksum. Against a stand-in server.
+5. A failure shows and does not block. Settings gives the last backup that worked, by run and time, and the last attempt's result in plain words, told apart for offline, credential refused or expired, and backup place not found. A reminder that does not block play appears only for a failure he has to act on, not for being offline.
+6. Restore is an import. What comes back from the backup goes through the same checks and confirmation as an imported file: a damaged or newer record is refused, the two saves are shown side by side, and the current game is set aside first. A test restores a damaged backup and finds every local record the same bytes as before.
+7. The credential stays where it was put. A test sets it to a marker and finds the marker in no slot record, export file, text code, quarantine copy, diagnostics entry (a failed request included) or backup body. `check-repo` finds no token pattern; tests make their stand-in credential at run time.
+8. One address and no more. The content security policy gains exactly one source under `connect-src`, pinned in `vite.config.ts` and in `scripts/check-dist.ts`; the build scan's allowed addresses gain exactly that one; an enforcement test shows a second address fails. A test shows the service worker neither answers nor caches a request to it.
+9. With backup off the built app behaves as build `06af802` does, and in the browser pane no request leaves the site.
+10. A separate verifier pass, told to find a way for the backup path to lose, change or hold up the local save, and a way for the credential to leave the phone. Pass or fail with evidence.
+11. His acceptance run on the phone, with Spotify playing, each step marked: a manual export saved to Files first, as the safety net; the credential entered by him; a finished run shows up in the backup, where he can see it for himself; a run finished in Airplane mode is not held up and Settings says the backup did not go; the next run online backs up; the app deleted; reinstalled; the credential entered; restored; the Run and Settings readouts match the ones he noted before deleting; the self-test reads 13 of 13; Spotify never paused.
+12. The gate report is posted and work stops.
+
+### Success checks, 5b: Z2
+
+1. The three commands pass. `check-content` passes with `data/content-spec.json` at Z2's full counts from GDD 7.5: 11 enemies, 2 of them bosses. The ID lock only grows.
+2. What he ruled stays (R-12, R-14). Base energy, the energy rule and Z1's row of the zone table are unchanged, and every Z1 enemy, item, drop and map tile is the same as at `06af802`, shown by a comparison by ID. Any other existing number in `data/balance.json` that tuning moves is listed in the gate report with before and after and has a decisions-log entry; a golden value changes only with one.
+3. His save carries over. A save written on build `06af802`, with the hero past the Z1 gate, loads on the new build with `profile` the same bytes and a run that is valid. If a save field is needed, the save-change checklist.
+4. Tuned against three players on two sets of seeds: `climb-then-collect`, `cautious` and `like-michael`, at least 200 players each. Tuning looks only at seeds 1 to 200. It stops when both careful players' median runs per Z2 wall is inside 4–6, or after six tuning passes, whichever comes first, and the numbers are then frozen. Seeds 5001 to 5200 are run once after the freeze and reported whatever they say. Every figure is a median with its 10th and 90th percentiles, every comparison a mean difference with its standard error, and the share of players over 8 runs is given for all three. Aiming 4–6 at the careful players, with the Phase 3b player reported beside them, is a reading of his instruction and is put to him with the plan.
+5. No wall hangs on one drop. A probe gives, for each Z2 boss, the level at which it falls in the zone's reference loadout and with each single item taken out; an item whose absence puts that level past what a run in the zone reaches is a key item. Each key item has at least two ways in besides Salvage, or the gate report says why not. From `runs.csv`: the share of gate falls with each key item owned, and the win chance at the gate at the end of the runs before the breakthrough, beside Z1's.
+6. The first Claim. `--probes` with Z2's reference loadout gives the level at which the tool beats each boss. The simulator gives, for each player and seed set, the run of the first Claim and the share of players who make one before Z2's gate falls. The gate report says in one sentence when the tool first sees use.
+7. `goldAt`: `--probes` names no Z2 shop item priced inside the dip at the Z1–Z2 edge, levels 41 to 53, or the gate report lists each one.
+8. The retry guard is read on gate falls, for each player, at Z2's walls.
+9. The rows of GDD 5.9 that Z2 makes measurable are reported: runs per zone for Z2, wins per run, modelled minutes per run, hero level over strongest enemy, runs with a persistent gain, the breakthrough run, and kills per drop.
+10. Auto-assign is built to GDD 8.2: the unlock at the level in `data/balance.json`, the screen, and tests for it on and off. Seen in the browser pane.
+11. Content. The reference-name test and the name scan pass. A separate content verifier reads the sealed files against the sealed naming rules and returns pass or fail. Nothing sealed is in chat, a commit message, this file or check output.
+12. What Z2 cost is measured as Z1's was: authoring passes, tuning passes, verifier rounds and simulator time. It is reported at the gate with the number of further zones proposed and what each is expected to cost. Nothing past Z2 is authored before he answers.
+13. A separate verifier pass that recomputes the figures from `runs.csv` with its own script. The gate report is posted and work stops.
+
+### What Phase 5 can and cannot settle
+
+- **The credential is never Claude's to hold,** so no check against the real backup service can be run on the laptop by Claude. The stand-in server covers the code; the real service is covered only by his hands, at check 11.
+- **Deleting the app deletes the local save.** The acceptance run deletes it on purpose, with real progress on it. The manual export in its first step is what makes a failed restore cost nothing.
+- **Z2 has two bosses and a fight cost of 1.** The energy rule at a fight cost of 2 stays unmeasured until Z7.
+- **`like-michael` is a fitted player, not him.** A zone tuned to it and to `cautious` is tuned to careful play, which is the most that one recorded playthrough supports.
+- **Michael does not see content.** Whether Z2 is good to play is for his phone to say after gate 5b's push.
+
 ## Phase 4 success checks
 
 Stated to Michael before the work began, 2026-10-12. The gate report marks each PASS, FAIL or NOT CHECKED with evidence.
@@ -774,6 +830,13 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 - 2026-10-13 (Phase 4): The engine's sample balance was switched with the shipped one, because it is described as holding the GDD's values and the GDD's rule is now that a loss is charged.
 - 2026-10-13 (Phase 4): A variant for base energy 21 was added and run after the ruling, so that the gate report could give the number that keeps the game as he played it.
 - 2026-10-13 (Phase 4): The slowest enforcement test was given 30 seconds, because it timed out at 5 while a simulation was running and the commit hook runs it.
+
+- 2026-10-13 (Phase 5): The pasted Phase 5 prompt was taken as Michael's own message: it is the prompt this file says he was given.
+- 2026-10-13 (Phase 5): The Phase 4 push's CI run and the live site were read again before being written down, not copied from the prompt, so that the record rests on a check that returned in the session that wrote it.
+- 2026-10-13 (Phase 5): The plan and its success checks were written here as proposed, before he had answered, so that the plan is not held only in chat. The section says it is not agreed.
+- 2026-10-13 (Phase 5): What his phone shows under the charged-loss rule was asked in the same message as the plan. It is a readout and not a decision, so it was not counted against "one question at a time". That is a reading of his instruction.
+- 2026-10-13 (Phase 5): GitHub's current rules for fine-grained tokens and for calls from a browser were looked up before the plan was posted, because GDD section 11 leaves them to be checked in Phase 5 and option (a) would be dead without browser access. Looking them up is not building. What was found goes to him with the backend question.
+- 2026-10-13 (Phase 5): Three gates are proposed where he said he expected at least two. The third follows from his own instruction that the number of zones be put to him before anything past Z2 is authored.
 
 ## Handoff
 
