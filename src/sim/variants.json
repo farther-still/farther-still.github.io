@@ -1,0 +1,17 @@
+{
+  "shipped": {
+    "about": "data/balance.json and the content as they ship: base starting energy 20.",
+    "set": {},
+    "drops": {}
+  },
+  "energy-24": {
+    "about": "Base starting energy 24 in place of 20. Tuned for the rule that only wins are charged.",
+    "set": { "energy.base": 24 },
+    "drops": {}
+  },
+  "energy-25": {
+    "about": "Base starting energy 25 in place of 20. Tuned for the rule that a loss is charged.",
+    "set": { "energy.base": 25 },
+    "drops": {}
+  }
+}

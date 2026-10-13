@@ -1,0 +1,58 @@
+{
+  "climb-then-collect": {
+    "about": "The Phase 3b player. Climbs on the strongest enemy it gives 60% or better, tries a boss from 35%, gives a boss up for the run after 4 losses, and turns to collecting drops once it has outgrown what it can beat.",
+    "split": { "life": 30, "damage": 35, "defense": 25, "dexterity": 10, "luck": 0 },
+    "minWinChance": 0.6,
+    "bossWinChance": 0.35,
+    "patience": 4,
+    "bossPatience": 4,
+    "bossAtRunEnd": null,
+    "bossReserve": 1,
+    "farmAtRatio": 1.6,
+    "shop": "dearest",
+    "salvage": "always",
+    "forecastTrials": 150
+  },
+  "long-shot": {
+    "about": "DV-3's risk. Plays as the Phase 3b player does, then with its last energy throws itself at the boss at any odds from 2%, up to 15 times. Where a loss is charged it holds 5 energy back for that.",
+    "split": { "life": 30, "damage": 35, "defense": 25, "dexterity": 10, "luck": 0 },
+    "minWinChance": 0.6,
+    "bossWinChance": 0.35,
+    "patience": 4,
+    "bossPatience": 15,
+    "bossAtRunEnd": 0.02,
+    "bossReserve": 5,
+    "farmAtRatio": 1.6,
+    "shop": "dearest",
+    "salvage": "always",
+    "forecastTrials": 150
+  },
+  "cautious": {
+    "about": "Fights only what it gives 80% or better, tries a boss only from 70%, and walks away from a boss after 2 losses.",
+    "split": { "life": 30, "damage": 35, "defense": 25, "dexterity": 10, "luck": 0 },
+    "minWinChance": 0.8,
+    "bossWinChance": 0.7,
+    "patience": 2,
+    "bossPatience": 2,
+    "bossAtRunEnd": null,
+    "bossReserve": 1,
+    "farmAtRatio": 1.6,
+    "shop": "dearest",
+    "salvage": "always",
+    "forecastTrials": 150
+  },
+  "like-michael": {
+    "about": "Fitted to the one recorded playthrough. Fights only what it gives 85% or better, puts over half its points into Life, shops once at the end of a run, does not use Salvage or go looking for drops, and tries a boss from 20%, up to 5 times a run.",
+    "split": { "life": 55, "damage": 25, "defense": 15, "dexterity": 5, "luck": 0 },
+    "minWinChance": 0.85,
+    "bossWinChance": 0.2,
+    "patience": 4,
+    "bossPatience": 5,
+    "bossAtRunEnd": null,
+    "bossReserve": 1,
+    "farmAtRatio": null,
+    "shop": "run-end",
+    "salvage": "never",
+    "forecastTrials": 150
+  }
+}

@@ -253,7 +253,8 @@ export type Balance = {
     stats: ReadonlyArray<{ stat: MarkStat; weight: number }>;
     percents: readonly number[];
   };
-  energy: { base: number; bossSurplus: number; perClaim: number };
+  /** `chargeLosses`: whether a lost fight costs what a won one does (GDD 2.2, DV-10). Off, only wins are charged. */
+  energy: { base: number; bossSurplus: number; perClaim: number; chargeLosses: boolean };
   claim: { damageCutPct: number };
   items: {
     budget: { damagePerLevel: number; defensePerLevel: number; lifePerLevel: number; dexterityPerLevel: number; tolerance: number };
@@ -283,6 +284,13 @@ export type Balance = {
     killsPerDropMax: number;
     /** Enemies never beaten before that a breakthrough run should also beat. */
     breakthroughFirstKills: number;
+    runsPerWall: Range;
+    /** At default playback. */
+    secondsPerFight: Range;
+    /** "Under 1 with skip". */
+    secondsPerFightSkipMax: number;
+    /** Expected kills for a typical drop; `killsPerDropMax` is the ceiling for any drop. */
+    killsPerDropTypical: Range;
   };
 };
 

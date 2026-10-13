@@ -4,9 +4,35 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Current phase
 
-**Phase 3b approved. Phase 4 has not started.** Michael approved Phase 3b on 2026-10-12 with the one word "Approved", at the end of a review session on his phone: the update and the first real migration, the self-test in Safari, the layout, a playtest through the Z1 gate scored on the rubric, the three gate questions, and the decisions made without asking. The record is under "Phone review" below, and his rulings are GDD section 13.6. Five changes that came out of the review were built, pushed as commit `6711b80` and confirmed on his phone. Phase 4, the balance simulator ⛔, starts in a new session from the prompt he was given at the end of that one. Its first decision is whether a loss costs energy (GDD DV-10).
+**Phase 4, the balance simulator, is under way and waiting for Michael's ruling on energy.** It began on 2026-10-12 in a new session, from the prompt he was given at the end of the Phase 3b review. The rule for a lost fight is behind a switch in `data/balance.json`, shipped off; the simulator is rebuilt with strategies, CSV output and a summary against every row of GDD 5.9; both rules are simulated and tuned; and what was found is GDD section 13.7. He has been asked one question: which rule the game should have (DV-10). Until he rules, no shipped rule, shipped balance number or golden value changes. Nothing has been pushed in this phase. The phase ends at a gate ⛔.
 
 **Spoiler rule for every session.** `docs/sealed/` holds zone themes and all content names. Michael does not open it. Never quote anything from it in chat, gate reports, commit messages or this file. Refer to zones as Z1–Z8, elements as E1–E3 and enemy types as T1–T4. What kind each optional secret is, and where, is sealed too: say "an optional secret".
+
+## Phase 4 success checks
+
+Stated to Michael before the work began, 2026-10-12. The gate report marks each PASS, FAIL or NOT CHECKED with evidence.
+
+1. Nothing shipped moves before he rules: `npm run check`, `npm run build` and `npm run check:dist` pass, and `tests/golden/golden.json`, both save fixtures and every existing number in `data/balance.json` are the same bytes as at `e57f9f6`.
+2. The switch works both ways: one boolean under `energy` in `data/balance.json`, default off. Tests show that off, a loss charges nothing; on, a loss charges the fight's cost, a retry charges again, and energy never goes below zero. The UI lines that state the rule follow the switch.
+3. The simulator does what the kickoff asks: named strategies with their settings in a file, N runs, a CSV with one row per run (run number, level, power, zone reached, gold, drops), and a markdown summary with a row for all 19 rows of GDD 5.9, each marked met, not met or cannot be measured in the slice. Tests pin the columns, the row count and that the same seed gives the same bytes.
+4. Both rules, same targets: each rule simulated with the same strategies and seeds, at least 200 players each, then tuned; a side-by-side table; one question with a recommendation. Where a rule cannot reach a target with the knobs there are, the table says which and why.
+5. Calibration against Michael's playthrough, with a stated test. A strategy "reproduces" him if run 10 for the gate falls inside its 10th to 90th percentile, his level at the end of runs 2 to 9 is inside that band on at least 6 of the 8, it takes 4 or 5 tries at the boss on the run it falls, and its modelled run time lands in 1:50 to 3:24. The verdict is reported either way.
+6. Each carried-forward item ends in a number: the long-shot retrier and the cautious player, the wall's tail (content or player), `goldAt` at all seven zone edges, and the first Claim.
+7. A separate verifier pass returns pass or fail with evidence.
+8. The gate report is posted, work stops, and nothing is pushed until Michael has been told what the push changes.
+
+### What Phase 4 can and cannot measure
+
+Told to Michael before anything was built. Only Z1 and two Z2 enemies exist.
+
+- **Can measure:** runs per wall, runs in Z1 and the longest wall, for the one wall there is; wins per run, early; hero level over strongest enemy; runs with a persistent gain, up to the wall's fall; wins needing more than 3 tries; expected kills per drop for Z1's drops.
+- **Can model, not measure:** minutes per run in Z1–Z2 and seconds per fight. His nine recorded run times are the only real measurement.
+- **Partly:** the breakthrough run. Only 3 first kills are possible past the wall, so the target of 3 needs a perfect run.
+- **Cannot measure:** minutes per run for Z3–Z5, Z6–Z8 and late full scope; wins per run by the end of v1; runs per zone Z2–Z8; walls in v1; runs to finish v1; play time for v1 and for full scope.
+- **The energy ruling rests on one wall,** at fight cost 1, about 20 energy and one boss. How a charged loss plays at cost 2, or with 18 bosses paying energy back, cannot be simulated until those zones exist.
+- **The first Claim cannot be played:** it needs about level 300 and the slice tops out near 50. The level at which the tool beats the Z1 boss can be computed, as a projection with Z1 gear only.
+- **Michael is one player.** A strategy that matches his playthrough is plausible, not proven.
+- `goldAt` at zone edges is a pure formula, so it is fully checkable for all eight zones.
 
 ## Phase 3b success checks
 
@@ -26,8 +52,11 @@ Result: 1, 2, 4, 5 and 6 PASS on the laptop, with the evidence under "Phase 3b w
 
 ### PENDING
 
-- [ ] Phase 4: decide whether a loss costs energy, with both rules simulated to the same pacing targets (GDD DV-10). First, because every other number hangs on it
-- [ ] Phase 4: balance simulator ⛔. Starts in a new session, from a prompt given after the approval
+- [ ] Phase 4: Michael's ruling on DV-10, asked 2026-10-12 with the two rules side by side ⛔ waits for him
+- [ ] Phase 4: then one more question, whether to raise base starting energy so that a player like him meets "runs in Z1: 4–6" (24 if only wins are charged, 25 if losses are)
+- [ ] Phase 4: apply his rulings: the switch, the numbers, the golden values, the documents; if losses are charged, look at the four screens in the browser pane
+- [ ] Phase 4: a short re-check by a separate pass of whatever the rulings change; gate report ⛔; one push, described to Michael before it goes
+- [ ] Asked of Michael, 2026-10-12: try Salvage from the Run tab once and say what happened
 - [ ] Phase 5: cloud backup, then content expansion
 
 ### COMPLETED
@@ -70,6 +99,44 @@ Result: 1, 2, 4, 5 and 6 PASS on the laptop, with the evidence under "Phase 3b w
 - [x] Phase 3b: `npm run check` and `check:dist` green; first 3b push; gate report posted ⛔ in two parts, with what one zone cost to author
 - [x] Phase 3b: Michael's review on his phone, six steps, each recorded with evidence; five changes from it built, pushed as `6711b80` and confirmed on the phone
 - [x] Phase 3b: approved by Michael, 2026-10-12
+- [x] Phase 4: success checks and what the phase can and cannot measure stated to Michael before any work (2026-10-12)
+- [x] Phase 4: the energy switch in `data/balance.json`, shipped off, with engine and label tests for both positions
+- [x] Phase 4: simulator rebuilt: strategies and variants from files, the rule as an option, CSV, markdown summary against every row of GDD 5.9, worker processes, 44 tests
+- [x] Phase 4: calibrated against Michael's playthrough: the Phase 3b player does not reproduce him, a fitted one does
+- [x] Phase 4: both energy rules simulated at 200 players each and tuned to the same targets; findings in GDD 13.7
+- [x] Phase 4: carried forward: the long-shot retrier and the cautious player; the wall's tail; `goldAt` at zone edges; the first Claim
+- [x] Phase 4: GDD and ARCHITECTURE brought in line; `CLAUDE.md` needed no change
+
+## Phase 4 working record
+
+`docs/ARCHITECTURE.md` section 10 describes the simulator as built, and `docs/GDD.md` section 13.7 holds what it found, with every figure. This section records how it was checked and what is still unknown.
+
+### What Phase 4 built
+
+- **The energy switch.** `energy.chargeLosses` in `data/balance.json`, shipped off. The reducer's loss branch charges the fight's cost when it is on. The pre-fight hint, the pre-fight cost line, the Defeat sheet's line and the Energy help line are all built from it (`energyWords` in `src/ui/labels.ts`).
+- **The simulator, rebuilt.** Four strategies in `src/sim/strategies.json`; the rule and a balance variant as options; `runs.csv` and `summary.md` in `sim-out/`; a test against the recorded playthrough; two probes that need no player. Players are spread over worker processes: 200 players of 16 runs for 16 configurations takes about nine minutes.
+- **Four more pacing targets** in `data/balance.json`, read by the simulator only: runs per wall, seconds per fight at default playback and with skip, and kills for a typical drop.
+- **Nothing shipped changed.** No existing number in `data/balance.json`, no sealed file, no save file, no golden value, no fixture. With the switch off the app says and does what it did at `e57f9f6`.
+
+### The commands behind the figures
+
+- `npm run sim -- --runs 16 --players 200 --recorded --strategy all --rule both --variant shipped,free:energy-24,charged:energy-25 --out sim-out/phase4` gives every figure in GDD 13.7 that is not marked "100 players".
+- `npm run sim -- --probes --strategy climb-then-collect,like-michael --out sim-out/phase4` gives the `goldAt` table and the Claim levels.
+- The figures marked "100 players" came from strategies and variants tried on the way and not kept: the same commands with `--players 100 --runs 14`, a variant setting `e009/i003` and `e009/i018` to 15, 20 or 25, and `like-michael` with `salvage` set to `always` and `farmAtRatio` to 1.6.
+
+### Verified on the laptop (2026-10-12)
+
+- `npm run check`: PASS. Typecheck of four projects, lint, 1,211 tests in 38 files (1,159 in 35 at `e57f9f6`), content check, repo check, prose check.
+- `git diff e57f9f6 -- tests/ docs/sealed/ src/save/` is empty, and `data/` differs only in `balance.json`: one field added under `energy` and four under `pacing`. PASS for success check 1.
+- The switch, both ways: five engine tests (a loss charges the cost and changes nothing else; a retry is charged again and stops at an empty tank; cost 2; a win is identical under either setting) and three label tests. PASS for success check 2 in tests. Seen in a browser with the switch on: NOT CHECKED. The one attempt was to flip the switch in the working copy and open the dev server, and the session's own safety check refused to touch the shipped rule before the ruling, which is the right call. If the ruling is to charge losses, the screens are checked in the browser pane once the flip is real.
+- The simulator: 44 tests. The CSV's first columns are the kickoff's; one row per run; the same seed gives the same bytes; the summary has a row for every row of the table in GDD 5.9 and stops if the two drift apart; a variant with a mistyped path stops; each strategy plays three runs under each rule within its energy. PASS for success check 3.
+
+### What is not known
+
+- Anything about a zone that is not built. See "What Phase 4 can and cannot measure" above.
+- Whether `like-michael` is Michael. It passes the stated test at the threshold, on one playthrough.
+- Whether the tuned energy holds past Z1. 24 and 25 were found on one wall.
+- Using Salvage from the Run tab on the phone: asked of Michael on 2026-10-12, not yet answered.
 
 ## Phase 3b working record
 
@@ -594,6 +661,19 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 - 2026-10-12 (Phase 3b review): His three requests were built by a separate agent from a written brief while the review went on, and read and re-checked by Claude before the push. The brief forbade any change to the save, the simulator, the golden values and sealed files, and none was made.
 - 2026-10-12 (Phase 3b review): `CLAUDE.md` was left as it is, with one byte to spare. Its "44 pt tap targets … no zoom" now has one exception, the map at far zoom, recorded in GDD 8.3 and `docs/ARCHITECTURE.md` section 8. He was told and did not ask for a change.
 - 2026-10-12 (Phase 3b review): "Only wins are charged" had been marked Confirmed as RH's rule on the strength of a one-letter reply to five questions. It is now marked as a ruling, with RH's rule as he gave it (R-01). The lesson for later interviews: a default he accepts is a ruling, and only a fact he states himself is Confirmed.
+
+- 2026-10-12 (Phase 4): Design decisions made without asking are GDD D-34 to D-37; architecture decisions are `docs/ARCHITECTURE.md` A-33 to A-37. They are not repeated here.
+- 2026-10-12 (Phase 4): The pasted Phase 4 prompt was taken as Michael's own message: it is the prompt this file says he was given.
+- 2026-10-12 (Phase 4): Four pacing targets were added to `data/balance.json` before the ruling. He asked that no shipped balance number change; these are targets that no rule reads, and no existing number moved.
+- 2026-10-12 (Phase 4): The lines of text that state the energy rule were made to follow the switch now, not after the ruling, so that the switch is the whole change. With it off they read as they did.
+- 2026-10-12 (Phase 4): Each rule was tuned against the fitted player and not the Phase 3b one, because the targets describe his play and the Phase 3b player is quicker than he is. The Phase 3b player is reported beside it in every table.
+- 2026-10-12 (Phase 4): The tuning used one number, base starting energy. Raising the two drops the wall hangs on was tried and moved a player like him by one run at most; it is recorded in GDD 13.7 and was not kept as a variant.
+- 2026-10-12 (Phase 4): `like-michael` includes habits there is no evidence for (when he shops, whether he used Salvage, whether he went back for drops). They were chosen because they fit, and GDD 13.7 says so.
+- 2026-10-12 (Phase 4): The simulated player gained one behaviour, a last attempt at a boss with the run's last energy, because DV-3's risk could not be shown without it. The Phase 3b strategy does not use it.
+- 2026-10-12 (Phase 4): Two small changes to how every strategy is counted, the Phase 3b one included: a win's tries are the losses to that enemy since it was last beaten, where they were the losses in a row; and Salvage is used from where the hero stands, as the app now allows (DV-9), where the simulated player walked to a site. The Phase 3b player's gate still falls on a median of run 6.
+- 2026-10-12 (Phase 4): The simulator's tests were written by its author, not by a separate agent as in Phase 3b. The verifier pass was asked to attack them.
+- 2026-10-12 (Phase 4): `sim-out/` stays out of git. The figures are in GDD 13.7 with the commands that give them, and the simulator is deterministic.
+- 2026-10-12 (Phase 4): The verifier pass was run before the energy question was put to Michael, not only before the gate report, because his ruling rests on the figures.
 
 ## Handoff
 

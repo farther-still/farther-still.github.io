@@ -103,7 +103,7 @@ export const balanceSchema = z.strictObject({
     // Whole numbers: a mark's size is stored in the save, where it must be one.
     percents: z.array(z.int().positive()).min(1),
   }),
-  energy: z.strictObject({ base: count, bossSurplus: count, perClaim: count }),
+  energy: z.strictObject({ base: count, bossSurplus: count, perClaim: count, chargeLosses: z.boolean() }),
   claim: z.strictObject({ damageCutPct: z.number().min(0).max(100) }),
   items: z.strictObject({
     budget: z.strictObject({ damagePerLevel: positive, defensePerLevel: positive, lifePerLevel: positive, dexterityPerLevel: positive, tolerance: z.number().min(0).max(1) }),
@@ -129,6 +129,10 @@ export const balanceSchema = z.strictObject({
     minutesPerRunEarly: range,
     killsPerDropMax: positive,
     breakthroughFirstKills: count,
+    runsPerWall: range,
+    secondsPerFight: range,
+    secondsPerFightSkipMax: positive,
+    killsPerDropTypical: range,
   }),
 });
 

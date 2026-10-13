@@ -530,6 +530,53 @@ describe('Fight: a loss (GDD 2.2, 3.4)', () => {
   });
 });
 
+describe('Fight: a loss when the balance table charges losses (GDD 2.2, DV-10)', () => {
+  const charging: Content = deepFreeze({ ...world, balance: { ...B, energy: { ...B.energy, chargeLosses: true } } });
+  const weak = (run: Partial<GameState['run']> = {}): GameState => game({ position: NEAR, ...run });
+
+  it('is off in the sample balance, which holds the GDD’s starting values', () => {
+    expect(B.energy.chargeLosses).toBe(false);
+  });
+
+  it('charges the fight’s cost, pays nothing back, and changes nothing else a free loss would not', () => {
+    const before = weak({ gold: 55, xp: 12 });
+    const free = fight(before, 's003');
+    const { state, events } = fight(before, 's003', charging);
+    expect(types(events)).toEqual(['Battle']);
+    expect(events).toEqual(free.events);
+    expect(state.profile).toEqual(free.state.profile);
+    expect(state.run).toEqual({ ...free.state.run, energySpent: 1 });
+    expect(state.run.energyPaidBack).toBe(0);
+    expect(remainingEnergy(state, charging)).toBe(19);
+  });
+
+  it('charges a retry again, and stops at an empty tank without going below it', () => {
+    let state = weak();
+    for (let i = 0; i < 20; i += 1) state = fight(state, 's003', charging).state;
+    expect(state.run.tallies).toMatchObject({ wins: 0, losses: 20 });
+    expect(state.run.energySpent).toBe(20);
+    expect(remainingEnergy(state, charging)).toBe(0);
+    expect(rejection(state, { type: 'Fight', spawn: 's003' }, charging)).toBe('no-energy');
+    expect(fightBlock(state, 's003', charging)).toBe('no-energy');
+  });
+
+  it('charges the zone’s cost where a fight costs 2', () => {
+    const costly: Content = deepFreeze({ ...charging, zones: { ...charging.zones, z01: { ...must(charging.zones['z01'], 'zone'), balanceKey: 'Z7' } } });
+    const { state } = fight(weak(), 's003', costly);
+    expect(state.run.energySpent).toBe(2);
+    expect(remainingEnergy(state, costly)).toBe(18);
+    expect(rejection(weak({ energySpent: 19 }), { type: 'Fight', spawn: 's003' }, costly)).toBe('no-energy');
+  });
+
+  it('leaves a win exactly as it is with the switch off', () => {
+    const normal = fight(mighty(), 's001');
+    expect(fight(mighty(), 's001', charging)).toEqual(normal);
+    const boss = fight(mighty(), 's003');
+    expect(fight(mighty(), 's003', charging)).toEqual(boss);
+    expect(eventOf(boss.events, 'Rewards')).toMatchObject({ energyCost: 1, energyBack: 3, energyLeft: 22 });
+  });
+});
+
 describe('Fight: when it cannot start (GDD 2.2)', () => {
   it('rejects a spawn that does not exist', () => {
     expect(rejection(mighty(), { type: 'Fight', spawn: 's999' })).toBe('unknown-spawn');

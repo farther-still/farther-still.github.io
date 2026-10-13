@@ -80,7 +80,7 @@ export const SAMPLE_BALANCE: Balance = {
     ],
     percents: [100, 200],
   },
-  energy: { base: 20, bossSurplus: 2, perClaim: 3 },
+  energy: { base: 20, bossSurplus: 2, perClaim: 3, chargeLosses: false },
   claim: { damageCutPct: 90 },
   items: {
     budget: { damagePerLevel: 3, defensePerLevel: 1.9, lifePerLevel: 7.9, dexterityPerLevel: 0.4, tolerance: 0.15 },
@@ -106,6 +106,10 @@ export const SAMPLE_BALANCE: Balance = {
     minutesPerRunEarly: { min: 2, max: 4 },
     killsPerDropMax: 80,
     breakthroughFirstKills: 3,
+    runsPerWall: { min: 4, max: 6 },
+    secondsPerFight: { min: 3, max: 6 },
+    secondsPerFightSkipMax: 1,
+    killsPerDropTypical: { min: 10, max: 20 },
   },
 };
 

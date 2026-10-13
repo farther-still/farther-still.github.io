@@ -1,0 +1,16 @@
+{
+  "source": "docs/STATUS.md, Phone review, 2026-10-12: Settings, Run times, and Michael's replies",
+  "rule": "free",
+  "gateRun": 10,
+  "gateTries": { "min": 4, "max": 5 },
+  "runs": [
+    { "run": 2, "seconds": 193, "wins": 20, "level": 13 },
+    { "run": 3, "seconds": 148, "wins": 20, "level": 15 },
+    { "run": 4, "seconds": 204, "wins": 20, "level": 20 },
+    { "run": 5, "seconds": 198, "wins": 20, "level": 32 },
+    { "run": 6, "seconds": 123, "wins": 20, "level": 40 },
+    { "run": 7, "seconds": 162, "wins": 20, "level": 45 },
+    { "run": 8, "seconds": 110, "wins": 20, "level": 53 },
+    { "run": 9, "seconds": 159, "wins": 19, "level": 51 }
+  ]
+}

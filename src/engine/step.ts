@@ -149,11 +149,13 @@ const fight = (state: GameState, spawnId: SpawnId, content: Content): StepResult
   const timesBeaten = profile.bestiary[enemy.id]?.timesBeaten ?? 0;
 
   if (!result.win) {
-    // A loss charges nothing and loses nothing. The enemy is now seen (GDD 3.4).
+    // A loss loses nothing, and charges nothing unless the balance table says a loss is charged like a win
+    // (GDD 2.2, DV-10). A boss pays nothing back for a loss either way. The enemy is now seen (GDD 3.4).
+    const charged = balance.energy.chargeLosses ? fightCost(enemy, content) : 0;
     return {
       state: {
         profile: { ...profile, bestiary: { ...profile.bestiary, [enemy.id]: { timesBeaten } } },
-        run: { ...run, battleCount: battleIndex + 1, lastEnemy: enemy.id, tallies: { ...run.tallies, losses: run.tallies.losses + 1 } },
+        run: { ...run, battleCount: battleIndex + 1, energySpent: run.energySpent + charged, lastEnemy: enemy.id, tallies: { ...run.tallies, losses: run.tallies.losses + 1 } },
       },
       events: [battle],
     };

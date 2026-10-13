@@ -118,7 +118,12 @@ steadfast/
       format.ts  labels.ts     the number formatter; every system label
       selftest.ts              the engine self-test and golden replays
     platform/                  section 9
-    sim/                       section 10: player.ts, run.ts, report.ts, cli.ts
+    sim/                       section 10
+      config.ts                what a simulation is run with; reads the three JSON files beside it
+      strategies.json  variants.json  recorded.json   player strategies; candidate numbers; the one real playthrough
+      player.ts  run.ts        the simulated player; a run and what is recorded of it
+      report.ts  csv.ts  probes.ts   the figures and the markdown summary; the CSV; the two formula probes
+      cli.ts                   `npm run sim`
     main.ts
     env.d.ts                   the two build-time constants
   tests/
@@ -259,13 +264,13 @@ type AllocationPolicy = (ctx: { unspent: number; spent: StatPoints; hero: HeroSt
 
 - **Manual:** `manualPolicy`, which returns what the player entered. The Hero screen sends each spend through it.
 - **Auto-assign:** `splitPolicy`, the engine's own policy, which applies a percentage split (GDD 8.2). It is built and tested; the Auto-assign screen and the unlock arrive later in v1.
-- **Simulator strategies:** any function of this type. The Phase 3b strategy uses `splitPolicy` with its own split.
+- **Simulator strategies:** any function of this type. Every strategy in `src/sim/strategies.json` uses `splitPolicy` with its own split.
 
 ## 6. Content
 
 | File | Holds | Sealed |
 |---|---|---|
-| `data/balance.json` | Every balance number in the GDD: sections 3, 4, 5 and 7, and the Auto-assign unlock level. It includes the zone table of GDD 5.4 and 7.5 for all eight zones, level bands and all, because prices need the band of a level in a zone not yet built (A-24), and the pacing targets of GDD 5.9, which no rule reads and the simulator reports against | No |
+| `data/balance.json` | Every balance number in the GDD: sections 3, 4, 5 and 7, and the Auto-assign unlock level. It includes the zone table of GDD 5.4 and 7.5 for all eight zones, level bands and all, because prices need the band of a level in a zone not yet built (A-24), the switch for whether a lost fight is charged (GDD 2.2), and the pacing targets of GDD 5.9, which no rule reads and the simulator reports against | No |
 | `data/content-spec.json` | Expected counts for the current phase, and which zones are built in full, so the count check passes on the slice and again on full v1 | No |
 | `data/ids.lock.json` | Every ID ever shipped and its kind | No |
 | `data/zones.json` | The run start position; for each zone, its row of the balance zone table and its reference loadout | Yes |
@@ -433,9 +438,28 @@ sequenceDiagram
 
 `npm run sim` runs the engine headless in Node. A simulated player is a set of policies: which enemy to fight next, how to allocate, what to equip, what to buy, when to use Salvage, when to start a new run. It plays through `step` and walks the map with `findPath`, so a gate it has not opened really is in its way.
 
-Phase 3b ships one simple strategy: climb on the strongest enemy the forecast likes, turn to collecting drops once the hero has outgrown what it can beat, buy the dearest thing it can afford, put on whatever a dice-free measure of strength rates highest, try a boss at lower odds than a normal enemy since a loss is free, and put leftover gold into Salvage. `npm run sim -- --runs 50` plays 20 simulated players for 50 runs each (`--players`, `--seed` and `--detail` change that) and reports, against GDD 5.9: level, strongest enemy and zone by run; the run on which each gate boss first fell; wins per run; level against strongest enemy; runs with a persistent gain; wins needing more than three tries; and minutes per run from a model of walking time plus seconds per fight.
+Every simulated player has the same shape: climb on the strongest enemy the forecast likes, turn to collecting drops once the hero has outgrown what it can beat, buy what it can afford, put on whatever a dice-free measure of strength rates highest, and put leftover gold into Salvage. What differs is in three things a simulation is run with, each named on the command line and read by `src/sim/config.ts`:
 
-Phase 4 adds configurable strategies, CSV output and a markdown summary against every row of GDD 5.9. Simulator output names content by ID only.
+- **A strategy,** an entry in `src/sim/strategies.json`: the win chance it wants before a normal fight and before a boss; how many losses to one enemy it takes before giving it up for the run; whether it throws its last energy at a boss at poor odds, and how much energy it holds back for that where a loss is charged; how it divides stat points; whether it goes back for drops; whether it shops after every win or once at the end of a run; and whether it uses Salvage. Four ship: `climb-then-collect`, the Phase 3b player, unchanged; `long-shot`, which is DV-3's risk; `cautious`; and `like-michael`, fitted to the one recorded playthrough.
+- **The energy rule:** `shipped`, `free` or `charged`. The last two set the switch in the balance table for that simulation (GDD 2.2, DV-10).
+- **A balance variant,** an entry in `src/sim/variants.json`: numbers laid over `data/balance.json` by dotted path, and drop chances by enemy and item ID. The result goes through the same loader as the real content, so a path that names nothing, or a number the schema refuses, stops the run. A variant is a candidate for Michael to rule on. The game's own numbers are only ever in `data/`, and nothing under `src/sim/` ships.
+
+`npm run sim -- --runs 50` plays 20 players for 50 runs each with the Phase 3b player, the shipped rule and the shipped numbers. `--players`, `--seed`, `--strategy` (names, or `all`), `--rule` (or `both`), `--variant` (a name, or `charged:energy-25` to play it under one rule only), `--out` and `--jobs` change that. Every configuration plays the same seeds, so two of them differ only in what was changed. Players are spread over worker processes; the result does not depend on how many.
+
+It writes two files to `sim-out/`, which git ignores:
+
+- **`runs.csv`,** one row per run. After the configuration and the player's seed come the kickoff's columns: run number, level, power, zone reached, gold and drops. Then the IDs of what dropped, what was bought and what Salvage found, wins and losses, energy at the start and left over, enemies beaten for the first time, gates beaten, Claims, the win chance at the wall, fights joined there, and modelled minutes.
+- **`summary.md`:** what was run; the configurations side by side; each one against every row of the table in GDD 5.9, marked met, not met, modelled, partly or cannot be measured; and, with `--recorded`, each one beside the recorded playthrough. The rows are read from the GDD's own table when the simulator runs, and it stops if the GDD has a row it has no measure for, or the reverse. Only the targets it has a figure for are in `data/balance.json` under `pacing`.
+
+Three terms it uses:
+
+- **The wall** is the first gate boss never beaten before the run began, or the strongest enemy there is once every gate has fallen.
+- **Power** is the hero's strength against the wall as the run ended, in the best gear it owns for that fight, with no dice in it: the share of the wall's life the hero removes in a round over the share of its own it loses. Under 1 it should lose, over 1 it should win. The CSV also gives that fight as a win chance.
+- **Reproducing the recorded playthrough** (`src/sim/recorded.json`, from the phone review in `docs/STATUS.md`) means that the run the gate fell on, the fights at the boss on that run and at least three in four of the recorded levels each lie between the strategy's 10th and 90th percentiles, and that its modelled run time lies inside the recorded range. It is one player's one playthrough: a strategy that passes is plausible, not proven.
+
+`npm run sim -- --probes` simulates no player. It writes `probes.md`: how far `goldAt` falls at each zone edge and the level at which it is made up, with any shop item or loadout price that sits in between; and, for each boss whose zone has a reference loadout, the hero level at which it falls with and without the tool. Run minutes come from a model, not a stopwatch: tiles walked over walking speed, plus a fixed time per battle and per decision.
+
+Simulator output names content by ID only. What it cannot say anything about is whatever is not built: GDD 5.9's rows for later zones and for v1 as a whole are reported as not measurable, each with the reason.
 
 ## 11. Tests and checks
 
@@ -536,6 +560,16 @@ Added in the Phase 3b review, from what Michael's phone showed:
 |---|---|---|
 | A-32 | When the installed app's page is short of the screen by exactly the top inset, the app stops keeping room for the home bar. It does not try to lay anything out, or to draw anything, in the band | His iPhone 16 Pro gave a page 812 points high on a screen of 874 while still reporting a top inset of 62, leaving a dead band of 62 points under the tab bar. That is WebKit bug 301994, open since iOS 26.1 and reopened in August 2026, whose reports say the band cannot be reached from the page. Laying the app out into it would push the tab bar off the screen wherever that is true, and it cannot be tried without a Mac. Dropping the home-bar room is safe either way: the home bar lies inside the band. It wins back 34 of the 96 points being wasted. The first build with this also carried the tab bar's colour on below the page as a shadow, which is paint only, to learn whether the band could be drawn in. On his phone the band stayed dark, so it is out of the page's reach, and the shadow was taken out again |
 
+Added in Phase 4:
+
+| ID | Decision | Reason |
+|---|---|---|
+| A-33 | The energy rule is a boolean in the balance table that the reducer's loss branch reads, and `labels.ts` builds every line that states the rule from the same boolean | GDD D-34. A rule that the simulator alone could switch would be a second implementation of it. The engine's formulas stay free of the choice: the branch adds the fight's cost or nothing. No event changed, so the golden replays hold with the switch off |
+| A-34 | Strategies, balance variants and the recorded playthrough are JSON files in `src/sim/`, parsed by zod, and not in `data/` | `data/` is the game: everything in it ships and is covered by the content checks and the seal. A strategy describes a simulated player, a variant is a number that has not been ruled on, and the playthrough is a measurement. None is content, and none is read by the app |
+| A-35 | A variant is applied to the unparsed data files and then goes through `parseContent` | Enemy stats are worked out from the balance table when content is loaded. Patching the parsed content would leave them stale, and would skip the schema |
+| A-36 | The summary takes its rows from the table in GDD 5.9 as it runs, and stops if the GDD and its own list of measures differ | "Every row" would otherwise be a claim that held on the day it was written. Reading a document from a tool is unusual here, and it is confined to this one table and to Node |
+| A-37 | The simulator spreads players over child processes that are given a rule, a variant name, a strategy name and seeds, and hand back run records | A summary worth ruling on needs a few hundred players per configuration and several configurations, which was four minutes single-threaded. Each player's game follows from its seed alone, so the split cannot change a figure |
+
 Settled in Phase 3a:
 
 - The generator and the hash: A-12, frozen by `src/engine/rng.test.ts`, `src/engine/hash.test.ts` and the cross-check against Node in `tests/golden/golden.test.ts`.
@@ -570,6 +604,6 @@ What exists, so nobody has to infer it from the sections above, which describe t
 - **Platform:** unchanged from Phase 3a.
 - **UI:** Map, pre-fight sheet, battle playback, result sheet, Hero, Gear, Items, Bestiary, Salvage, Run menu, New-run sheet, Settings, Recovery and the save-failed notice. Not built: the Waypoints screen and the Auto-assign screen.
 - **Checks:** everything in section 11, including the three that Phase 3a deferred: `scripts/check-content.ts`, the reference-name test with `scripts/build-refnames.ts`, and the battle golden replays.
-- **Simulator:** one strategy, as section 10 describes. Phase 4 expands it.
+- **Simulator:** one strategy in Phase 3b. Phase 4 rebuilt it as section 10 describes: four strategies, the energy rule and balance variants as options, the CSV, the summary against every row of GDD 5.9, the test against the recorded playthrough, and the two probes.
 - **Added at Michael's review, 2026-10-12:** Salvage from the Run menu and the spent-run notice, with the engine no longer asking where the hero stands; the map's two zoom levels, kept in the `device` store; the export reminder's Later button; the short-page reading and its one custom property (A-32); and map captions kept on the canvas. None changed the save, the content, a balance number or a golden value.
 - **Tests:** the engine's tests were written from the GDD by a separate pass, not by the engine's author, so that they check the rules and not the code. That pass changed the engine in three places and left eight readings of the GDD as questions, which are settled in GDD 13.5 (D-30). The save tests and the UI wiring tests were each rewritten by a separate pass as well; the UI one fixed four display bugs.

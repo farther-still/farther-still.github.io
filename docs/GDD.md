@@ -70,7 +70,7 @@ Each pillar names the feel to protect, the evidence, and what it obliges the des
 | Rule | Detail | Source |
 |---|---|---|
 | Energy cost | Each fight has a cost set by its zone (section 5.8). | Confirmed (Q2) |
-| Only wins are charged | A loss costs no energy; the player is back on the map and can retry. | Ruling (Q2), and not RH's rule. RH charges a fight's energy when it is joined, win or lose, and again on a retry: Confirmed by Michael on 2026-10-12 (R-01, section 13.6). This game's rule is an undecided deviation, DV-10, until Phase 4 has simulated both |
+| Only wins are charged | A loss costs no energy; the player is back on the map and can retry. The rule is one switch in the balance table, shipped off (D-34). | Ruling (Q2), and not RH's rule. RH charges a fight's energy when it is joined, win or lose, and again on a retry: Confirmed by Michael on 2026-10-12 (R-01, section 13.6). This game's rule is an undecided deviation, DV-10, until Phase 4 has simulated both |
 | Boss payback | An unclaimed boss pays back its cost plus a surplus when beaten, once per run (sections 2.3 and 5.8). | Confirmed (notes #1, Q2) |
 | Free actions | Walking, waypoint travel, buying and Salvage cost no energy. | Confirmed (Q2) |
 | Affordability | A fight cannot be started if its cost exceeds remaining energy. | Confirmed (G1) |
@@ -442,6 +442,8 @@ Definitions for the simulator:
 
 - A **wall** is a gate boss or zone entry the player cannot pass on the run that first reaches it.
 - A **persistent gain** is a new item or copy, a Claim, a waypoint or a loadout slot.
+
+The Phase 4 simulator's summary has one row for every row of the table above and reads the rows from this section, so a target added here with no measure there stops it. What it found is in section 13.7.
 
 A throwaway expected-value model, with the starting values above and a simple "fight the best XP you can beat" player, gave runs of 20 to 65 wins and a hero ending each run at 1.5 to 2.2 times the level of the strongest enemy beaten. In every zone the full reference loadout beat that zone's gate boss and half of it did not, which is the wall-and-breakthrough shape. The boss multipliers and the budget above were adjusted until it did so; the first draft's values left every early gate boss out of reach. That only shows the formulas can produce the intended shape. It is not evidence for the pacing targets; the Phase 3b simulator is.
 
@@ -972,6 +974,68 @@ All dated 2026-10-12, given after he played the slice on his phone through the Z
 |---|---|---|---|
 | D-32 | The map has two zoom levels, nine tiles across and fourteen, remembered on the device and not in the save | R-04. Outside the save because it is a fact about a screen, not about a game, and a save change needs a migration that this does not earn | 8.3 |
 | D-33 | The export reminder can be put off until the next launch, and no longer | R-05. Until Phase 5's backup exists the phone holds the only copy, so the reminder must come back | `docs/ARCHITECTURE.md` 7.5 |
+
+### 13.7 Phase 4: what the simulator found
+
+All dated 2026-10-12. Every figure comes from one command, `npm run sim -- --runs 16 --players 200 --recorded --strategy all --rule both --variant shipped,free:energy-24,charged:energy-25`: 200 simulated players of 16 runs each for every configuration, all on the same seeds. A figure written "6 (5–8)" is a median with its 10th and 90th percentiles. Only Z1 and two enemies of Z2 exist, so all of it is evidence about one wall, at a fight cost of 1 and with one boss. Rows of section 5.9 that need later zones are not measured at all; `docs/STATUS.md` lists which.
+
+Decisions made while building. None changes a shipped rule or a shipped number.
+
+| ID | Decision | Reason | Where it lives |
+|---|---|---|---|
+| D-34 | Whether a lost fight is charged is one switch in the balance table, `energy.chargeLosses`, shipped off. On, a loss costs what a win costs, a retry is charged again, a boss pays nothing back for a loss, and a fight still cannot start unless its cost is in hand. The lines of text that state the rule follow the switch | R-02 asked for both rules simulated. With a switch the simulator, the tests and the app run either rule from the same code, and the ruling is a change of one word | 2.2 |
+| D-35 | Four more of section 5.9's targets are in the balance table's `pacing` block: runs per wall, seconds per fight at default playback and with skip, and expected kills for a typical drop | The summary gives a verdict on each, and a number a verdict rests on belongs in `data/`. The rows that cannot be measured yet are read from section 5.9 itself and have no number there | 5.9 |
+| D-36 | In simulator output, "power" is the hero's strength against the wall as the run ended, in its best gear for that fight: the share of the wall's life it removes in a round over the share of its own it loses. Under 1 it should lose | The kickoff asks for a power column and the game has no such stat. Measured against the wall, it says how far a run ended from breaking through, which is the question a wall raises | `docs/ARCHITECTURE.md` section 10 |
+| D-37 | A strategy "reproduces" Michael's playthrough when the run his gate fell on, his tries at the boss and at least six of his eight recorded levels lie between its 10th and 90th percentiles, and its modelled run time lies inside his recorded range | Stated to him before any strategy was tried, so that the test could not be fitted to the answer | `docs/ARCHITECTURE.md` section 10 |
+
+**The simulated player and the real one.** Four strategies, under the shipped rule and numbers:
+
+| Strategy | What it does | Run the Z1 gate fell on | Over 8 runs | Reproduces Michael |
+|---|---|---|---|---|
+| `climb-then-collect` | The Phase 3b player, unchanged: fights from 60%, a boss from 35%, shops after every win, uses Salvage every run, goes back for drops | 6 (5–8) | 8% | No. Its median level is ahead of his from run 3 on (24 against his 15, then 36 against 20), and 2% of its players still face the gate on run 10 |
+| `long-shot` | The same, and with its last energy it throws itself at the boss at any odds from 2%, up to 15 times | 5 (4–7) | 3% | No |
+| `cautious` | Fights from 80%, a boss from 70%, and leaves a boss after 2 losses | 7 (5–9) | 16% | No. Its levels match his in all eight runs; its gate falls too early and in too few tries |
+| `like-michael` | Fights from 85%, puts over half its points into Life, shops once at the end of a run, does not use Salvage or go back for drops, tries a boss from 20% up to 5 times | 8 (6–11) | 36% | Yes, at the test's own threshold: six of eight levels |
+
+- The Phase 3b player, which Z1 was tuned with (B-02 to B-04), is quicker than the one real player. That is why his gate fell on run 10 where its median is 6.
+- `like-michael` was fitted, by trying habits until one passed. It is a description of him that fits, not the only one. Two of its habits have evidence: points into Life (his Hero screen at level 4 had all 15 there) and several tries at the boss. The rest are guesses that fit: when he shops, whether he used Salvage, whether he went back for drops. Several nearby settings miss the test only on the tries at the boss.
+- He was slower than nine in ten of even these players in runs 3 and 4. A simulated player plays its second run as well as its tenth; he was learning the game.
+- 23% of `like-michael` players still face the gate on run 10. So run 10 was an ordinary result for a player like him, and not bad luck.
+- What it means for the targets: against a player like him, the shipped Z1 misses "runs in Z1: 4–6" (8) and "no wall over 8 runs" (36% of players), where the Phase 3b player met the first and missed the second by 8%. A target met by the simulator's quickest player is not met for him.
+
+**Energy on a loss (DV-10).** Each rule with today's numbers, then tuned until a player like him meets "runs in Z1: 4–6". The one number changed is base starting energy.
+
+| | Only wins charged, energy 20 (shipped) | Losses charged, energy 20 | Only wins charged, energy 24 | Losses charged, energy 25 |
+|---|---|---|---|---|
+| A player like him: run the gate fell on | 8 (6–11) | 8 (6–11) | 6 (5–8) | 6 (5–8) |
+| A player like him: over 8 runs | 36% | 46% | 6% | 6% |
+| Phase 3b player: run the gate fell on | 6 (5–8) | 6 (5–8) | 5 (4–6) | 5 (4–6) |
+| Cautious player | 7 (5–9) | 7 (5–9) | 5 (4–7) | 5 (4–7) |
+| Long-shot player | 5 (4–7) | 6 (5–8) | 4 (4–6) | 5 (4–6) |
+| Wins per run, a player like him (target 20–30) | 20 (20–23) | 20 (19–21) | 24 (24–28) | 25 (24–27) |
+| Losses per run, a player like him | 0 (0–2) | 0 (0–2) | 0 (0–2) | 0 (0–2) |
+| Runs with a persistent gain (target 90%) | 91% | 90% | 97% | 97% |
+| Minutes per run, modelled (target 2–4) | 2.3 | 2.3 | 2.8 | 2.9 |
+
+- Tuned to the same targets, the two rules are the same game on this wall, one point of energy apart. Simulated players lose few fights: a median of none or one a run.
+- Left at energy 20, charging losses costs a player like him nothing at the median and moves one player in ten past 8 runs.
+- The rules differ for one kind of player. Where a loss is free, the long-shot player gets through a run sooner than the Phase 3b player it otherwise is. Where a loss is charged, it gets through no sooner.
+- "No wall over 8 runs" is missed under both rules after tuning: by 1% of the three quicker players and 6% of players like him.
+- Not measured, because it is not built: either rule at a fight cost of 2, with more than one boss paying energy back, or with Claims.
+
+**The wall's tail: the content, and then the player.**
+
+- The wall is one item. i003 comes from one enemy, e009, at 10%, and from Salvage. Of the gate's falls, 94% to 100% across the sixteen configurations came with i003 owned, and between four and eight in ten of those in the very run it dropped.
+- So the wall is a cliff and not a slope. At the end of a run before the breakthrough, the win chance at the gate was under 5% in 85% to 96% of cases, and between 5% and 80% in 3% to 12%.
+- Players in the tail are the ones still waiting for it. With the Phase 3b player, 20% of those who took more than 8 runs owned i003 at the end of run 6, against every one of those through by then.
+- The player sets how many chances at it a run holds. With the same content, a player like him who also uses Salvage every run has 24% over 8 runs in place of 35%, and one who also goes back for drops has 9% (100 players each). Salvage is one tap from the Run menu since DV-9.
+- Raising e009's two drops does less than it should for a player like him: 15%, 20% and 25% in place of 10% each gave a median of 7 against 8 (100 players each). He reaches e009 late in a run and fights it few times.
+
+**The long-shot retry (DV-3).** The risk is real and small in Z1. Where a loss is free, a player who throws its last energy at the boss gets through one run sooner, and a fifth of its gate falls take more than 3 fights. The cliff is why it is small: there is seldom a middling chance to retry at. Section 5.9's guard, "wins that needed more than 3 tries: under 15%", cannot see any of this. It reads 0% for every strategy, because a gate win is one win in a hundred or more. Read on gate falls alone, the same count is 20% for the long-shot player and for a player like him, 4% for the Phase 3b player and none for the cautious one.
+
+**`goldAt` at zone edges.** It falls at all seven, by 23%, 16%, 20%, 20%, 19%, 15% and 9% from Z1–Z2 to Z7–Z8, and is back to its old value 4% to 9% of the way into the next band: at level 54 in Z2, 300 in Z3, 1,875 in Z4, 10,000 in Z5, 49,231 in Z6, 177,273 in Z7 and 495,000 in Z8. Nothing shipped is priced inside one of those stretches: no shop item, and none of the three loadout prices. Enemy gold does not use `goldAt`. The one thing it touches today is the Salvage chance for a run whose strongest kill is e011, which comes out a little better than it would with the Z1 boss as the strongest. `npm run sim -- --probes` reports the table and names any shop item inside a stretch.
+
+**The first Claim (R-06).** It cannot be played: it needs a level the slice does not reach. Worked out from the formulas, a hero in Z1's reference loadout claims the Z1 boss half the time from level 250 with the Phase 3b player's split of points and from level 279 with a player like him's, and nine times in ten from 257 and 287. The same hero beats that boss without the tool from level 29. Gear from Z2 would bring the Claim down, and Z2 is not built, so these are the latest it could land. At the ratio of hero level to strongest enemy seen in Z1, that is a hero fighting Z2 enemies of about level 155 to 180: past the middle of Z2's band, and not in Z3.
 
 ## 14. Names
 

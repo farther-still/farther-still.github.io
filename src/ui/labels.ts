@@ -20,6 +20,29 @@ export const statHelp = (balance: Balance): Record<StatKey, string> => ({
   luck: `Does nothing until it passes ${balance.hero.luckPivot}. Past that it raises gold and drop chances. Luck far above an enemy’s level also multiplies its drops.`,
 });
 
+/**
+ * Every line that states what a fight costs. They follow the rule in force, which is one switch in the balance
+ * table: only wins are charged, or a loss is charged as a win is (GDD 2.2, DV-10).
+ */
+export const energyWords = (
+  balance: Balance,
+): { hint: string; help: string; cost: (cost: number) => string; bossCost: (cost: number, back: number) => string; afterLoss: (cost: number, left: number) => string } =>
+  balance.energy.chargeLosses
+    ? {
+        hint: 'Every fight costs energy, win or lose, and so does trying again. Backing out before the fight is free.',
+        help: 'Fights you can join this run, won or lost. Energy gear counts only while it is worn.',
+        cost: (cost) => `Costs ${cost} energy, win or lose.`,
+        bossCost: (cost, back) => `Costs ${cost} energy, win or lose, and pays back ${back} on a win.`,
+        afterLoss: (cost, left) => `That fight cost ${cost} energy. You have ${left} left. No gold was lost.`,
+      }
+    : {
+        hint: 'A win costs energy. A loss costs nothing, so you can back out or try again freely.',
+        help: 'Fights you can win this run. Energy gear counts only while it is worn.',
+        cost: (cost) => `Costs ${cost} energy on a win.`,
+        bossCost: (cost, back) => `Costs ${cost} energy on a win and pays back ${back}.`,
+        afterLoss: () => 'A loss costs nothing: no energy, no gold.',
+      };
+
 export const derivedHelp = (balance: Balance): Record<string, string> => ({
   accuracy: `Your chance to hit. Equal to an enemy’s level plus ${balance.battle.ratingBase}, it hits ${percentOf(1 - balance.battle.missFactor)} of the time; lower misses much more.`,
   evasion: `Your chance to dodge. Equal to an enemy’s level plus ${balance.battle.ratingBase}, it dodges ${percentOf(balance.battle.dodgeBase)} of hits; the most it can reach is ${percentOf(balance.battle.dodgeCap)}.`,
@@ -31,7 +54,7 @@ export const derivedHelp = (balance: Balance): Record<string, string> => ({
   lifeRegen: 'Heals this share of your Life at the start of each of your turns after the first.',
   lastStand: 'Survive this many killing blows per fight, at 1 Life. Only the highest value worn counts.',
   growth: 'Extra stat points for every level gained while it is worn. Points already earned stay for the run. Only the highest value worn counts.',
-  energy: 'Fights you can win this run. Energy gear counts only while it is worn.',
+  energy: energyWords(balance).help,
 });
 
 export const SLOT_NAME: Record<SlotId, string> = {
@@ -166,7 +189,7 @@ export const exportReminderWords = (daysSinceExport: number, runsSinceExport: nu
 /** The line a screen shows the first time it opens (GDD 8.4). There is no tutorial sequence. */
 export const hints = (balance: Balance): Record<HintId, string> => ({
   map: 'Tap a tile to walk there, or press and drag to steer. Tap an enemy to walk up to it. Nothing attacks you: you choose every fight.',
-  prefight: 'A win costs energy. A loss costs nothing, so you can back out or try again freely.',
+  prefight: energyWords(balance).hint,
   hero: 'Each level gives stat points. Spending them cannot be undone until the next run, when level and points start over.',
   gear: 'Gear is kept between runs. A loadout is a whole outfit you can switch to in one tap; a slot is one place in it.',
   items: 'Everything in the shop is listed with its price from the start. Gold is lost at the end of a run, so spend it.',

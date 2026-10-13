@@ -5,7 +5,7 @@ import { deriveHero, dropsHeld, enemyAtSpawn, fightBlock, fightCost, forecast, l
 import type { BattleEvent, EnemyDef, GameEvent, LimitingFactor, RewardSummary, SpawnId } from '../engine';
 import { button, el, line } from './dom';
 import { formatNumber, formatOdds } from './format';
-import { REJECTIONS, hints, tagList } from './labels';
+import { REJECTIONS, energyWords, hints, tagList } from './labels';
 import type { Session } from './session';
 
 const sheet = (title: string, ...children: (Node | null | false)[]): HTMLElement =>
@@ -100,9 +100,8 @@ const prefightSheet = (session: Session, spawnId: SpawnId, close: () => void): H
     else shell.openSheet(() => playbackSheet(session, battle, showResult));
   };
 
-  const energyLine = enemy.boss
-    ? `Costs ${cost} energy on a win and pays back ${claimed ? cost : cost + content.balance.energy.bossSurplus}. You have ${energy}.`
-    : `Costs ${cost} energy on a win. You have ${energy}.`;
+  const words = energyWords(content.balance);
+  const energyLine = `${enemy.boss ? words.bossCost(cost, claimed ? cost : cost + content.balance.energy.bossSurplus) : words.cost(cost)} You have ${energy}.`;
 
   return sheet(
     `${text.glyph(enemy.id)} ${text.enemy(enemy.id)}`,
@@ -316,7 +315,7 @@ const resultSheet = (session: Session, battle: BattleRecord, rewards: RewardSumm
     return sheet(
       'Defeat',
       el('p', { text: lossSummary(battle, content.balance.battle.roundLimit) }),
-      el('p', { class: 'muted', text: 'A loss costs nothing: no energy, no gold.' }),
+      el('p', { class: 'muted', text: energyWords(content.balance).afterLoss(enemy === undefined ? 0 : fightCost(enemy, content), remainingEnergy(state, content)) }),
       button('Try again', again, { class: 'primary', disabled: !canFightAgain }),
       back,
     );

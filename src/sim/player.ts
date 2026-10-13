@@ -1,52 +1,46 @@
 // A simulated player (ARCHITECTURE section 10): a set of policies that plays the game through the same `step`
 // function the UI calls. It walks the map, so a gate it has not opened really is in its way.
 //
-// Phase 3b ships this one simple strategy. It climbs on the best XP it can beat, turns to collecting drops once
-// it has outgrown what it can beat, buys what it can afford, and puts the gold it has left into Salvage.
+// What the player does is one shape for every strategy: it climbs on the best XP it can beat, turns to collecting
+// drops once it has outgrown what it can beat, buys what it can afford, and puts the gold it has left into Salvage.
+// A strategy (config.ts) sets how sure it wants to be, how long it keeps at a loss, and which of those it does.
 
 import { combatantOf, deriveHero, dodgeChance, enemyHitDamage, fightCost, findPath, forecast, heroHitDamage, hitChance, level, owned, remainingEnergy, salvageChance, salvagePool, shopPrice, splitPolicy, step, sumPoints, unspentPoints } from '../engine';
-import type { Action, AllocationPolicy, Content, EnemyDef, GameEvent, GameState, HeroStats, ItemDef, ItemId, Point, SlotId, SpawnDef, StatSplit } from '../engine';
+import type { Action, AllocationPolicy, Content, EnemyDef, GameEvent, GameState, HeroStats, ItemDef, ItemId, Point, SlotId, SpawnDef } from '../engine';
 import { ACCESSORY_SLOTS, ARMOR_SLOTS } from '../engine';
-
-export type Strategy = {
-  name: string;
-  /** How new stat points are divided. */
-  split: StatSplit;
-  /** The forecast a normal enemy needs before the player will fight it. */
-  minWinChance: number;
-  /** The forecast a boss needs. Lower, because a loss costs nothing. */
-  bossWinChance: number;
-  /** Trial battles per forecast. Fewer than the game's own, to keep the simulator quick. */
-  forecastTrials: number;
-  /** Losses in a row against one enemy before the player gives up on it for the run. */
-  patience: number;
-  /** The hero stops climbing and starts collecting drops once its level is this many times the best enemy it can beat. */
-  farmAtRatio: number;
-};
-
-export const DEFAULT_STRATEGY: Strategy = {
-  name: 'climb-then-collect',
-  split: { life: 30, damage: 35, defense: 25, dexterity: 10, luck: 0 },
-  minWinChance: 0.6,
-  bossWinChance: 0.35,
-  forecastTrials: 150,
-  patience: 4,
-  farmAtRatio: 1.6,
-};
+import type { Strategy } from './config';
 
 export type Player = {
   state: GameState;
   /** Steps walked this run. */
   tiles: number;
-  /** For each win this run, how many tries it took. */
+  /** For each win this run, how many tries it took: the losses to that enemy since it was last beaten, plus one. */
   tries: number[];
   /** Enemies given up on this run. */
   shunned: Set<string>;
-  streak: { spawn: string; losses: number };
-  events: GameEvent[];
+  /** Losses to each spawn this run since the hero last beat it. */
+  lossesAt: Map<string, number>;
+  /** The same count, kept for the tries a win took: it is not cleared when the player gives an enemy up. */
+  sinceWin: Map<string, number>;
+  /** Losses in the last-gasp attempts at each boss this run (run.ts). */
+  lastGaspLosses: Map<string, number>;
+  /** Fights joined at each spawn this run, won or lost. */
+  fightsAt: Map<string, number>;
+  /** Which spawns can be walked up to, remembered for as long as nothing that opens a way has changed. */
+  reach: Map<string, Set<string>>;
 };
 
-export const newPlayer = (state: GameState): Player => ({ state, tiles: 0, tries: [], shunned: new Set(), streak: { spawn: '', losses: 0 }, events: [] });
+export const newPlayer = (state: GameState): Player => ({
+  state,
+  tiles: 0,
+  tries: [],
+  shunned: new Set(),
+  lossesAt: new Map(),
+  sinceWin: new Map(),
+  lastGaspLosses: new Map(),
+  fightsAt: new Map(),
+  reach: new Map(),
+});
 
 /** Applies an action, throwing if the engine turns it down: the simulator only sends actions it believes are allowed. */
 export const act = (player: Player, action: Action, content: Content): GameEvent[] => {
@@ -93,7 +87,7 @@ export const goTo = (player: Player, zone: string, target: Point, beside: boolea
  * A measure of fighting strength against one enemy, with no dice in it: how many of the enemy's lives the hero
  * removes per round, over how many of its own it loses. Above 1 the hero should win.
  */
-const power = (hero: HeroStats, enemy: EnemyDef, content: Content): number => {
+export const power = (hero: HeroStats, enemy: EnemyDef, content: Content): number => {
   const foe = combatantOf(enemy);
   const { balance } = content;
   const toHit = hitChance(hero.accuracy, foe.level, balance);
@@ -116,6 +110,17 @@ export const nextGoal = (state: GameState, content: Content): EnemyDef | undefin
 };
 
 const heroWith = (state: GameState, items: readonly ItemDef[], content: Content): HeroStats => deriveHero(state, content, items);
+
+/** The hero as it would stand in a set of slots, whatever it is wearing now. */
+export const heroIn = (state: GameState, slots: Record<SlotId, ItemId | null>, content: Content): HeroStats =>
+  heroWith(
+    state,
+    Object.values(slots).flatMap((id) => {
+      const item = id === null ? undefined : content.items[id];
+      return item === undefined ? [] : [item];
+    }),
+    content,
+  );
 
 /** Fills loadout 1 with the best owned gear against `against`, one slot at a time. Returns the actions to send. */
 export const bestGear = (state: GameState, against: EnemyDef, content: Content): Record<SlotId, ItemId | null> => {
@@ -189,10 +194,24 @@ const spawnsByLevel = (content: Content): Array<{ spawn: SpawnDef; enemy: EnemyD
     })
     .sort((a, b) => b.enemy.level - a.enemy.level);
 
-/** Whether the player can get beside this spawn as the map stands, without walking there. */
-const reachable = (state: GameState, spawn: SpawnDef, content: Content): boolean => {
-  const probe = newPlayer(state);
-  return goTo(probe, spawn.zone, { x: spawn.x, y: spawn.y }, true, content);
+/**
+ * Whether the player can get beside this spawn as the map stands, without walking there. What opens a way is a
+ * beaten boss, a found secret or a key, so the answer is kept until one of those changes.
+ */
+export const reachable = (player: Player, spawn: SpawnDef, content: Content): boolean => {
+  const { state } = player;
+  const keys = Object.keys(state.profile.items).filter((id) => owned(state, id) > 0 && content.items[id]?.kind === 'key');
+  const known = JSON.stringify([state.run.bossesBeaten, state.profile.secretsFound, keys]);
+  let open = player.reach.get(known);
+  if (open === undefined) {
+    open = new Set();
+    for (const id of content.spawnOrder) {
+      const other = content.spawns[id];
+      if (other !== undefined && goTo(newPlayer(state), other.zone, { x: other.x, y: other.y }, true, content)) open.add(id);
+    }
+    player.reach.set(known, open);
+  }
+  return open.has(spawn.id);
 };
 
 const newDropRate = (state: GameState, enemy: EnemyDef, content: Content): number =>
@@ -204,7 +223,7 @@ export const chooseFight = (player: Player, strategy: Strategy, content: Content
   const candidates = spawnsByLevel(content).filter(
     ({ spawn, enemy }) => !player.shunned.has(spawn.id) && fightCost(enemy, content) <= energy && !(enemy.boss && state.run.bossesBeaten.includes(enemy.id)),
   );
-  const open = candidates.filter(({ spawn }) => reachable(state, spawn, content));
+  const open = candidates.filter(({ spawn }) => reachable(player, spawn, content));
   const chance = (spawnId: string): number => forecast(state, spawnId, content, strategy.forecastTrials)?.winChance ?? 0;
 
   // A boss first: it pays energy back, and a gate boss opens the way on. With the tool in hand and the boss not
@@ -224,7 +243,7 @@ export const chooseFight = (player: Player, strategy: Strategy, content: Content
   if (best === undefined) return null;
 
   // Outgrown it: wins there barely move the level now, so collect drops instead, wherever the most are left.
-  if (level(state, content.balance) >= best.enemy.level * strategy.farmAtRatio) {
+  if (strategy.farmAtRatio !== null && level(state, content.balance) >= best.enemy.level * strategy.farmAtRatio) {
     let pick = best;
     let rate = newDropRate(state, best.enemy, content);
     for (const candidate of open) {
@@ -249,9 +268,9 @@ export const allocate = (player: Player, policy: AllocationPolicy, content: Cont
   if (sumPoints(points) >= 1) act(player, { type: 'Allocate', points }, content);
 };
 
-/** Buys the dearest thing it can afford, again and again, until nothing is affordable. True if anything was bought. */
-export const shop = (player: Player, content: Content): boolean => {
-  let bought = false;
+/** Buys the dearest thing it can afford, again and again, until nothing is affordable. Returns what was bought. */
+export const shop = (player: Player, content: Content): ItemId[] => {
+  const bought: ItemId[] = [];
   for (;;) {
     const affordable = content.itemOrder
       .map((id) => content.items[id])
@@ -261,22 +280,16 @@ export const shop = (player: Player, content: Content): boolean => {
       .sort((a, b) => b.price - a.price)[0];
     if (affordable === undefined) return bought;
     act(player, { type: 'Buy', item: affordable.item.id }, content);
-    bought = true;
+    bought.push(affordable.item.id);
   }
 };
 
-/** Walks to a Salvage site and puts the gold on hand into one attempt, if there is anything to find. */
-export const salvage = (player: Player, content: Content): void => {
+/** Puts the gold on hand into the run's one Salvage attempt, from wherever the hero stands (DV-9), if there is anything to find. */
+export const salvage = (player: Player, content: Content): GameEvent[] => {
   const { state } = player;
-  if (state.run.salvageUsed || state.run.gold <= 0 || salvagePool(state, content).length === 0) return;
-  for (const zone of content.zoneOrder) {
-    const site = content.zones[zone]?.map.salvageSites[0];
-    if (site === undefined) continue;
-    if (!goTo(player, zone, { x: site.x, y: site.y }, false, content)) continue;
-    const boost = player.state.profile.gems >= content.balance.salvage.boostGems && salvageChance(player.state, content.balance, false) < 0.5;
-    act(player, { type: 'Salvage', boost }, content);
-    return;
-  }
+  if (state.run.salvageUsed || state.run.gold <= 0 || salvagePool(state, content).length === 0) return [];
+  const boost = state.profile.gems >= content.balance.salvage.boostGems && salvageChance(state, content.balance, false) < 0.5;
+  return act(player, { type: 'Salvage', boost }, content);
 };
 
 export const policyOf = (strategy: Strategy): AllocationPolicy => splitPolicy(strategy.split);
