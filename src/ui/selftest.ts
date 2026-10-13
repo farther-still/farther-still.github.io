@@ -160,7 +160,7 @@ const playRuns = (content: Content): Replay => {
   const replay: Replay = { state: newGame(REPLAY_SEED, content), trail: [] };
   const spawns = weakestFirst(content);
   for (const spawn of spawns.slice(0, 4)) fightRound(replay, spawn, 5, content);
-  // One fight well above the hero, which should be lost and cost nothing: the strongest enemy it can walk up to.
+  // One fight well above the hero, which should be lost: the strongest enemy it can walk up to. What a loss costs follows the balance table (GDD 2.2).
   const reachable = spawns.filter((spawn) => {
     const at = content.spawns[spawn];
     return at !== undefined && at.zone === replay.state.run.position.zone && findPath(replay.state, content, replay.state.run.position, at, { beside: true }) !== null;

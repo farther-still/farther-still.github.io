@@ -221,6 +221,20 @@ export const measuredLabels = (): string[] => Object.keys(FINDINGS);
 
 type Pacing = Content['balance']['pacing'];
 const wholePercent = (share: number): number => Math.round(share * 100);
+/** The GDD writes its smallest counts as words: "never three in a row". */
+const COUNT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+
+/** Whether `text` holds `words` as written, and not as part of a longer number: "4–6" is not in "4–60" or "14–6". */
+const holds = (text: string, words: string): boolean => {
+  for (let at = text.indexOf(words); at >= 0; at = text.indexOf(words, at + 1)) {
+    const before = text.charAt(at - 1);
+    const after = text.charAt(at + words.length);
+    const digitBefore = /\d/.test(before) && /^\d/.test(words);
+    const digitAfter = /[\d.]/.test(after) && /\d$/.test(words) && !(after === '.' && !/\d/.test(text.charAt(at + words.length + 1)));
+    if (!digitBefore && !digitAfter) return true;
+  }
+  return false;
+};
 
 /**
  * A verdict is worked out from the numbers in data/balance.json, and the target shown beside it is the GDD's own
@@ -232,7 +246,7 @@ const TARGET_WORDS: Record<string, (pacing: Pacing) => string[]> = {
   'Wins per run': (p) => [`${span(p.winsPerRunEarly)} early`],
   'Seconds per fight': (p) => [`${span(p.secondsPerFight)} at default playback`, `under ${p.secondsPerFightSkipMax} with skip`],
   'Runs in Z1': (p) => [span(p.runsInFirstZone)],
-  'Runs with a persistent gain': (p) => [`At least ${wholePercent(p.persistentGainShare)}%`],
+  'Runs with a persistent gain': (p) => [`At least ${wholePercent(p.persistentGainShare)}%`, `never ${COUNT_WORDS[p.runsWithoutGainMax + 1] ?? String(p.runsWithoutGainMax + 1)} in a row`],
   'Breakthrough run': (p) => [`at least ${p.breakthroughFirstKills} enemies`],
   'Hero level ÷ strongest enemy beaten, at run end': (p) => [`Between ${p.levelOverStrongest.min} and ${p.levelOverStrongest.max}`],
   'Wins that needed more than 3 tries': (p) => [`more than ${p.hardWinTries} tries`, `Under ${wholePercent(p.hardWinShareMax)}%`],
@@ -275,7 +289,7 @@ export const gddRows = (measures: Measures, content: Content, gdd: string): Row[
     throw new Error(`sim: the summary and GDD 5.9 have drifted apart. In the GDD only: ${unknown.join('; ') || 'none'}. In the simulator only: ${stale.join('; ') || 'none'}. In the GDD twice: ${twice.join('; ') || 'none'}`);
   }
   for (const { label, target } of targets) {
-    const missing = (TARGET_WORDS[label]?.(content.balance.pacing) ?? []).filter((words) => !`${label} | ${target}`.includes(words));
+    const missing = (TARGET_WORDS[label]?.(content.balance.pacing) ?? []).filter((words) => !holds(`${label} | ${target}`, words));
     if (missing.length > 0) throw new Error(`sim: GDD 5.9 gives "${label}" the target "${target}", and data/balance.json holds a different one: the GDD's row should say "${missing.join('" and "')}"`);
   }
   return targets.map(({ label, target }) => {

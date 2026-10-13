@@ -153,6 +153,14 @@ describe('the rows of GDD 5.9', () => {
     expect(() => gddRows(m, CONTENT, GDD.replace('| Runs in Z1 | 4–6 |', '| Runs in Z1 | 2–3 |'))).toThrow(/"Runs in Z1" the target "2–3".*should say "4–6"/);
     expect(() => gddRows(m, CONTENT, GDD.replace('| Longest wall | No wall takes more than 8 runs |', '| Longest wall | No wall takes more than 12 runs |'))).toThrow(/should say "more than 8 runs"/);
     expect(() => gddRows(m, CONTENT, GDD.replace('| Wins that needed more than 3 tries | Under 15% |', '| Wins that needed more than 3 tries | Under 25% |'))).toThrow(/should say "Under 15%"/);
+    // A number that only begins or ends with the right digits is a different number.
+    expect(() => gddRows(m, CONTENT, GDD.replace('| Runs in Z1 | 4–6 |', '| Runs in Z1 | 4–60 |'))).toThrow(/should say "4–6"/);
+    expect(() => gddRows(m, CONTENT, GDD.replace('| Runs in Z1 | 4–6 |', '| Runs in Z1 | 14–6 |'))).toThrow(/should say "4–6"/);
+    expect(() => gddRows(m, CONTENT, GDD.replace('never over 80,', 'never over 800,'))).toThrow(/should say "never over 80"/);
+    expect(() => gddRows(m, CONTENT, GDD.replace('Between 1 and 3 in v1', 'Between 1 and 30 in v1'))).toThrow(/should say "Between 1 and 3"/);
+    expect(() => gddRows(m, CONTENT, GDD.replace('never three in a row without one', 'never two in a row without one'))).toThrow(/should say "never three in a row"/);
+    // A change of wording that keeps every number is not drift.
+    expect(() => gddRows(m, CONTENT, GDD.replace('| Longest wall | No wall takes more than 8 runs |', '| Longest wall | Nobody should need more than 8 runs at one wall |'))).not.toThrow();
     const twice = GDD.replace('| Longest wall |', '| Walls in v1 | 10–14 | Derived |\n| Longest wall |');
     expect(() => gddRows(m, CONTENT, twice)).toThrow(/In the GDD twice: Walls in v1/);
     // And the other way: a number changed in the balance table and not in the GDD.

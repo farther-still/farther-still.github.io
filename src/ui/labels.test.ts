@@ -69,6 +69,8 @@ describe('energyWords', () => {
     const words = energyWords(charged);
     const all = [words.hint, words.help, words.cost(2), words.bossCost(2, 4), words.afterLoss(2, 7)];
     for (const text of all) expect(text).not.toMatch(/costs nothing|energy on a win|you can win|freely/i);
+    expect(words.hint).toBe('Every fight costs energy, win or lose, and so does trying again. Backing out before the fight is free.');
+    expect(words.help).toBe('Fights you can join this run, won or lost. Energy gear counts only while it is worn.');
     expect(words.cost(2)).toBe('Costs 2 energy, win or lose.');
     expect(words.bossCost(2, 4)).toBe('Costs 2 energy, win or lose, and pays back 4 on a win.');
     expect(words.afterLoss(2, 7)).toBe('That fight cost 2 energy. You have 7 left. No gold was lost.');
