@@ -72,7 +72,7 @@ const wallOf = (state: GameState, content: Content): EnemyDef | undefined => {
  * With its last energy the player may throw itself at a boss it would not otherwise fight (DV-3). Where a loss
  * is free that is the last fight's worth of energy; where a loss is charged it is the energy the strategy holds back.
  */
-const lastGasp = (player: Player, strategy: Strategy, content: Content): Target | null => {
+export const lastGasp = (player: Player, strategy: Strategy, content: Content): Target | null => {
   if (strategy.bossAtRunEnd === null) return null;
   const { state } = player;
   const energy = remainingEnergy(state, content);

@@ -4,9 +4,9 @@
 import { describe, expect, it } from 'vitest';
 import { CONTENT } from '../../tests/helpers';
 import { deriveHero, resolveBattle, step } from '../engine';
-import type { BattleEvent, Combatant, GameEvent, HeroStats, Rng } from '../engine';
-import { sampleGame } from '../engine/sample.fixture';
-import { lossSummary } from './fight';
+import type { BattleEvent, Combatant, Content, EnemyDef, GameEvent, GameState, HeroStats, Rng } from '../engine';
+import { SAMPLE_BALANCE, sampleContent, sampleGame } from '../engine/sample.fixture';
+import { defeatEnergyLine, lossSummary, prefightEnergyLine } from './fight';
 
 const LIMIT = CONTENT.balance.battle.roundLimit;
 
@@ -181,5 +181,67 @@ describe('lossSummary', () => {
       expect(result).toMatchObject({ win: false, rounds: 2, hitsTaken: 2, heroLife: 0 });
       expect(summaryOf(result)).toBe('You took off 0% of its life and fell to its 2nd hit.');
     });
+  });
+});
+
+// The two lines that say what a fight costs, where the sheets build them (GDD 2.2, DV-10). They are checked
+// under both positions of the switch, in the sample world, where a fight costs 1 and a boss pays back 3.
+describe('prefightEnergyLine and defeatEnergyLine', () => {
+  const free = CONTENT;
+  const charged = sampleContent({ ...SAMPLE_BALANCE, energy: { ...SAMPLE_BALANCE.energy, chargeLosses: true } });
+  const enemyOf = (id: string): EnemyDef => {
+    const enemy = free.enemies[id];
+    if (enemy === undefined) throw new Error(`test setup: no enemy ${id}`);
+    return enemy;
+  };
+  const game = (run: Partial<GameState['run']> = {}, profile: Partial<GameState['profile']> = {}): GameState => {
+    const base = sampleGame();
+    return { profile: { ...base.profile, ...profile }, run: { ...base.run, ...run } };
+  };
+
+  it('ships with only wins charged', () => {
+    expect(free.balance.energy.chargeLosses).toBe(false);
+  });
+
+  it('gives a normal fight’s cost and the energy in hand, under either rule', () => {
+    expect(prefightEnergyLine(game(), enemyOf('e001'), free)).toBe('Costs 1 energy on a win. You have 20.');
+    expect(prefightEnergyLine(game(), enemyOf('e001'), charged)).toBe('Costs 1 energy, win or lose. You have 20.');
+    expect(prefightEnergyLine(game({ energySpent: 7, energyPaidBack: 3 }), enemyOf('e002'), free)).toBe('Costs 1 energy on a win. You have 16.');
+    expect(prefightEnergyLine(game({ energySpent: 7, energyPaidBack: 3 }), enemyOf('e002'), charged)).toBe('Costs 1 energy, win or lose. You have 16.');
+  });
+
+  it('gives a boss’s payback: cost and surplus while unclaimed, cost alone once claimed', () => {
+    expect(prefightEnergyLine(game(), enemyOf('e003'), free)).toBe('Costs 1 energy on a win and pays back 3. You have 20.');
+    expect(prefightEnergyLine(game(), enemyOf('e003'), charged)).toBe('Costs 1 energy, win or lose, and pays back 3 on a win. You have 20.');
+    const claimed = game({}, { claimedBosses: ['e003'] });
+    expect(prefightEnergyLine(claimed, enemyOf('e003'), free)).toBe('Costs 1 energy on a win and pays back 1. You have 23.');
+    expect(prefightEnergyLine(claimed, enemyOf('e003'), charged)).toBe('Costs 1 energy, win or lose, and pays back 1 on a win. You have 23.');
+  });
+
+  it('follows the zone’s cost where a fight costs 2', () => {
+    const costly = (content: Content): Content => {
+      const zone = content.zones['z01'];
+      if (zone === undefined) throw new Error('test setup: no zone');
+      return { ...content, zones: { ...content.zones, z01: { ...zone, balanceKey: 'Z7' } } };
+    };
+    expect(prefightEnergyLine(game(), enemyOf('e001'), costly(free))).toBe('Costs 2 energy on a win. You have 20.');
+    expect(prefightEnergyLine(game(), enemyOf('e003'), costly(charged))).toBe('Costs 2 energy, win or lose, and pays back 4 on a win. You have 20.');
+    expect(defeatEnergyLine(game({ energySpent: 2 }), enemyOf('e003'), costly(charged))).toBe('That fight cost 2 energy. You have 18 left. No gold was lost.');
+  });
+
+  it('says after a real lost fight what it cost and what is left, and says a loss is free only where it is', () => {
+    const beside = game({ position: { zone: 'z01', x: 3, y: 2 } });
+    const after = (content: Content): GameState => {
+      const result = step(beside, { type: 'Fight', spawn: 's003' }, content);
+      if ('rejected' in result) throw new Error(`test setup: the fight was rejected: ${result.rejected}`);
+      expect(result.state.run.tallies.losses).toBe(1);
+      return result.state;
+    };
+    expect(defeatEnergyLine(after(free), enemyOf('e003'), free)).toBe('A loss costs nothing: no energy, no gold.');
+    expect(defeatEnergyLine(after(charged), enemyOf('e003'), charged)).toBe('That fight cost 1 energy. You have 19 left. No gold was lost.');
+    // The second loss in a row is charged again.
+    const again = step(after(charged), { type: 'Fight', spawn: 's003' }, charged);
+    if ('rejected' in again) throw new Error('test setup: the retry was rejected');
+    expect(defeatEnergyLine(again.state, enemyOf('e003'), charged)).toBe('That fight cost 1 energy. You have 18 left. No gold was lost.');
   });
 });

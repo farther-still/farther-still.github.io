@@ -2,7 +2,7 @@
 // battle is resolved and saved before any of it is shown; playback only walks the event log.
 
 import { deriveHero, dropsHeld, enemyAtSpawn, fightBlock, fightCost, forecast, level, owned, remainingEnergy, startingEnergy, unspentPoints } from '../engine';
-import type { BattleEvent, EnemyDef, GameEvent, LimitingFactor, RewardSummary, SpawnId } from '../engine';
+import type { BattleEvent, Content, EnemyDef, GameEvent, GameState, LimitingFactor, RewardSummary, SpawnId } from '../engine';
 import { button, el, line } from './dom';
 import { formatNumber, formatOdds } from './format';
 import { REJECTIONS, energyWords, hints, tagList } from './labels';
@@ -54,6 +54,18 @@ export const hintLine = (session: Session, id: string): HTMLElement | null => {
   return box;
 };
 
+/** The pre-fight sheet's line on what the fight costs and what is in hand, in the words of the rule in force (GDD 2.2, DV-10). */
+export const prefightEnergyLine = (state: GameState, enemy: EnemyDef, content: Content): string => {
+  const words = energyWords(content.balance);
+  const cost = fightCost(enemy, content);
+  const back = state.profile.claimedBosses.includes(enemy.id) ? cost : cost + content.balance.energy.bossSurplus;
+  return `${enemy.boss ? words.bossCost(cost, back) : words.cost(cost)} You have ${remainingEnergy(state, content)}.`;
+};
+
+/** The Defeat sheet's line on what the loss cost. `state` is the game after the fight, so what is left is what the player now has. */
+export const defeatEnergyLine = (state: GameState, enemy: EnemyDef | undefined, content: Content): string =>
+  energyWords(content.balance).afterLoss(enemy === undefined ? 0 : fightCost(enemy, content), remainingEnergy(state, content));
+
 export const openPrefight = (session: Session, spawn: SpawnId): void => {
   session.shell.openSheet((close) => prefightSheet(session, spawn, close));
 };
@@ -67,8 +79,6 @@ const prefightSheet = (session: Session, spawnId: SpawnId, close: () => void): H
   const hero = deriveHero(state, content);
   const outlook = forecast(state, spawnId, content);
   const block = fightBlock(state, spawnId, content);
-  const cost = fightCost(enemy, content);
-  const energy = remainingEnergy(state, content);
   const claimed = state.profile.claimedBosses.includes(enemy.id);
   const mark = state.run.marks[spawnId];
   const held = dropsHeld(state, enemy, content);
@@ -100,9 +110,6 @@ const prefightSheet = (session: Session, spawnId: SpawnId, close: () => void): H
     else shell.openSheet(() => playbackSheet(session, battle, showResult));
   };
 
-  const words = energyWords(content.balance);
-  const energyLine = `${enemy.boss ? words.bossCost(cost, claimed ? cost : cost + content.balance.energy.bossSurplus) : words.cost(cost)} You have ${energy}.`;
-
   return sheet(
     `${text.glyph(enemy.id)} ${text.enemy(enemy.id)}`,
     hintLine(session, 'prefight'),
@@ -110,7 +117,7 @@ const prefightSheet = (session: Session, spawnId: SpawnId, close: () => void): H
     line('Kind', tagList(enemy.tags, text)),
     ...traitLines(enemy).map((words) => el('p', { text: words })),
     enemy.gate ? el('p', { class: 'flash', text: 'A gate: it stands on the only way on. Beating it opens the way for this run.' }) : null,
-    el('p', { text: energyLine }),
+    el('p', { text: prefightEnergyLine(state, enemy, content) }),
     enemy.boss
       ? el('p', {
           text: claimed
@@ -315,7 +322,7 @@ const resultSheet = (session: Session, battle: BattleRecord, rewards: RewardSumm
     return sheet(
       'Defeat',
       el('p', { text: lossSummary(battle, content.balance.battle.roundLimit) }),
-      el('p', { class: 'muted', text: energyWords(content.balance).afterLoss(enemy === undefined ? 0 : fightCost(enemy, content), remainingEnergy(state, content)) }),
+      el('p', { class: 'muted', text: defeatEnergyLine(state, enemy, content) }),
       button('Try again', again, { class: 'primary', disabled: !canFightAgain }),
       back,
     );

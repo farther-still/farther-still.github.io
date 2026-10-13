@@ -18,6 +18,7 @@ import type { Action, Content, GameState, ItemDef, Point, Position, SlotId, Spaw
 import { LocalBackend, SAVE_VERSION, checkImport, newAppState, sealRecord } from '../save';
 import type { AppState, SlotName, SlotRecord } from '../save';
 import { startApp } from './app';
+import { defeatEnergyLine, prefightEnergyLine } from './fight';
 import { GameController } from './controller';
 import { formatNumber, formatPair } from './format';
 import { REJECTIONS, SLOT_NAME } from './labels';
@@ -1619,5 +1620,45 @@ describe('Salvage away from its site', () => {
     await vi.waitFor(() => expect(sheetShowing(), 'the Salvage sheet is showing').toBe(true));
     dom.fire('pagehide');
     await vi.waitFor(async () => expect((await hot()).payload.game.run.position).toEqual({ zone: WORLD.start.zone, x: site.x, y: site.y }));
+  });
+});
+
+// ---- the energy rule on the two sheets that state it ----
+
+// GDD 2.2 and DV-10: whether a lost fight is charged is one switch in the balance table. `fight.test.ts` checks
+// the words under both positions; this checks that the sheets the player sees carry those words for the rule that
+// ships, and that the game saved behind them agrees.
+describe('what a fight costs, as the sheets say it', () => {
+  it('shows the rule in force before the fight and after a loss, and charges what it says', async () => {
+    // A new hero beside the first gate boss, which it cannot beat.
+    const spawn = WORLD.spawnOrder.map((id) => WORLD.spawns[id]).find((entry) => entry !== undefined && WORLD.enemies[entry.enemy]?.gate === true);
+    const boss = spawn === undefined ? undefined : WORLD.enemies[spawn.enemy];
+    if (spawn === undefined || boss === undefined) throw new Error('the real content has no gate boss');
+    const base = realGame();
+    const path = findPath(base, WORLD, WORLD.start, { x: spawn.x, y: spawn.y }, { beside: true });
+    const stand = path?.[path.length - 1];
+    if (stand === undefined) throw new Error('there is no way from the run start to the gate boss');
+    const beside: GameState = { ...base, run: { ...base.run, position: { zone: spawn.zone, x: stand.x, y: stand.y } } };
+    await seed((backend) => putRaw(backend, 'hot', realRecord('hot', 5, beside, { skipPlayback: true })));
+
+    await startApp(dom.root, OPTIONS);
+    await mapShows();
+    tapTile(beside.run.position, { x: spawn.x, y: spawn.y });
+    await vi.waitFor(() => expect(dom.buttons().includes('Fight'), 'the pre-fight sheet is showing').toBe(true));
+    const before = prefightEnergyLine(beside, boss, WORLD);
+    expect(shows(before), `the pre-fight sheet says "${before}"`).toBe(true);
+
+    dom.tap('Fight');
+    await vi.waitFor(() => expect(shows('Defeat'), 'the Defeat sheet is showing').toBe(true));
+    const saved = (await hot()).payload.game;
+    expect(saved.run.tallies).toMatchObject({ wins: 0, losses: 1 });
+    const after = defeatEnergyLine(saved, boss, WORLD);
+    expect(shows(after), `the Defeat sheet says "${after}"`).toBe(true);
+
+    // The words and the saved game are the same rule.
+    const charged = WORLD.balance.energy.chargeLosses;
+    expect(remainingEnergy(saved, WORLD)).toBe(remainingEnergy(beside, WORLD) - (charged ? 1 : 0));
+    expect(before.includes('win or lose')).toBe(charged);
+    expect(after === 'A loss costs nothing: no energy, no gold.').toBe(!charged);
   });
 });

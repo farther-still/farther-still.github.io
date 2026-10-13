@@ -1,6 +1,6 @@
 {
   "climb-then-collect": {
-    "about": "The Phase 3b player. Climbs on the strongest enemy it gives 60% or better, tries a boss from 35%, gives a boss up for the run after 4 losses, and turns to collecting drops once it has outgrown what it can beat.",
+    "about": "The Phase 3b player, with its settings as they were. Climbs on the strongest enemy it gives 60% or better, tries a boss from 35%, gives a boss up for the run after 4 losses, shops after every win, uses Salvage every run, and turns to collecting drops once it has outgrown what it can beat.",
     "split": { "life": 30, "damage": 35, "defense": 25, "dexterity": 10, "luck": 0 },
     "minWinChance": 0.6,
     "bossWinChance": 0.35,
@@ -14,7 +14,7 @@
     "forecastTrials": 150
   },
   "long-shot": {
-    "about": "DV-3's risk. Plays as the Phase 3b player does, then with its last energy throws itself at the boss at any odds from 2%, up to 15 times. Where a loss is charged it holds 5 energy back for that.",
+    "about": "DV-3's risk. Plays as the Phase 3b player does, except that it keeps at a boss for up to 15 losses where that player stops at 4, and that with its last energy it throws itself at the boss at any odds from 2%, up to 15 times. Where a loss is charged it holds 5 energy back for that.",
     "split": { "life": 30, "damage": 35, "defense": 25, "dexterity": 10, "luck": 0 },
     "minWinChance": 0.6,
     "bossWinChance": 0.35,

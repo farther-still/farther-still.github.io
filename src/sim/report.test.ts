@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { loadBundledContent } from '../content';
 import { RECORDED, contentFor, variantNamed } from './config';
 import { formatCsv, CSV_COLUMNS } from './csv';
+import { hardWrappedLines } from '../../scripts/check-prose';
 import { calibrate, formatSummary, gddRows, gddTargets, measure, measuredLabels, median, percentile } from './report';
 import type { Playthrough, RunRecord } from './run';
 
@@ -62,6 +63,11 @@ describe('median and percentile', () => {
     expect(percentile(ten, 0.9)).toBe(9);
     expect(percentile(ten, 1)).toBe(10);
     expect(percentile([7], 0.1)).toBe(7);
+    // Nearest rank rounds up: a tenth of eleven values is past the first, so the second is the answer.
+    const eleven = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+    expect(percentile(eleven, 0.1)).toBe(2);
+    expect(percentile(eleven, 0.9)).toBe(10);
+    expect(percentile([5, 1, 3], 0.5)).toBe(3);
   });
 });
 
@@ -129,6 +135,31 @@ describe('the rows of GDD 5.9', () => {
     expect(rows.find((row) => row.label === 'Longest wall')).toMatchObject({ verdict: 'NOT MET', result: expect.stringContaining('3 of 3 players') });
   });
 
+  it('says a target is missed on its second half alone: a long spell without a gain, or too many hard wins', () => {
+    const dry = (number: number): Partial<RunRecord> => (number >= 2 && number <= 4 ? { persistentGain: false, itemsGained: [] } : {});
+    // 37 of 40 runs have a gain, which is over 90%, but one player went three runs without.
+    const spell = gddRows(measure([player(1, 10, 12, 1, dry), player(2, 10), player(3, 10), player(4, 10)], CONTENT), CONTENT, GDD);
+    expect(spell.find((row) => row.label === 'Runs with a persistent gain')).toMatchObject({ verdict: 'NOT MET', result: expect.stringContaining('1 of 4 players had a spell over 2') });
+    const steady = gddRows(measure([player(1, 10), player(2, 10)], CONTENT), CONTENT, GDD);
+    expect(steady.find((row) => row.label === 'Runs with a persistent gain')?.verdict).toBe('MET');
+    // A fifth of all wins took more than 3 tries.
+    const hard = gddRows(measure([player(1, 5, 12, 1, () => ({ hardWins: 4 }))], CONTENT), CONTENT, GDD);
+    expect(hard.find((row) => row.label === 'Wins that needed more than 3 tries')).toMatchObject({ verdict: 'NOT MET', result: expect.stringContaining('20% of all wins') });
+    expect(steady.find((row) => row.label === 'Wins that needed more than 3 tries')?.verdict).toBe('MET');
+  });
+
+  it('stops when a target in the GDD no longer says the number its verdict is worked out from, or a row is there twice', () => {
+    const m = measure([player(1, 5)], CONTENT);
+    expect(() => gddRows(m, CONTENT, GDD.replace('| Runs in Z1 | 4–6 |', '| Runs in Z1 | 2–3 |'))).toThrow(/"Runs in Z1" the target "2–3".*should say "4–6"/);
+    expect(() => gddRows(m, CONTENT, GDD.replace('| Longest wall | No wall takes more than 8 runs |', '| Longest wall | No wall takes more than 12 runs |'))).toThrow(/should say "more than 8 runs"/);
+    expect(() => gddRows(m, CONTENT, GDD.replace('| Wins that needed more than 3 tries | Under 15% |', '| Wins that needed more than 3 tries | Under 25% |'))).toThrow(/should say "Under 15%"/);
+    const twice = GDD.replace('| Longest wall |', '| Walls in v1 | 10–14 | Derived |\n| Longest wall |');
+    expect(() => gddRows(m, CONTENT, twice)).toThrow(/In the GDD twice: Walls in v1/);
+    // And the other way: a number changed in the balance table and not in the GDD.
+    const moved: typeof CONTENT = { ...CONTENT, balance: { ...CONTENT.balance, pacing: { ...CONTENT.balance.pacing, wallMaxRuns: 9 } } };
+    expect(() => gddRows(m, moved, GDD)).toThrow(/should say "more than 9 runs"/);
+  });
+
   it('stops when the GDD gains a row it has no measure for, or loses one it has', () => {
     const m = measure([player(1, 5)], CONTENT);
     const added = GDD.replace('| Longest wall |', '| A target nobody measures | 1 | Test |\n| Longest wall |');
@@ -175,7 +206,23 @@ describe('calibrate', () => {
     expect(result.gate.inside).toBe(true);
   });
 
-  it('needs three levels in four, and the tries, and the run time, each on its own', () => {
+  it('needs six of the eight recorded levels inside, and not five', () => {
+    const shifted = (misses: number): Playthrough[] =>
+      close.map((play) => ({ ...play, runs: play.runs.map((entry) => (entry.run >= 2 && entry.run < 2 + misses ? { ...entry, level: entry.level + 40 } : entry)) }));
+    expect(calibrate(measure(shifted(2), CONTENT), RECORDED)).toMatchObject({ levelsInside: 6, levelsNeeded: 6, reproduces: true });
+    expect(calibrate(measure(shifted(3), CONTENT), RECORDED)).toMatchObject({ levelsInside: 5, levelsNeeded: 6, reproduces: false });
+  });
+
+  it('counts the recorded tries as inside when either four or five is: the player said "four or five"', () => {
+    const withTries = (tries: number[]): Playthrough[] => close.map((play, index) => ({ ...play, runs: play.runs.map((entry) => (entry.gatesBeaten.length > 0 ? { ...entry, wallFights: tries[index] ?? 1 } : entry)) }));
+    // The 90th percentile of ten values is the ninth.
+    expect(calibrate(measure(withTries([1, 1, 1, 1, 2, 2, 2, 3, 3, 9]), CONTENT), RECORDED).tries).toMatchObject({ high: 3, inside: false });
+    expect(calibrate(measure(withTries([1, 1, 1, 1, 2, 2, 2, 3, 4, 9]), CONTENT), RECORDED).tries).toMatchObject({ high: 4, inside: true });
+    expect(calibrate(measure(withTries([6, 6, 6, 6, 7, 7, 7, 8, 8, 9]), CONTENT), RECORDED).tries).toMatchObject({ low: 6, inside: false });
+    expect(calibrate(measure(withTries([5, 5, 6, 6, 7, 7, 7, 8, 8, 9]), CONTENT), RECORDED).tries).toMatchObject({ low: 5, inside: true });
+  });
+
+  it('needs the levels, and the tries, and the run time, each on its own', () => {
     const tooStrong = close.map((play) => ({ ...play, runs: play.runs.map((entry) => ({ ...entry, level: entry.level + 40 })) }));
     expect(calibrate(measure(tooStrong, CONTENT), RECORDED)).toMatchObject({ levelsInside: 0, reproduces: false });
     const oneTry = close.map((play) => ({ ...play, runs: play.runs.map((entry) => ({ ...entry, wallFights: Math.min(entry.wallFights, 1) })) }));
@@ -211,6 +258,49 @@ describe('the summary and the CSV', () => {
   it('never wraps a paragraph, and is the same text for the same input', () => {
     expect(summary).toBe(formatSummary(results, { seed: 1, recorded: RECORDED, gdd: GDD }));
     expect(summary.endsWith('\n')).toBe(true);
+    // The project's own prose check, which the repo's documents pass.
+    expect(hardWrappedLines(summary)).toEqual([]);
+    expect(hardWrappedLines('A paragraph\nwrapped by hand.\n')).toEqual([2]);
+  });
+
+  it('puts each figure of a run under its own column name', () => {
+    const one = run(3, { level: 31, wins: 17, losses: 4, startingEnergy: 21, energyLeft: 2, gold: 345, drops: ['i005'], bought: ['i001', 'i010'], salvageTried: true, salvaged: 'i007', firstKills: ['e004', 'e005'], gatesBeaten: [GATE], claims: 1, persistentGain: false, strongest: 23, zoneReached: 2, wallChance: 0.4567, wallFights: 6, hardWins: 2, tiles: 120, battles: 21, power: 1.23456 });
+    const lines = formatCsv([{ rule: 'charged', variant: 'energy-25', strategy: 'like-michael', content: charged, plays: [{ seed: 42, runs: [one] }] }]).trimEnd().split('\n');
+    const cells = (lines[1] ?? '').split(',');
+    const row = Object.fromEntries(CSV_COLUMNS.map((name, index) => [name, cells[index]]));
+    expect(cells).toHaveLength(CSV_COLUMNS.length);
+    expect(row).toEqual({
+      rule: 'charged',
+      variant: 'energy-25',
+      strategy: 'like-michael',
+      player_seed: '42',
+      run: '3',
+      level: '31',
+      power: '1.235',
+      zone_reached: '2',
+      gold: '345',
+      drops: '1',
+      drop_ids: 'i005',
+      strongest_beaten: '23',
+      wins: '17',
+      losses: '4',
+      energy_start: '21',
+      energy_left: '2',
+      bought_ids: 'i001 i010',
+      salvage: 'i007',
+      first_kills: 'e004 e005',
+      gates_beaten: GATE,
+      claims: '1',
+      persistent_gain: '0',
+      wall: GATE,
+      wall_win_chance: '0.457',
+      wall_fights: '6',
+      hard_wins: '2',
+      tiles: '120',
+      battles: '21',
+      // 120 tiles at 6 a second, and 21 battles at 4.5 seconds each with 2 to decide: 156.5 seconds.
+      minutes_modelled: '2.61',
+    });
   });
 
   it('writes one CSV row per run, with the kickoff’s columns first after the configuration', () => {

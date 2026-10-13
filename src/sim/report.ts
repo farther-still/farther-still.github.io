@@ -219,6 +219,27 @@ const FINDINGS: Record<string, (m: Measures, content: Content) => Finding> = {
 
 export const measuredLabels = (): string[] => Object.keys(FINDINGS);
 
+type Pacing = Content['balance']['pacing'];
+const wholePercent = (share: number): number => Math.round(share * 100);
+
+/**
+ * A verdict is worked out from the numbers in data/balance.json, and the target shown beside it is the GDD's own
+ * text. These are the words that text must still hold for the two to be saying the same thing.
+ */
+const TARGET_WORDS: Record<string, (pacing: Pacing) => string[]> = {
+  'Runs per wall': (p) => [span(p.runsPerWall)],
+  'Real time per run, Z1–Z2': (p) => [`${span(p.minutesPerRunEarly)} minutes`],
+  'Wins per run': (p) => [`${span(p.winsPerRunEarly)} early`],
+  'Seconds per fight': (p) => [`${span(p.secondsPerFight)} at default playback`, `under ${p.secondsPerFightSkipMax} with skip`],
+  'Runs in Z1': (p) => [span(p.runsInFirstZone)],
+  'Runs with a persistent gain': (p) => [`At least ${wholePercent(p.persistentGainShare)}%`],
+  'Breakthrough run': (p) => [`at least ${p.breakthroughFirstKills} enemies`],
+  'Hero level ÷ strongest enemy beaten, at run end': (p) => [`Between ${p.levelOverStrongest.min} and ${p.levelOverStrongest.max}`],
+  'Wins that needed more than 3 tries': (p) => [`more than ${p.hardWinTries} tries`, `Under ${wholePercent(p.hardWinShareMax)}%`],
+  'Longest wall': (p) => [`more than ${p.wallMaxRuns} runs`],
+  'Expected kills to get one drop': (p) => [`${span(p.killsPerDropTypical)} for a typical item`, `never over ${p.killsPerDropMax}`],
+};
+
 /** The first two cells of every row of the table under "### 5.9" in the GDD's text: the target's name and its value. */
 export const gddTargets = (gdd: string): Array<{ label: string; target: string }> => {
   const lines = gdd.split(/\r?\n/);
@@ -241,12 +262,22 @@ export const gddTargets = (gdd: string): Array<{ label: string; target: string }
   return rows;
 };
 
-/** One row per row of GDD 5.9, in the GDD's order. Throws if the GDD has a row this file has no measure for, or the reverse. */
+/**
+ * One row per row of GDD 5.9, in the GDD's order. Throws if the GDD has a row this file has no measure for, or
+ * the reverse, or the same row twice, or a target whose text no longer holds the number its verdict is worked out from.
+ */
 export const gddRows = (measures: Measures, content: Content, gdd: string): Row[] => {
   const targets = gddTargets(gdd);
   const unknown = targets.filter(({ label }) => !Object.hasOwn(FINDINGS, label)).map(({ label }) => label);
   const stale = Object.keys(FINDINGS).filter((label) => !targets.some((target) => target.label === label));
-  if (unknown.length > 0 || stale.length > 0) throw new Error(`sim: the summary and GDD 5.9 have drifted apart. In the GDD only: ${unknown.join('; ') || 'none'}. In the simulator only: ${stale.join('; ') || 'none'}`);
+  const twice = targets.filter(({ label }, index) => targets.findIndex((target) => target.label === label) !== index).map(({ label }) => label);
+  if (unknown.length > 0 || stale.length > 0 || twice.length > 0) {
+    throw new Error(`sim: the summary and GDD 5.9 have drifted apart. In the GDD only: ${unknown.join('; ') || 'none'}. In the simulator only: ${stale.join('; ') || 'none'}. In the GDD twice: ${twice.join('; ') || 'none'}`);
+  }
+  for (const { label, target } of targets) {
+    const missing = (TARGET_WORDS[label]?.(content.balance.pacing) ?? []).filter((words) => !`${label} | ${target}`.includes(words));
+    if (missing.length > 0) throw new Error(`sim: GDD 5.9 gives "${label}" the target "${target}", and data/balance.json holds a different one: the GDD's row should say "${missing.join('" and "')}"`);
+  }
   return targets.map(({ label, target }) => {
     const finding = (FINDINGS[label] as (m: Measures, content: Content) => Finding)(measures, content);
     return { label, target, ...finding };

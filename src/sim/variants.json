@@ -4,14 +4,9 @@
     "set": {},
     "drops": {}
   },
-  "energy-24": {
-    "about": "Base starting energy 24 in place of 20. Tuned for the rule that only wins are charged.",
-    "set": { "energy.base": 24 },
-    "drops": {}
-  },
-  "energy-25": {
-    "about": "Base starting energy 25 in place of 20. Tuned for the rule that a loss is charged.",
-    "set": { "energy.base": 25 },
-    "drops": {}
-  }
+  "energy-22": { "about": "Base starting energy 22 in place of 20.", "set": { "energy.base": 22 }, "drops": {} },
+  "energy-23": { "about": "Base starting energy 23 in place of 20.", "set": { "energy.base": 23 }, "drops": {} },
+  "energy-24": { "about": "Base starting energy 24 in place of 20.", "set": { "energy.base": 24 }, "drops": {} },
+  "energy-25": { "about": "Base starting energy 25 in place of 20.", "set": { "energy.base": 25 }, "drops": {} },
+  "energy-26": { "about": "Base starting energy 26 in place of 20.", "set": { "energy.base": 26 }, "drops": {} }
 }

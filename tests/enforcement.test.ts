@@ -46,11 +46,16 @@ describe('lint: zero audio, everywhere (hard rule 2)', () => {
     "const tag = 'video';\nexport const a = document.createElement(tag);",
     "export const a = document.createElementNS('http://www.w3.org/1999/xhtml', 'AUDIO');",
   ];
-  it.each(cases)('bans %s', async (code) => {
-    await banned('src/ui/probe.ts', code, 'Zero audio');
-    await banned('src/platform/probe.ts', code, 'Zero audio');
-    await banned('src/engine/probe.ts', code, 'Zero audio');
-  });
+  // Three lint runs a case. The default five seconds is not enough on a machine that is also running a simulation.
+  it.each(cases)(
+    'bans %s',
+    async (code) => {
+      await banned('src/ui/probe.ts', code, 'Zero audio');
+      await banned('src/platform/probe.ts', code, 'Zero audio');
+      await banned('src/engine/probe.ts', code, 'Zero audio');
+    },
+    30_000,
+  );
 
   it('allows ordinary DOM code', async () => {
     await allowed('src/ui/probe.ts', 'export const a = document.createElement("div");\nexport const b = "audio is banned";\n');

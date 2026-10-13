@@ -18,7 +18,7 @@ describe('strategies and variants', () => {
     }
   });
 
-  it('keeps the Phase 3b player as it was, so its figures can be set beside GDD 13.5', () => {
+  it('keeps the Phase 3b player’s settings as they were', () => {
     expect(strategyNamed('climb-then-collect')).toMatchObject({ minWinChance: 0.6, bossWinChance: 0.35, patience: 4, bossPatience: 4, bossAtRunEnd: null, farmAtRatio: 1.6, shop: 'dearest', salvage: 'always', forecastTrials: 150 });
   });
 
