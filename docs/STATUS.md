@@ -4,7 +4,9 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Current phase
 
-**Phase 4 approved. Phase 5 has not started.** Michael approved Phase 4 on 2026-10-13 with the words "a, approved": base starting energy stays 20 (GDD R-14), and the gate is passed (R-15). He had ruled earlier the same day that a lost fight is charged, as in RH (R-11). The simulator, what it found (GDD 13.7), the verifier pass, the re-check and their fixes are under "Phase 4 working record". Phase 4 went out as one push of five commits, made after he had been told what it changes; its CI run and the check of the live site were reported to him in chat and are to be written here with Phase 5's first commit, so that recording them does not ship one more version to his phone. Phase 5, cloud backup and then content expansion, starts in a new session from the prompt he was given.
+**Phase 5 has begun; nothing is built.** It started on 2026-10-13 in a new session, from the prompt Michael was given after he approved Phase 4. Its first commit records the Phase 4 push's CI run and the check of the live site, under "Phase 5 working record"; that commit is held and goes out with the next push, so that recording them does not ship one more version to his phone. Next, in this order: he is asked what his phone shows under the charged-loss rule; the phase's success checks, its split and its gates are put to him; and nothing is built until he has given his word on that plan. Phase 5 is cloud backup and then content expansion.
+
+**Phase 4 approved.** Michael approved Phase 4 on 2026-10-13 with the words "a, approved": base starting energy stays 20 (GDD R-14), and the gate is passed (R-15). He had ruled earlier the same day that a lost fight is charged, as in RH (R-11). The simulator, what it found (GDD 13.7), the verifier pass, the re-check and their fixes are under "Phase 4 working record". Phase 4 went out as one push of five commits, made after he had been told what it changes.
 
 **Spoiler rule for every session.** `docs/sealed/` holds zone themes and all content names. Michael does not open it. Never quote anything from it in chat, gate reports, commit messages or this file. Refer to zones as Z1–Z8, elements as E1–E3 and enemy types as T1–T4. What kind each optional secret is, and where, is sealed too: say "an optional secret".
 
@@ -52,10 +54,14 @@ Result: 1, 2, 4, 5 and 6 PASS on the laptop, with the evidence under "Phase 3b w
 
 ### PENDING
 
-- [ ] Phase 5: write down here the CI run and the live-site check of the Phase 4 push, from the Phase 5 prompt
-- [ ] Phase 5: cloud backup, then content expansion. Starts in a new session, from a prompt given after the approval
+- [ ] Phase 5: ask Michael what his phone shows under the charged-loss rule: the pre-fight sheet's cost line and a lost fight's sheet
+- [ ] Phase 5: state measurable success checks and propose the split and the gates; wait for his word before building
+- [ ] Phase 5a: cloud backup. The backend choice goes to him as one question with a recommendation; before building he is told where the credential lives, who can read it, what a leak or an expiry does to his save, and what he does by hand. Ends at a gate with a phone acceptance run: back up, delete the app, reinstall, restore
+- [ ] Phase 5b: content expansion, Z2 first, meeting the three findings under "Carried forward to Phase 5". Before anything past Z2 is authored he is told how many zones are proposed and what each costs
 
 ### COMPLETED
+
+- [x] Phase 5: the Phase 4 push's CI run and the check of the live site written down, both read again in this session (2026-10-13)
 
 - [x] Step 0: `git init`, `.gitignore` (verified `reference/` ignored before first commit), `docs/KICKOFF.md` verbatim, stub `CLAUDE.md`, this file, first commit
 - [x] Phase 0: read `reference/` (coverage and its one limit are listed under "Reading coverage")
@@ -109,6 +115,17 @@ Result: 1, 2, 4, 5 and 6 PASS on the laptop, with the evidence under "Phase 3b w
 - [x] Phase 4: gate report posted; gate question answered (a: base energy stays 20, GDD R-14)
 - [x] Phase 4: approved by Michael, 2026-10-13
 - [x] Phase 4: separate verifier pass (2026-10-13): figures confirmed, three checks failed on what was written about them; the write-up corrected, the weak tests replaced, a sweep of base energy added
+
+## Phase 5 working record
+
+### The Phase 4 push, recorded (2026-10-13)
+
+Both checks below were read again in the Phase 5 session, before this was written, and agree with what the Phase 4 session reported to Michael in chat.
+
+- **The push:** `main` at `06af802`, five commits: `8e7de3a`, `7e769ad`, `bbc9710`, `f5faf73` and `06af802`.
+- **CI:** run 38408310068, the repo's tenth, for the push whose head is `06af8027a114f81f5e7374b76e26fcd36be8b592`. Completed with conclusion `success`; the `check` job succeeded at 13:51:21 UTC and the `deploy` job at 13:51:43 UTC on 2026-10-13. `https://github.com/farther-still/farther-still.github.io/actions/runs/38408310068`. Read from GitHub's REST API. PASS.
+- **The live site:** `https://farther-still.github.io/` answered 200. The one script the page asks for holds that full commit hash as its build, the balance table inside it has `chargeLosses` on, and the page carries the pinned content security policy, `connect-src 'self'` included. Read with curl. PASS.
+- **On Michael's phone:** NOT CHECKED. He is asked what the pre-fight sheet's cost line and a lost fight's sheet say.
 
 ## Phase 4 working record
 
