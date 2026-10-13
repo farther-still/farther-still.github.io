@@ -4,7 +4,7 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 ## Current phase
 
-**Phase 4, the balance simulator, is under way and waiting for Michael's ruling on energy.** It began on 2026-10-12 in a new session, from the prompt he was given at the end of the Phase 3b review. The rule for a lost fight is behind a switch in `data/balance.json`, shipped off; the simulator is rebuilt with strategies, CSV output and a summary against every row of GDD 5.9; both rules are simulated on two sets of seeds, with a sweep of base energy; a separate verifier pass has been through it and its findings are fixed; and what was found is GDD section 13.7. He has been asked one question: which rule the game should have (DV-10). Until he rules, no shipped rule, shipped balance number or golden value changes. Nothing has been pushed in this phase. The phase ends at a gate ⛔.
+**Phase 4, the balance simulator, is at its gate ⛔ and waits for the word "approved".** Michael ruled on 2026-10-13 that a lost fight is charged, as in RH (GDD R-11), and that nothing else is to be retuned (R-12). The switch in `data/balance.json` is on, one golden value changed with it, and the documents are in line. The simulator, its findings (GDD 13.7), the verifier pass and its fixes are under "Phase 4 working record". Three local commits, not pushed: the one push of the phase goes out once he has been told what it changes.
 
 **Spoiler rule for every session.** `docs/sealed/` holds zone themes and all content names. Michael does not open it. Never quote anything from it in chat, gate reports, commit messages or this file. Refer to zones as Z1–Z8, elements as E1–E3 and enemy types as T1–T4. What kind each optional secret is, and where, is sealed too: say "an optional secret".
 
@@ -52,11 +52,9 @@ Result: 1, 2, 4, 5 and 6 PASS on the laptop, with the evidence under "Phase 3b w
 
 ### PENDING
 
-- [ ] Phase 4: Michael's ruling on DV-10, asked 2026-10-13 with the two rules side by side ⛔ waits for him
-- [ ] Phase 4: then the questions listed under "To put to Michael at the gate", one at a time, base starting energy first
-- [ ] Phase 4: apply his rulings: the switch, the numbers, the golden values, the documents; if losses are charged, look at the four screens in the browser pane
-- [ ] Phase 4: a short re-check by a separate pass of the fixes made after the verifier pass and of whatever the rulings change; gate report ⛔; one push, described to Michael before it goes
-- [ ] Asked of Michael, 2026-10-12: try Salvage from the Run tab once and say what happened
+- [ ] Phase 4: gate report posted 2026-10-13 ⛔ waits for the literal word "approved"
+- [ ] Phase 4: the one push, after Michael has been told what it changes; then CI read with curl and the live site checked
+- [ ] Phase 4: on approval, record it and give Michael a paste-ready prompt for Phase 5
 - [ ] Phase 5: cloud backup, then content expansion
 
 ### COMPLETED
@@ -106,6 +104,10 @@ Result: 1, 2, 4, 5 and 6 PASS on the laptop, with the evidence under "Phase 3b w
 - [x] Phase 4: both energy rules simulated at 200 players each and tuned to the same targets; findings in GDD 13.7
 - [x] Phase 4: carried forward: the long-shot retrier and the cautious player; the wall's tail; `goldAt` at zone edges; the first Claim
 - [x] Phase 4: GDD and ARCHITECTURE brought in line; `CLAUDE.md` needed no change
+- [x] Phase 4: Michael's rulings, 2026-10-13: charge a loss (R-11); no retuning (R-12); his account of the gate run recorded (R-13)
+- [x] Phase 4: rulings applied: the switch on, one golden value rewritten, tests and documents in line; three of the four lines that state the rule seen in the browser
+- [x] Salvage from the Run tab on the phone: Michael reported on 2026-10-13 that he tried it and it worked
+- [x] Phase 4: a short separate re-check of the fixes and of the rule change
 - [x] Phase 4: separate verifier pass (2026-10-13): figures confirmed, three checks failed on what was written about them; the write-up corrected, the weak tests replaced, a sweep of base energy added
 
 ## Phase 4 working record
@@ -152,9 +154,25 @@ A separate agent was given the commit, the claims and the success checks, with i
 - **It could not check:** the app in a browser under either rule; whether `like-michael`'s habits are his; anything past Z1; the sealed strings for a sentence stating the rule, which it was told not to open.
 - It left a copy of the repo at `e57f9f6` in its scratch folder, outside the repo, when its own delete was refused. It is harmless, and Michael is asked whether to remove it.
 
-### Result against the success checks, so far
+### Michael's rulings and what was done about them (2026-10-13)
 
-1 PASS. 2 PASS in tests, NOT CHECKED in a browser with the switch on. 3 PASS. 4 PASS for the simulation and the table; the question is with Michael. 5 reported: no strategy reproduces him on both sets of seeds. 6 PASS, with the first Claim's answer being "not before Z3". 7 done once, with a re-check to come. 8 open.
+His reply to the two rules side by side, in his words: his gate was on run 8, and the app counted 10 because the first two runs were test runs with no fights, made while trying the reset buttons; "Just let things be how they are"; "For the rule, do a (as RH does)"; and he had already tried Salvage from the Run tab, and it worked. They are GDD R-11 to R-13.
+
+- **The rule (R-11).** `energy.chargeLosses` is `true` in `data/balance.json`, and in the engine's sample balance, which holds the GDD's values. `npm run golden:update` rewrote one value, the run replay, which holds a loss; the other twelve did not move. The engine's loss tests, the two sheet lines' tests, the label tests and the simulator's habit tests were turned round so that the ruled rule is the default and the old one is the switch's other position. GDD sections 1, 2.1, 2.2, 3.4, 8.2 and 9, the Q2 row, DV-3 and DV-10 now state the ruled rule, and DV-10 is withdrawn.
+- **No retuning (R-12).** Read as: base starting energy stays 20 and Z1's content stays as shipped. So the game is a little harder than the one he played: a careful player's gate comes about a third of a run later on average, with the median unchanged. For the record, losses charged at base energy 21 plays like the game he played: on seeds 1 to 200 the gate fell on run 7 (6–10) for `like-michael`, 7 (5–9) for `cautious` and 6 (5–8) for the Phase 3b player, against 8 (6–11), 7 (5–9) and 6 (5–8) with only wins charged at 20 (`--rule charged --variant energy-21`). The other questions that had been listed for the gate are answered by the same words and left: the first Claim not landing before Z3, section 5.9's retry guard that cannot fail, `goldAt` at zone edges, and "no wall over 8 runs" being met at no energy.
+- **The gate run (R-13).** His account is recorded beside the app's count and the two do not fit: the Run times list recorded under "Phone review" shows fights in run 1 and 20 wins in each of runs 2 to 8. He was told so. `src/sim/recorded.json` keeps the app's count. On his account he is an ordinary careful player and the finding that his gate fell late does not apply; the others stand.
+- **Salvage from the Run tab.** PASS on the phone by his report. It was the one thing the Phase 3b review had left unchecked.
+
+Verified on the laptop after the change:
+
+- `npm run check`: PASS, 1,240 tests in 39 files. `npm run build` and `npm run check:dist`: PASS.
+- `git diff e57f9f6 -- tests/fixtures docs/sealed src/save` is empty. `data/` differs only in `balance.json`. `tests/golden/golden.json` differs in the one value.
+- The dev build in the browser pane, with the laptop's own test save: the pre-fight sheet's first-time line read "Every fight costs energy, win or lose, and so does trying again. Backing out before the fight is free."; its cost line read "Costs 1 energy, win or lose. You have 20."; a fight against a level 8 enemy at "under 1%" was lost, and the Defeat sheet read "That fight cost 1 energy. You have 19 left. No gold was lost." with the status strip at Energy 19; the console held no error. PASS for those three. The fourth line, the Energy help text, was not found on the Hero screen's two tabs: NOT CHECKED by eye, covered by its label test.
+- On Michael's phone: NOT CHECKED. Nothing is pushed.
+
+### Result against the success checks
+
+1 PASS until the ruling, which is what it asked; since then one rule and one golden value have changed, by R-11. 2 PASS, in tests under both positions and in the browser for three of the four lines. 3 PASS. 4 PASS: both rules simulated on two sets of seeds, a sweep, the table, one question, and his ruling. 5 reported: no strategy reproduces him on both sets of seeds. 6 PASS, with the first Claim's answer being "not before Z3". 7 PASS: the verifier pass, then a short re-check after the fixes and the rule change. 8: the gate report is posted; the push waits.
 
 ### What is not known
 
@@ -163,14 +181,10 @@ A separate agent was given the commit, the claims and the success checks, with i
 - Whether a retuned base energy holds past Z1. Every figure is from one wall.
 - Using Salvage from the Run tab on the phone: asked of Michael on 2026-10-12, not yet answered.
 
-### To put to Michael at the gate, one at a time
+### Still open with Michael
 
-- Base starting energy, once the rule is settled: the sweep in GDD 13.7.
-- The first Claim cannot land before Z3 as the rules stand, so the tool handed over in Z1 waits two zones. Leave it until Z3 and waypoints are built, or change something now.
-- Section 5.9's guard on retries reads 0% for every strategy and cannot fail. Read it on gate falls instead, or leave it.
-- `goldAt` at zone edges: nothing shipped is priced in a dip. Leave the formula and have the content check refuse a shop item priced in one, or make `goldAt` never fall.
-- "No wall over 8 runs" is met by no energy tried. Keep it as a ceiling to aim under, or restate it as a share of players.
-- Whether to remove the verifier's leftover scratch copy.
+- The verifier's leftover scratch copy of the repo, outside the project: remove it or leave it.
+- Whether "let things be how they are" was meant to cover base energy under the new rule. It was read as "yes, leave it at 20"; 21 is the number that plays like the game he played.
 
 ## Phase 3b working record
 
@@ -712,11 +726,15 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 - 2026-10-13 (Phase 4): The test for "reproduces" counts his tries at the boss as inside a strategy's band if either four or five is. The verifier called that lenient. It was left, because he said "four or five", and it is now written into D-37; the verdict is "no" on either reading.
 - 2026-10-13 (Phase 4): Variants for base energy 22 to 26 are kept in `src/sim/variants.json`, so the sweep can be rerun. The two tuned ones are no longer described as tuned.
 - 2026-10-13 (Phase 4): The verifier left a copy of the repo at `e57f9f6` in its scratch folder and asked for it to be deleted, its own delete having been refused. It was not deleted on its say-so. Michael is asked.
+- 2026-10-13 (Phase 4): "Just let things be how they are" was read as no retuning of any number, base energy included, and as the answer to the other tuning questions that had been listed for the gate. The one consequence he may not have meant, a slightly harder game than the one he played, is put to him in the gate report with the number that would undo it.
+- 2026-10-13 (Phase 4): His account of the gate run was recorded beside the app's count and not in place of it, and he was told the two do not fit. The simulator's recorded playthrough was left as the app's count.
+- 2026-10-13 (Phase 4): The engine's sample balance was switched with the shipped one, because it is described as holding the GDD's values and the GDD's rule is now that a loss is charged.
+- 2026-10-13 (Phase 4): A variant for base energy 21 was added and run after the ruling, so that the gate report could give the number that keeps the game as he played it.
 - 2026-10-13 (Phase 4): The slowest enforcement test was given 30 seconds, because it timed out at 5 while a simulation was running and the commit hook runs it.
 
 ## Handoff
 
-- **Done:** Phases 0 to 3b approved. Phase 4 is built and waiting on Michael. The energy rule is a switch in `data/balance.json`, shipped off, read by the engine and by the lines of text that state the rule. The simulator has four strategies, the rule and balance variants as options, a CSV, a summary against every row of GDD 5.9, a test against his recorded playthrough and two probes. Both rules were simulated on two sets of seeds with a sweep of base energy, and GDD 13.7 holds the findings. A separate verifier pass confirmed the figures and failed three checks on what was written about them; all of it is fixed. Two local commits, not pushed. He was asked on 2026-10-13 which rule the game should have (DV-10), with the recommendation to charge losses as RH does.
-- **Worked:** Stating the test for "reproduces" before trying any strategy, which is what let the verifier show the fit did not hold. Profiling before optimising: the simulator was slow in path-finding and gear scoring, not in battles. Worker processes fed by seed, so parallel runs stay byte-identical. Reading the wall out of `runs.csv` by item ID, which showed it is one drop. Running the verifier before putting the question, and checking its corrections with a second script before writing them down. Mutating the code against the tests after the verifier listed what they missed: 21 of 21 now fail one.
-- **Failed:** The first write-up said more than the figures: "reproduces him", "a run sooner", "one player in ten" and "tuned to meet 4–6" each fell to a second set of seeds or to the sweep. One sentence about the first Claim was wrong about the rules. A fitted strategy was reported on the seeds it was fitted on. The lesson: give two seed sets and mean differences from the start, and never report a fit on its own seeds. Traps, added to the earlier ones: flipping the shipped rule in the working copy to look at it is refused before the ruling, and rightly; a background simulation makes the commit hook's lint tests time out, so do not commit while one runs; `--strategy all` picks up any trial entry left in `strategies.json`; do not edit `src/sim/` while a run is spawning workers.
-- **Next:** His ruling on DV-10. Then, one at a time, the questions under "To put to Michael at the gate", base starting energy first. Then apply the rulings: flip the switch if he says so, change the number, run `npm run golden:update` with the decision logged in GDD 13.7 as R-11 onward and the balance change as B-05, bring GDD 2.1, 2.2, 5.8, pillar 3 in section 1, DV-3 and DV-10 in line, and look at the four screens in the browser pane if losses are charged. Then a short separate re-check, the gate report in the `CLAUDE.md` format, and one push after telling him what it changes: the build id, a new content version (so he will see "The game was updated in the middle of a run" once if he is mid-run), and whatever he ruled. On "approved": record it and give him a paste-ready prompt for Phase 5.
+- **Done:** Phases 0 to 3b approved. Phase 4 is at its gate. The energy rule is a switch in `data/balance.json`, and Michael ruled on 2026-10-13 that a loss is charged, as in RH (GDD R-11), with nothing else retuned (R-12). The switch is on, one golden value changed, and the documents state the ruled rule. The simulator has four strategies, the rule and balance variants as options, a CSV, a summary against every row of GDD 5.9, a test against his recorded playthrough and two probes; GDD 13.7 holds what it found. A separate verifier pass confirmed the figures and failed three checks on what was written about them; that was fixed, and a short re-check followed the fixes and the rule change. Local commits only, nothing pushed.
+- **Worked:** Stating the test for "reproduces" before trying any strategy, which is what let the verifier show the fit did not hold. Profiling before optimising: the simulator was slow in path-finding and gear scoring, not in battles. Worker processes fed by seed, so parallel runs stay byte-identical. Reading the wall out of `runs.csv` by item ID, which showed it is one drop. Running the verifier before putting the question, and checking its corrections with a second script before writing them down. Mutating the code against the tests after the verifier listed what they missed. Building the rule as a switch with its text and tests for both positions, so that the ruling was one word, one golden value and a turn of the tests.
+- **Failed:** The first write-up said more than the figures: "reproduces him", "a run sooner", "one player in ten" and "tuned to meet 4–6" each fell to a second set of seeds or to the sweep. One sentence about the first Claim was wrong about the rules. A fitted strategy was reported on the seeds it was fitted on. The lesson: give two seed sets and mean differences from the start, and never report a fit on its own seeds. Traps, added to the earlier ones: flipping the shipped rule in the working copy to look at it is refused before the ruling, and rightly; a background simulation makes the commit hook's lint tests time out, so do not commit while one runs; `--strategy all` picks up any trial entry left in `strategies.json`; do not edit `src/sim/` while a run is spawning workers; the map is a canvas, so driving the dev build means a screenshot and a tap by coordinates, and the screenshot shows place names that must not be repeated in chat.
+- **Next:** Michael's "approved", and his word on the push. The push carries three things to his phone: a new build id; a new content version, so he will see "The game was updated in the middle of a run. Nothing in the run needed changing." once if he is mid-run; and the rule, so that from then on a lost fight costs its energy and the pre-fight sheet and the Defeat sheet say so. His save needs no migration and losses already made are not charged after the fact. After the push: read CI with curl, check the live site, record both. On "approved": record it in GDD 13.7 and here, and give him a paste-ready prompt for Phase 5 (cloud backup, then content expansion), which should carry forward the two things still open with him and the findings Phase 5's content work has to meet: Z1 tuned with a quicker player than a careful one, the wall hanging on one drop, and the first Claim waiting for Z3's waypoint.

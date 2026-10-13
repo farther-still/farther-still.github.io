@@ -80,7 +80,7 @@ export const SAMPLE_BALANCE: Balance = {
     ],
     percents: [100, 200],
   },
-  energy: { base: 20, bossSurplus: 2, perClaim: 3, chargeLosses: false },
+  energy: { base: 20, bossSurplus: 2, perClaim: 3, chargeLosses: true },
   claim: { damageCutPct: 90 },
   items: {
     budget: { damagePerLevel: 3, defensePerLevel: 1.9, lifePerLevel: 7.9, dexterityPerLevel: 0.4, tolerance: 0.15 },

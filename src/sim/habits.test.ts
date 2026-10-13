@@ -20,7 +20,7 @@ const withMight = (content: Content): Content => ({
   items: { ...content.items, i900: sampleItem('i900', 'legs', { level: 1, lines: { lifeFlat: 3000, damageFlat: 1000, defenseFlat: 1000, dexterityFlat: 1000 } }) },
 });
 
-const FREE = withMight(sampleContent());
+const FREE = withMight(sampleContent({ ...SAMPLE_BALANCE, energy: { ...SAMPLE_BALANCE.energy, chargeLosses: false } }));
 const CHARGED = withMight(sampleContent({ ...SAMPLE_BALANCE, energy: { ...SAMPLE_BALANCE.energy, chargeLosses: true } }));
 
 /** The Phase 3b player with nothing to spend on: each test turns on the one habit it is about. */

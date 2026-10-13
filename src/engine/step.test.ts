@@ -483,7 +483,7 @@ describe('Fight: a loss (GDD 2.2, 3.4)', () => {
   // A new hero with no gear cannot beat the level 10 boss.
   const weak = (run: Partial<GameState['run']> = {}, profile: Partial<GameState['profile']> = {}): GameState => game({ position: NEAR, ...run }, profile);
 
-  it('charges nothing, loses nothing, and marks the enemy seen', () => {
+  it('charges the fight’s cost, loses nothing else, and marks the enemy seen', () => {
     const before = weak({ gold: 55, xp: 12 }, { items: { i003: 1 }, gems: 4 });
     const { state, events } = fight(before, 's003');
     expect(types(events)).toEqual(['Battle']);
@@ -495,8 +495,8 @@ describe('Fight: a loss (GDD 2.2, 3.4)', () => {
     expect(battle.hitsTaken).toBeGreaterThanOrEqual(2);
 
     expect(state.profile).toEqual({ ...before.profile, bestiary: { e003: { timesBeaten: 0 } } });
-    expect(state.run).toEqual({ ...before.run, battleCount: 1, lastEnemy: 'e003', tallies: { ...before.run.tallies, losses: 1 } });
-    expect(remainingEnergy(state, world)).toBe(20);
+    expect(state.run).toEqual({ ...before.run, battleCount: 1, energySpent: 1, lastEnemy: 'e003', tallies: { ...before.run.tallies, losses: 1 } });
+    expect(remainingEnergy(state, world)).toBe(19);
   });
 
   it('leaves the count of earlier wins alone', () => {
@@ -521,26 +521,31 @@ describe('Fight: a loss (GDD 2.2, 3.4)', () => {
     expect(walkable(state, world, 'z01', 4, 2, 'step')).toBe(false);
   });
 
-  it('costs no energy however often the hero loses', () => {
-    let state = weak();
-    for (let i = 0; i < 30; i += 1) state = fight(state, 's003').state;
-    expect(state.run.tallies).toMatchObject({ wins: 0, losses: 30 });
-    expect(state.run.energySpent).toBe(0);
-    expect(remainingEnergy(state, world)).toBe(20);
-  });
 });
 
-describe('Fight: a loss when the balance table charges losses (GDD 2.2, DV-10)', () => {
-  const charging: Content = deepFreeze({ ...world, balance: { ...B, energy: { ...B.energy, chargeLosses: true } } });
+// The rule is one switch in the balance table (GDD 2.2, D-34). It is on: Michael ruled on 2026-10-13 that a loss
+// is charged, as in RH (R-11). Off is the rule Phases 3a and 3b shipped with, kept so both can be simulated.
+describe('Fight: the switch for charging a loss (GDD 2.2, D-34)', () => {
+  const charging: Content = world;
+  const unchargedWorld: Content = deepFreeze({ ...world, balance: { ...B, energy: { ...B.energy, chargeLosses: false } } });
   const weak = (run: Partial<GameState['run']> = {}): GameState => game({ position: NEAR, ...run });
 
-  it('is off in the sample balance, which holds the GDD’s starting values', () => {
-    expect(B.energy.chargeLosses).toBe(false);
+  it('is on in the sample balance, which holds the GDD’s values', () => {
+    expect(B.energy.chargeLosses).toBe(true);
+  });
+
+  it('with the switch off, costs no energy however often the hero loses', () => {
+    let state = weak();
+    for (let i = 0; i < 30; i += 1) state = fight(state, 's003', unchargedWorld).state;
+    expect(state.run.tallies).toMatchObject({ wins: 0, losses: 30 });
+    expect(state.run.energySpent).toBe(0);
+    expect(remainingEnergy(state, unchargedWorld)).toBe(20);
   });
 
   it('charges the fight’s cost, pays nothing back, and changes nothing else a free loss would not', () => {
     const before = weak({ gold: 55, xp: 12 });
-    const free = fight(before, 's003');
+    const free = fight(before, 's003', unchargedWorld);
+    expect(free.state.run.energySpent).toBe(0);
     const { state, events } = fight(before, 's003', charging);
     expect(types(events)).toEqual(['Battle']);
     expect(events).toEqual(free.events);
@@ -569,9 +574,9 @@ describe('Fight: a loss when the balance table charges losses (GDD 2.2, DV-10)',
   });
 
   it('leaves a win exactly as it is with the switch off', () => {
-    const normal = fight(mighty(), 's001');
+    const normal = fight(mighty(), 's001', unchargedWorld);
     expect(fight(mighty(), 's001', charging)).toEqual(normal);
-    const boss = fight(mighty(), 's003');
+    const boss = fight(mighty(), 's003', unchargedWorld);
     expect(fight(mighty(), 's003', charging)).toEqual(boss);
     expect(eventOf(boss.events, 'Rewards')).toMatchObject({ energyCost: 1, energyBack: 3, energyLeft: 22 });
   });

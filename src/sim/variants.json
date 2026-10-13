@@ -4,6 +4,7 @@
     "set": {},
     "drops": {}
   },
+  "energy-21": { "about": "Base starting energy 21 in place of 20.", "set": { "energy.base": 21 }, "drops": {} },
   "energy-22": { "about": "Base starting energy 22 in place of 20.", "set": { "energy.base": 22 }, "drops": {} },
   "energy-23": { "about": "Base starting energy 23 in place of 20.", "set": { "energy.base": 23 }, "drops": {} },
   "energy-24": { "about": "Base starting energy 24 in place of 20.", "set": { "energy.base": 24 }, "drops": {} },

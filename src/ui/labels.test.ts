@@ -3,6 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { CONTENT } from '../../tests/helpers';
+import { loadBundledContent } from '../content';
 import type { Balance } from '../engine';
 import { EXPORT_REMINDER_DAYS, EXPORT_REMINDER_RUNS } from '../save';
 import { derivedHelp, energyWords, exportReminderWords, hints } from './labels';
@@ -49,9 +50,14 @@ describe('energyWords', () => {
   const free = withLosses(false);
   const charged = withLosses(true);
 
-  it('ships with only wins charged, and says so in the words the slice was approved with', () => {
-    expect(CONTENT.balance.energy.chargeLosses).toBe(false);
-    const words = energyWords(CONTENT.balance);
+  it('ships with a loss charged (GDD R-11), and the game that ships says so', () => {
+    expect(CONTENT.balance.energy.chargeLosses).toBe(true);
+    expect(loadBundledContent().balance.energy.chargeLosses).toBe(true);
+    expect(energyWords(loadBundledContent().balance).cost(1)).toBe('Costs 1 energy, win or lose.');
+  });
+
+  it('keeps the words the slice was approved with for the switch’s other position', () => {
+    const words = energyWords(free);
     expect(words.hint).toBe('A win costs energy. A loss costs nothing, so you can back out or try again freely.');
     expect(words.cost(1)).toBe('Costs 1 energy on a win.');
     expect(words.bossCost(1, 3)).toBe('Costs 1 energy on a win and pays back 3.');

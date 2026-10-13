@@ -44,7 +44,7 @@ Each pillar names the feel to protect, the evidence, and what it obliges the des
 
 1. **Permanent progress changes what a run can do.** Evidence: C16, where starting energy went from 25 to 97 and Michael said it changed everything; Q13c. Obligation: permanent gains are felt on the very next run. They are starting energy, waypoints, loadout slots and kept gear.
 2. **Every run buys something lasting.** Evidence: C24 (what is the point of pushing farther if the next run is no better), C06 and C21 (it feels like grinding). Obligation: gold always has a lasting use, and section 5.9 sets a target for how often a run must produce a persistent gain.
-3. **You choose every fight.** Evidence: Q13a; [WEB] reviews praise planning over luck. Obligation: no random encounters, enemies stand on the map with their levels shown, backing out is free, and a loss costs nothing (Q2).
+3. **You choose every fight.** Evidence: Q13a; [WEB] reviews praise planning over luck. Obligation: no random encounters, enemies stand on the map with their levels shown, and backing out before a fight is free. A fight that is joined costs its energy, win or lose (R-11).
 4. **Loot is finite, fixed and visible.** Evidence: Q13b; notes #3. Obligation: no random stats, no rarity tiers, no set bonuses (G1). An enemy shows how many drops it still holds, and collecting has an end.
 5. **The climb is quick; the decision is the point.** Evidence: C15, C23 and C26, where rebuilding the run was the cost that hurt, not the fight; C27 asked for faster battles; Q14. He also liked some of RH's grind, both farming drops and the climb, as long as it stops short of annoyance (section 13.4), so the aim is to cut waiting, not to cut repetition to nothing. Obligation: battle skip, tap-to-move and waypoints, with the run-time targets and the two ceilings in section 5.9.
 6. **Level is not power.** Evidence: C24 and C30 (several times the boss's level and still losing), and C26 (the win came from swapping two accessories); Q13e. Obligation: builds and loadouts decide fights, enemy traits are visible before the fight, and the forecast names what is limiting you.
@@ -61,7 +61,7 @@ Each pillar names the feel to protect, the evidence, and what it obliges the des
 2. The player walks the map, or travels to an unlocked waypoint, and picks an enemy.
 3. The pre-fight sheet shows the enemy, the energy cost, the forecast and the drops it still holds. The player fights or backs out.
 4. The battle resolves instantly and is played back (section 3).
-5. A win charges the energy cost and pays XP, gold and drop rolls. Levels gained give stat points to spend. A loss charges nothing.
+5. A fight charges its energy cost when it is joined, win or lose. A win pays XP, gold and drop rolls, and levels gained give stat points to spend. A loss pays nothing and takes nothing else.
 6. Gold buys items from the shop at any time. Once per run, all remaining gold can go into Salvage.
 7. Energy runs out. The player finishes spending and starts the next run, a little stronger.
 
@@ -70,7 +70,7 @@ Each pillar names the feel to protect, the evidence, and what it obliges the des
 | Rule | Detail | Source |
 |---|---|---|
 | Energy cost | Each fight has a cost set by its zone (section 5.8). | Confirmed (Q2) |
-| Only wins are charged | A loss costs no energy; the player is back on the map and can retry. The rule is one switch in the balance table, shipped off (D-34). | Ruling (Q2), and not RH's rule. RH charges a fight's energy when it is joined, win or lose, and again on a retry: Confirmed by Michael on 2026-10-12 (R-01, section 13.6). This game's rule is an undecided deviation, DV-10, until Phase 4 has simulated both |
+| Every fight is charged | A fight costs its energy when it is joined, win or lose, and a retry is charged again. A boss pays nothing back for a loss. The rule is one switch in the balance table, on (D-34). | Ruling (R-11, 2026-10-13), and RH's rule: Confirmed by Michael on 2026-10-12 (R-01, section 13.6). Phases 3a and 3b charged only wins, on a misreading of Q2 (DV-10, withdrawn) |
 | Boss payback | An unclaimed boss pays back its cost plus a surplus when beaten, once per run (sections 2.3 and 5.8). | Confirmed (notes #1, Q2) |
 | Free actions | Walking, waypoint travel, buying and Salvage cost no energy. | Confirmed (Q2) |
 | Affordability | A fight cannot be started if its cost exceeds remaining energy. | Confirmed (G1) |
@@ -194,7 +194,7 @@ Choices made where RH's behaviour is unknown, all [OPEN] in section 12: the hit 
 
 On a win, in this order: charge the energy cost; refund a boss's cost; for an unclaimed boss, either pay its surplus or, if the tool is equipped, record the Claim and raise starting energy; add XP and apply level-ups; add Growth gains for the levels gained; run Auto-assign if it is on; add gold; roll each drop the enemy still holds; roll gems; update the bestiary. The result is committed to the save before the UI animates anything (kickoff save spec).
 
-On a loss: nothing is charged or lost. The enemy is marked as seen and the loss summary is shown.
+On a loss: the energy cost is charged, as it is on a win, and nothing else is lost. A boss pays nothing back. The enemy is marked as seen and the loss summary is shown, with what the fight cost.
 
 ### 3.5 Forecast and loss summary
 
@@ -664,7 +664,7 @@ A tab bar at the bottom reaches Map, Hero, Gear, Items, Bestiary and the Run men
 | Map | A top-down tile map; enemies with their level, a marker if marked, a boss mark; doors, waypoints, Salvage sites. A status strip with level, gold, energy, gems and a "new item" badge. A row of loadout buttons, with a zoom button at its end. | Tap a tile to walk there by the shortest known path. Tap an enemy to walk to it and open the pre-fight sheet. Press and drag to steer. Tap a loadout to switch. Switch between the two zoom levels. Tap a Salvage site to open Salvage. Open waypoint travel. |
 | Pre-fight sheet | Enemy level, tags and traits in plain words; energy cost and, for a boss, the payback; gate and Claim status; win chance and limiting factor; drops, with unfound ones hidden but counted; any marked bonus. | Fight, or back. |
 | Battle playback | The event log replayed: hits, crits, misses, dodges, life bars. | Speed 1×, 2×, 4×; skip to the end. The setting is remembered. |
-| Result sheet | Win: XP, levels gained, gold, drops, gems, any Claim, energy left. Loss: the one-line summary. | Fight again, or return to the map. |
+| Result sheet | Win: XP, levels gained, gold, drops, gems, any Claim, energy left. Loss: the one-line summary, what the fight cost and the energy left. | Fight again, or return to the map. |
 | Hero | Core tab: the five stats with Base, Mult and Final; unspent points; the derived stats. Combat tab: hits, attacks and turns, each with its chances and an average; Reflect, Regen, Last Stand; Resistances and Damage-vs-tag. Figures that depend on an enemy use the last enemy fought and say so. | Spend points by +1, +10, +100, a percentage of what is unspent, or all. Open Auto-assign. Tap any stat for a one-line explanation. |
 | Gear | The active loadout: weapon, 12 armor slots, 5 accessory slots, each with its main lines. Loadout tabs. | Tap a slot to choose from owned items, or buy one that is for sale, with the change to each stat previewed. Rename or buy a loadout. |
 | Items | Every item by slot: owned and maximum copies, stats, price if sold. Items not yet found appear as blank rows. Counter of items owned against the total. Gold on hand. | Filter by slot, owned, or for sale. Buy. |
@@ -708,7 +708,7 @@ There is no tutorial sequence and no dialogue system (hard rule 10). Each system
 | A map label that differs from what the game calls the place | C03, C15 | One string per place |
 | Two things with confusable names | C02, C06, C10 | The shipped labels in section 0; one-line explanations |
 | Random encounters, random stat rolls, rarity tiers, set bonuses | Q13a, Q13b, G1 | Not in the data schema |
-| Retrying as the best strategy | Free losses plus skip (DV-3) | The "more than 3 tries" target in section 5.9 |
+| Retrying as the best strategy | Skip (DV-3), while a loss was free | A loss is charged (R-11). The "more than 3 tries" target in section 5.9 |
 | Timers, daily resets, offline earnings, ads, purchases | Hard rule 3 | Lint and CI checks from Phase 3a |
 | Any sound or media element | Hard rule 2 | Lint and a scan of the built app |
 | Systems RH does not have: crafting, classes, quests, dialogue, procedural maps, daily tasks, extra currencies | Hard rule 10 | Deviations need a decisions-log entry |
@@ -804,7 +804,7 @@ All dated 2026-10-12.
 | ID | Ruling | Where it lives |
 |---|---|---|
 | Q1 | Copy caps: 1 for weapons and armor, 3 for most accessories, 1 for special ones; drops stop at the cap; all copies can be equipped | 7.1, 7.3 |
-| Q2 | Fight cost rises by zone; only wins are charged; bosses pay energy back; walking, travel and Salvage are free. "Only wins are charged" is a ruling for this game and was wrongly recorded as RH's rule: see R-01 in section 13.6 | 2.2, 5.8 |
+| Q2 | Fight cost rises by zone; only wins are charged; bosses pay energy back; walking, travel and Salvage are free. "Only wins are charged" was a ruling for this game, wrongly recorded as RH's rule (R-01 in section 13.6), and was withdrawn on 2026-10-13: a loss is charged (R-11 in section 13.7) | 2.2, 5.8 |
 | Q3 | Salvage follows the screenshot: all gold, a shown chance, once per run, pool limited to enemies beaten | 7.4 |
 | Q4 | Waypoints are bought with gems and kept; gems persist and come from drops only | 2.2, 7.8, DV-5 |
 | Q5 | Gate bosses reset each run; keys and waypoints persist; the reset ledger stands | 2.2, 2.5 |
@@ -828,7 +828,7 @@ All dated 2026-10-12.
 |---|---|---|---|---|
 | DV-1 | The permanent-energy tool is handed over by the first boss instead of being hidden (Q6) | Finding the system ten days late (C16) | One item and a bestiary marker | Nothing is left to discover about the system. Noticed in Phase 1: with the tool in hand from the first boss, energy arrives in steps of 3 as bosses are outgrown, not as the single jump from 25 to 97 that made C16 memorable |
 | DV-2 | A win chance with the limiting factor before a fight, a one-line summary after a loss, and the Salvage pool shown by level band (Q11) | Blind, expensive tests (C26); level not predicting outcomes (C24, C30); worry about paying a run's gold for a low-level item (C06) | Small: 1,000 trial battles per forecast, one line, one breakdown | Fights can feel decided beforehand; Salvage is less of a gamble |
-| DV-3 | Player-controlled battle speed and skip (kickoff) | Michael asked whether battles could be sped up (C27); that RH has no speed control is [GPT]. Also the real time a run takes (C15, C23) | None in the engine, since battles already resolve instantly; one setting | Less tension watching a close fight. Because losses are free, skip also makes retrying a long-shot fight nearly free in real time, so a wall can be brute-forced at low odds. Section 5.9 sets a target to measure this. If the target is missed, the fix would be a rule change, for example a retry at unchanged stats replaying the same seed, and that would be a new deviation for Michael to rule on |
+| DV-3 | Player-controlled battle speed and skip (kickoff) | Michael asked whether battles could be sped up (C27); that RH has no speed control is [GPT]. Also the real time a run takes (C15, C23) | None in the engine, since battles already resolve instantly; one setting | Less tension watching a close fight. While a loss was free, skip also made retrying a long-shot fight nearly free in real time, so a wall could be brute-forced at low odds. Since R-11 a retry costs its energy, and the Phase 4 simulator found that a player who retries then gets through no sooner (section 13.7). Section 5.9 keeps its target for this |
 | DV-4 | Tap-to-move with pathfinding is added beside press-and-drag steering, where RH has the hero walk freely (Q8) with a joystick option [WEB]. Changed on 2026-10-12 from tap-only, at Michael's request (section 13.4) | Navigation friction (C03, C09, C15, C23, C30); one-handed play | Pathfinding on the tile grid, plus a second input path for steering | Steering is tile-stepped in eight directions, so it is close to RH's free walking but not the same. A tap can be read as a drag or the reverse. Pathfinding must not route through unknown hidden tiles |
 | DV-5 | Gems come from enemy drops only; there is no store (Q4) | None of Michael's; hard rule 3 forbids monetization | None; it removes a feature | Gem supply rests on drop tuning alone, with no purchase to fall back on |
 | DV-6 | A run takes about a third of RH's real time for the same number of runs per wall (Q14) | Rebuilding the run was the cost that hurt (C15, C23, C26) | Depends on DV-3, DV-4 and waypoints all working well | Content is used up about three times faster in real time: v1's "week" is 8–13 hours of play, which is two to three days at the more than 4 hours a day Michael played RH (P5) |
@@ -845,7 +845,7 @@ Two more came out of Michael's Phase 3b playtest on 2026-10-12 (section 13.6):
 | ID | Deviation | Frustration fixed | Cost | Risk |
 |---|---|---|---|---|
 | DV-9 | Salvage can be used from the Run menu, wherever the hero stands. RH's is used at its own place on the map (C04). Asked for by Michael | Walking back to the run start at the end of every run, when gold is at its highest, to use the one attempt | One button on the Run menu and one on the spent-run notice; the rule that the hero must be at a site goes | Salvage sites become decoration, and the route home stops being part of a run. It is one more step away from RH |
-| DV-10 | A loss costs no energy. RH charges the cost when a fight is joined, win or lose, and again on a retry (R-01). **Not yet ruled on:** the rule was built on a misreading of Q2, and Michael chose on 2026-10-12 to decide in Phase 4, with both rules simulated to the same pacing targets | None of Michael's on record; it came from the misreading | Nothing to keep. To change: the cost is charged in the loss branch as well, every number in section 5.9 is tuned again, and the golden replays change. The save already counts energy spent, so no migration either way | As DV-3 says, a long-shot fight can be retried until it lands, which softens every wall; on the run the Z1 gate fell he tried the boss four or five times. Against that, every Phase 3b number was tuned with free losses, and he passed all four points of the playtest rubric under this rule |
+| DV-10 | **Withdrawn on 2026-10-13 (R-11).** It was: a loss costs no energy, where RH charges the cost when a fight is joined, win or lose, and again on a retry (R-01). The rule had been built on a misreading of Q2 | None of Michael's on record; it came from the misreading | Changing it cost one word in the balance table, one golden value and the lines of text that state the rule. The save already counted energy spent, so no migration | None left: the game now does as RH does. With both rules simulated, charging a loss cost about a third of a run at the one wall there is, and one point of base energy makes that up (section 13.7). Michael passed all four points of the playtest rubric under the old rule |
 
 ### 13.3 Phase 1 design decisions
 
@@ -960,7 +960,7 @@ All dated 2026-10-12, given after he played the slice on his phone through the Z
 | ID | Question or request | Michael's reply | Recorded as | Where it lives |
 |---|---|---|---|---|
 | R-01 | In RH, is a fight's energy charged when it is joined, win or lose, or only on a win? | a: when it is joined, win or lose, and a retry is charged again | **Confirmed.** This corrects the record. Q2 was marked Confirmed for "only wins are charged" on the strength of a one-letter reply covering five questions and one line of his from September that speaks of wins and is silent on losses | 2.2, DV-10 |
-| R-02 | Which rule should this game have? | a: decide in Phase 4, with both simulated | **Deferred.** The slice keeps free losses until then, as an open deviation | 2.2, DV-10 |
+| R-02 | Which rule should this game have? | a: decide in Phase 4, with both simulated | **Deferred,** then ruled on 2026-10-13: a loss is charged (R-11, section 13.7) | 2.2, DV-10 |
 | R-03 | Salvage from the bottom bar or a tab, not only at its site | His request; "yes" to the form proposed | **Ruling.** A deviation from RH | 7.4, 8.2, DV-9 |
 | R-04 | Zoom the map out, to walk or steer farther | His request; "yes" to the form proposed | **Ruling.** Two levels and a button. Logged as D-32 | 8.2, 8.3 |
 | R-05 | A way to close the export reminder | His request; "yes" to the form proposed | **Ruling.** A "Later" button hides it until the app is next opened, and it names only what is overdue. Logged as D-33. The kickoff asks for a reminder that does not block play, which this still is | `docs/ARCHITECTURE.md` 7.5 |
@@ -977,7 +977,7 @@ All dated 2026-10-12, given after he played the slice on his phone through the Z
 
 ### 13.7 Phase 4: what the simulator found
 
-All dated 2026-10-12 and 13. Only Z1 and two enemies of Z2 exist, so all of it is evidence about one wall, at a fight cost of 1 and with one boss. Rows of section 5.9 that need later zones are not measured at all; `docs/STATUS.md` lists which. A figure written "6 (5–8)" is a median with its 10th and 90th percentiles, and "runs" in a difference between two configurations is a mean over the same 200 players, with its standard error in brackets.
+All dated 2026-10-12 and 13. The simulations were run before Michael ruled on the energy rule, and "the shipped rule" in the simulator's own output of that date means only wins charged. His rulings are at the end of this section. Only Z1 and two enemies of Z2 exist, so all of it is evidence about one wall, at a fight cost of 1 and with one boss. Rows of section 5.9 that need later zones are not measured at all; `docs/STATUS.md` lists which. A figure written "6 (5–8)" is a median with its 10th and 90th percentiles, and "runs" in a difference between two configurations is a mean over the same 200 players, with its standard error in brackets.
 
 Where the figures come from. The commands are in `docs/STATUS.md`.
 
@@ -992,12 +992,12 @@ Decisions made while building. None changes a shipped rule or a shipped number.
 
 | ID | Decision | Reason | Where it lives |
 |---|---|---|---|
-| D-34 | Whether a lost fight is charged is one switch in the balance table, `energy.chargeLosses`, shipped off. On, a loss costs what a win costs, a retry is charged again, a boss pays nothing back for a loss, and a fight still cannot start unless its cost is in hand. The lines of text that state the rule follow the switch | R-02 asked for both rules simulated. With a switch the simulator, the tests and the app run either rule from the same code, and the ruling is a change of one word | 2.2 |
+| D-34 | Whether a lost fight is charged is one switch in the balance table, `energy.chargeLosses`. It was off until R-11 and has been on since. On, a loss costs what a win costs, a retry is charged again, a boss pays nothing back for a loss, and a fight still cannot start unless its cost is in hand. The lines of text that state the rule follow the switch | R-02 asked for both rules simulated. With a switch the simulator, the tests and the app run either rule from the same code, and the ruling is a change of one word | 2.2 |
 | D-35 | Four more of section 5.9's targets are in the balance table's `pacing` block: runs per wall, seconds per fight at default playback and with skip, and expected kills for a typical drop | The summary gives a verdict on each, and a number a verdict rests on belongs in `data/`. The rows that cannot be measured yet are read from section 5.9 itself and have no number there | 5.9 |
 | D-36 | In simulator output, "power" is the hero's strength against the wall as the run ended, in its best gear for that fight: the share of the wall's life it removes in a round over the share of its own it loses. Under 1 it should lose | The kickoff asks for a power column and the game has no such stat. Measured against the wall, it says how far a run ended from breaking through, which is the question a wall raises | `docs/ARCHITECTURE.md` section 10 |
 | D-37 | A strategy "reproduces" Michael's playthrough when the run his gate fell on and at least six of his eight recorded levels lie between its 10th and 90th percentiles, his "four or five" tries at the boss reach into that band, and its modelled run time lies inside his recorded range | Stated to him before any strategy was tried, so that the test could not be fitted to the answer. The tries are counted as inside if either four or five is, because he gave both | `docs/ARCHITECTURE.md` section 10 |
 
-**The simulated player and the real one.** Four strategies, under the shipped rule and numbers. Where two figures are given, the first is seeds 1 to 200 and the second seeds 5001 to 5200.
+**The simulated player and the real one.** Four strategies, under the rule that shipped until R-11, only wins charged, and the shipped numbers. Where two figures are given, the first is seeds 1 to 200 and the second seeds 5001 to 5200.
 
 | Strategy | What it does | Run the Z1 gate fell on | Over 8 runs | Still at the gate on run 10 | Passes the test of D-37 |
 |---|---|---|---|---|---|
@@ -1020,7 +1020,7 @@ Decisions made while building. None changes a shipped rule or a shipped number.
 
 The two rules with today's numbers, and each at the energy that brings a player like him to 6% over 8 runs:
 
-| | Only wins charged, energy 20 (shipped) | Losses charged, energy 20 | Only wins charged, energy 24 | Losses charged, energy 25 |
+| | Only wins charged, energy 20 (shipped until R-11) | Losses charged, energy 20 (shipped since) | Only wins charged, energy 24 | Losses charged, energy 25 |
 |---|---|---|---|---|
 | A player like him: run the gate fell on | 8 (6–11), 8 (6–11) | 8 (6–11), 8 (6–12) | 6 (5–8), 6 (5–8) | 6 (5–8), 6 (5–8) |
 | A player like him: over 8 runs | 36%, 42% | 46%, 45% | 6%, 5% | 6%, 5% |
@@ -1063,6 +1063,14 @@ The sweep, seeds 1 to 200: the run the gate fell on, and the share of players ov
 **`goldAt` at zone edges.** It falls at all seven, by 23%, 16%, 20%, 20%, 19%, 15% and 9% from Z1–Z2 to Z7–Z8, and is back to its old value 4% to 9% of the way into the next band: at level 54 in Z2, 300 in Z3, 1,875 in Z4, 10,000 in Z5, 49,231 in Z6, 177,273 in Z7 and 495,000 in Z8. Nothing shipped is priced inside one of those stretches: no shop item, and none of the three loadout prices. Enemy gold does not use `goldAt`. The one thing it touches today is the Salvage chance for a run whose strongest kill is e011, which comes out a little better than it would with the Z1 boss as the strongest. `npm run sim -- --probes` reports the table and names any shop item inside a stretch.
 
 **The first Claim (R-06).** It cannot land in Z1 or Z2 at all, as the rules stand. Worked out from the formulas, a hero in Z1's reference loadout claims the Z1 boss half the time from level 250 with the Phase 3b player's split of points and from level 279 with a player like him's, and nine times in ten from 257 and 287. The same hero beats that boss without the tool from level 29. Z1 alone cannot give level 250: that is about 450 wins over its strongest enemy in one run. A run that goes on into Z2 for the levels has beaten the boss to get there, and a boss is fought once a run (section 2.2). So the boss has to be reached from its far side by a run that did not pass it, which takes a waypoint, and waypoints start at Z3 (DV-8). The first permanent energy therefore arrives in Z3 at the earliest, and the tool handed over by the first boss (DV-1) has no use for two zones. Gear from Z2 would lower the level needed and does not change the route.
+
+**Michael's rulings, 2026-10-13.** Given after he was shown the two rules side by side.
+
+| ID | Question | Michael's reply | Recorded as | Where it lives |
+|---|---|---|---|---|
+| R-11 | Which rule should the game have: charge a loss, as RH does, or keep free losses? | "do a (as RH does)" | **Ruling.** A fight is charged when it is joined, win or lose. `energy.chargeLosses` is on. DV-10 is withdrawn. One golden value changed with it, the run replay, which holds a loss; the other twelve are as they were | 2.1, 2.2, 3.4 |
+| R-12 | What the findings above mean for the numbers | "Just let things be how they are" | **Ruling.** No retuning. Base starting energy stays 20, and Z1's content stays as shipped. Taken with R-11, a careful player's gate comes about a third of a run later on average than it did, with the median unchanged (the tables above, energy 20) | 5.8 |
+| R-13 | The run his Z1 gate fell on | His eighth run of real play. The app counted 10 because the first two were test runs with no fights, made while trying the reset buttons | **His account, recorded beside the app's.** The Run times list as recorded in `docs/STATUS.md` shows fights in run 1 and 20 wins in each of runs 2 to 8, so the two do not fit together, and the screenshots are not at hand to settle it. `src/sim/recorded.json` keeps the app's count. On his account he is an ordinary careful player: run 8 is `like-michael`'s median and inside `cautious`'s band, and the bullet above that says his gate fell late even for a careful player does not apply. The rest stands on either reading: the Phase 3b player is quicker than he is, his tries at the boss are more than the careful players make, and no strategy passes the test on both sets of seeds | 13.7 |
 
 ## 14. Names
 

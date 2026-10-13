@@ -187,8 +187,8 @@ describe('lossSummary', () => {
 // The two lines that say what a fight costs, where the sheets build them (GDD 2.2, DV-10). They are checked
 // under both positions of the switch, in the sample world, where a fight costs 1 and a boss pays back 3.
 describe('prefightEnergyLine and defeatEnergyLine', () => {
-  const free = CONTENT;
-  const charged = sampleContent({ ...SAMPLE_BALANCE, energy: { ...SAMPLE_BALANCE.energy, chargeLosses: true } });
+  const free = sampleContent({ ...SAMPLE_BALANCE, energy: { ...SAMPLE_BALANCE.energy, chargeLosses: false } });
+  const charged = CONTENT;
   const enemyOf = (id: string): EnemyDef => {
     const enemy = free.enemies[id];
     if (enemy === undefined) throw new Error(`test setup: no enemy ${id}`);
@@ -199,7 +199,8 @@ describe('prefightEnergyLine and defeatEnergyLine', () => {
     return { profile: { ...base.profile, ...profile }, run: { ...base.run, ...run } };
   };
 
-  it('ships with only wins charged', () => {
+  it('has a loss charged in the sample balance, as the GDD now rules (R-11)', () => {
+    expect(charged.balance.energy.chargeLosses).toBe(true);
     expect(free.balance.energy.chargeLosses).toBe(false);
   });
 
