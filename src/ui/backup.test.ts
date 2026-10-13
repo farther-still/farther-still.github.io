@@ -254,7 +254,10 @@ const suspectGame = (runsStarted: number): GameState => {
 
 /** A sealed record written by this build, so loading it gives the app no reason to write. */
 const realRecord = (slot: SlotName, seq: number, state: GameState = realGame(), settings: Partial<AppState['settings']> = {}): SlotRecord => {
-  const app = newAppState(FIXED_NOW);
+  // Begun a day before the fixed clock's "now": a game the app starts during a test is begun now, and a game is
+  // known by the moment it was begun (src/save/succession.ts). With both at the same instant, a new game and an
+  // old one that holds nothing yet would be one game, which they are not on any phone.
+  const app = newAppState(FIXED_NOW - 86_400_000);
   return sealRecord({
     slot,
     saveVersion: SAVE_VERSION,
@@ -651,10 +654,15 @@ describe('check 4: a backup after each run', () => {
     await gameShowsRun(2);
     openSettings();
     expect(valueOf('Repository')).toBe(REPOSITORY);
+    // A game picked on the recovery screen is looked at against the backup as soon as it is up. There is no
+    // backup yet, so it is made.
+    const picked = await backedUp();
+    expect(github.writes).toHaveLength(1);
+    expect(picked.payload.game.profile.counters.runsStarted).toBe(2);
 
     await startRun(3);
     const record = await backedUp();
-    expect(github.writes).toHaveLength(1);
+    expect(github.writes).toHaveLength(2);
     expect(github.file?.text).toBe(serializeRecord(record));
     expect(record.payload.game.profile.counters.runsStarted).toBe(3);
   });
@@ -667,11 +675,14 @@ describe('check 4: a backup after each run', () => {
     dom.tap('Start a new game…');
     dom.tap(/^Tap again to start a new game/);
     await gameShowsRun(1);
-    expect(github.calls).toEqual([]);
+    // The new game is looked at against the backup at once. The repository is empty, so it becomes the backup.
+    const begun = await backedUp();
+    expect(begun.payload.game.profile.counters.runsStarted).toBe(1);
+    expect(github.writes).toHaveLength(1);
 
     await startRun(2);
     const record = await backedUp();
-    expect(github.writes).toHaveLength(1);
+    expect(github.writes).toHaveLength(2);
     expect(github.file?.text).toBe(serializeRecord(record));
   });
 
@@ -695,16 +706,13 @@ describe('check 4: a backup after each run', () => {
     dom.tap('Check');
     dom.tap('Replace the current game anyway');
     await eventually(async () => expect((await hot()).payload.game.profile.counters.runsStarted).toBe(3));
-    // An imported game is not the one the backup was made from, so the backup is left alone until the player
-    // says to overwrite it. That is done here, by hand, so that what follows tests the skipped run and not the
-    // import: an overwrite the player asks for is sent whatever the save holds, as an export is.
+    // A save that fails a check is not sent by itself, on import or at a run's end. It is sent here by hand,
+    // which is allowed as an export is, so that the file is this game's and what follows tests the skipped run.
+    await settle(60);
+    expect(github.file?.text).toBe(serializeRecord(good));
     openSettings();
     dom.tap('Back up now');
-    await attemptEnds('unseen');
-    expect(github.file?.text).toBe(serializeRecord(good));
-    dom.tap('Overwrite the backup…');
-    dom.tap('Overwrite the backup with this game');
-    await attemptEnds('ok');
+    await eventually(async () => expect(github.file?.text).toBe(serializeRecord(await hot())));
     const overwritten = github.file?.text;
     expect(overwritten).toBe(serializeRecord(await hot()));
     const writesBefore = github.writes.length;
@@ -732,7 +740,7 @@ describe('check 5: a failure shows and does not block', () => {
   const REFUSED_REMINDER = 'The cloud backup has stopped: GitHub refused the key. The save on this phone is unaffected.';
   const MISSING_REMINDER = 'The cloud backup has stopped: GitHub found no such repository for the key. The save on this phone is unaffected.';
   /** How each sentence in Settings begins. Only one of them is ever on screen. */
-  const SENTENCES = ['GitHub refused the key.', 'GitHub found no such repository for this key.', 'GitHub could not be reached.', 'The backup did not go through', 'The backup holds a save that the game on this phone did not come from'];
+  const SENTENCES = ['GitHub refused the key.', 'GitHub found no such repository for this key.', 'GitHub could not be reached.', 'The backup did not go through', 'The backup holds a different game, or one that has something the game on this phone does not'];
 
   /** A launch with a key on the phone, then a new run whose backup the service answers in `mode`. */
   const failARun = async (mode: FakeMode, ends: BackupOutcome): Promise<void> => {
@@ -903,7 +911,7 @@ describe('check 5: a failure shows and does not block', () => {
 // ---- check 6 ----
 
 describe('check 6: restore is an import', () => {
-  const UNSEEN_REMINDER = 'The cloud backup holds a save that the game on this phone did not come from, so nothing is being backed up. The save on this phone is unaffected.';
+  const UNSEEN_REMINDER = 'The cloud backup holds a different game, or one that has something this one does not, so nothing is being backed up. The save on this phone is unaffected.';
   const CONFIRM = 'Replace the current game?';
 
   /** The run counts the confirmation sheet sets side by side, the current game's first. */
@@ -951,7 +959,7 @@ describe('check 6: restore is an import', () => {
 
     // Having looked is not having restored: the next run still leaves the file alone, and the map says why.
     await startRun(13);
-    await attemptEnds('unseen');
+    await attemptEnds('left-alone');
     expect(github.file).toEqual({ text, sha });
     expect(github.writes).toEqual([]);
     await eventually(() => expect(shows(UNSEEN_REMINDER)).toBe(true));
@@ -982,19 +990,21 @@ describe('check 6: restore is an import', () => {
       `committed hot:${current.seq + 2}`,
     ]);
     expect(showsStart('Save replaced.')).toBe(true);
-    // Restoring reads the backup and writes nothing to it. The file is now one this install has seen.
-    expect(github.writes).toEqual([]);
-    await eventually(async () => expect((await notes()).seenSha).toBe(sha));
-    dom.tap('Map');
-    await eventually(() => expect(reminderShowing()).toBe(false));
-
-    // So the next run's backup goes through, in place of exactly the version that was restored.
-    await startRun(41);
-    const record = await backedUp();
-    expect(github.writes).toHaveLength(1);
+    // The game on the phone is now the backup's own, and the backup is looked at again at once: the phone's
+    // record of it, which holds everything the file does, takes the place of exactly the version restored.
+    await eventually(() => expect(github.writes).toHaveLength(1));
     const [upload] = github.writes;
     if (upload === undefined) throw new Error('nothing was uploaded');
     expect(sentSha(upload)).toBe(sha);
+    await eventually(async () => expect(github.file?.text).toBe(serializeRecord(await hot())));
+    await attemptEnds('ok');
+    dom.tap('Map');
+    await eventually(() => expect(reminderShowing()).toBe(false));
+
+    // And the next run's backup goes through like any other.
+    await startRun(41);
+    const record = await backedUp();
+    expect(github.writes).toHaveLength(2);
     expect(github.file?.text).toBe(serializeRecord(record));
     expect(record.payload.game.profile.counters.runsStarted).toBe(41);
     expect(reminderShowing()).toBe(false);
@@ -1034,7 +1044,7 @@ describe('check 6: restore is an import', () => {
     // Nor is a backup that cannot be read one this install may write over: the next run leaves it as it is.
     expect(await notes()).toEqual({});
     await startRun(13);
-    await attemptEnds('unseen');
+    await attemptEnds('left-alone');
     expect(github.file).toEqual({ text: theirs, sha });
     expect(github.writes).toEqual([]);
   });
@@ -1097,7 +1107,7 @@ describe('check 6: restore is an import', () => {
     /** Waits for the next look at the backup to have been made and answered. */
     const looked = async (times: number): Promise<void> => {
       await eventually(() => expect(requests()).toHaveLength(times));
-      await attemptEnds('unseen');
+      await attemptEnds('left-alone');
       await settle(50);
       untouched();
     };
@@ -1107,7 +1117,7 @@ describe('check 6: restore is an import', () => {
     dom.tap('Save the key');
     await keySheetClosed();
     await looked(1);
-    expect(showsStart('The backup holds a save that the game on this phone did not come from, so it was left alone.')).toBe(true);
+    expect(showsStart('The backup holds a different game, or one that has something the game on this phone does not, so it was left alone.')).toBe(true);
     expect(dom.buttons()).toEqual(expect.arrayContaining(['Restore from backup…', 'Overwrite the backup…']));
 
     await startRun(2);
@@ -1178,7 +1188,7 @@ describe('check 6: restore is an import', () => {
     typeKey(REPOSITORY, token);
     dom.tap('Save the key');
     await keySheetClosed();
-    await attemptEnds('unseen');
+    await attemptEnds('left-alone');
     expect(github.file).toEqual(file);
     expect(github.writes).toHaveLength(1);
 
@@ -1197,13 +1207,18 @@ describe('check 6: restore is an import', () => {
     // The new install's own short game is set aside, not lost.
     expect((await storage()).quarantine).toMatchObject([{ kind: 'kept', reason: 'replaced-by-import', slot: 'hot', raw: { payload: { game: { profile: { counters: { runsStarted: 1 } } } } } }]);
 
+    // The restored game is looked at against the backup at once and takes the place of the version it came from.
+    await eventually(() => expect(github.writes).toHaveLength(2));
+    const upload = github.writes[1];
+    if (upload === undefined) throw new Error('the restored game was not uploaded');
+    expect(sentSha(upload)).toBe(file.sha);
+    await attemptEnds('ok');
+    expect(reminderShowing()).toBe(false);
+
     await startRun(14);
     const next = await backedUp();
     expect(github.file?.text).toBe(serializeRecord(next));
-    expect(github.writes).toHaveLength(2);
-    const upload = github.writes[1];
-    if (upload === undefined) throw new Error('the run after the restore was not uploaded');
-    expect(sentSha(upload)).toBe(file.sha);
+    expect(github.writes).toHaveLength(3);
   });
 
   // Was a disagreement, since fixed. Not with the rule as first written, since the file was this install's
@@ -1240,17 +1255,25 @@ describe('check 6: restore is an import', () => {
     await seedGame(40, 57);
     await configureKey();
     await startApp(dom.root, OPTIONS);
+    await mapShows();
+    // A fight, so that the game on the phone keeps something an earlier save of it does not.
+    await fightOnce();
     await startRun(41);
     const kept = await backedUp();
 
+    // An earlier save of the same game is imported. The backup is looked at again at once, and left alone.
     openSettings();
     dom.tap('Import…');
     dom.fill(JSON.stringify(realRecord('hot', 9, realGame(3))));
     dom.tap('Check');
     dom.tap('Replace the current game');
     await eventually(async () => expect((await hot()).payload.game.profile.counters.runsStarted).toBe(3));
+    await attemptEnds('left-alone');
+    expect(github.file?.text).toBe(serializeRecord(kept));
+    dom.tap('Map');
+    await eventually(() => expect(reminderShowing()).toBe(true));
     await startRun(4);
-    await attemptEnds('unseen');
+    await settle(60);
     expect(github.file?.text).toBe(serializeRecord(kept));
     expect(github.writes).toHaveLength(1);
     expect(reminderShowing()).toBe(true);
@@ -1271,23 +1294,29 @@ describe('check 6: restore is an import', () => {
     await configureKey();
     await startApp(dom.root, OPTIONS);
     await startRun(41);
+    // A fight in run 41, so that everything from here on keeps something the save made as run 41 began does not.
+    await fightOnce();
     await startRun(42);
     const kept = await backedUp();
     expect(kept.payload.game.profile.counters.runsStarted).toBe(42);
 
-    // The newest record goes bad in a way that stops on the recovery screen, where an older good one is used.
+    // The newest record goes bad in a way that stops on the recovery screen, where the save from before that
+    // fight is used.
     const newest = (await hot()).seq;
     await seed((backend) => putRaw(backend, 'hot', realRecord('hot', newest + 20, suspectGame(42))));
     await relaunch();
     await eventually(() => expect(dom.buttons().some((label) => label.startsWith('Use')), 'the recovery screen offers an older save').toBe(true));
-    const older = dom.buttons().filter((label) => label.startsWith('Use') && !label.includes('anyway'));
-    expect(older.length).toBeGreaterThan(0);
+    const older = dom.buttons().filter((label) => label.startsWith('Use') && !label.includes('anyway') && label.includes('(run 41,'));
+    expect(older).toHaveLength(1);
     dom.tap(older[0] ?? '');
     await mapShows();
-    const run = (await hot()).payload.game.profile.counters.runsStarted;
-    await startRun(run + 1);
-    await attemptEnds('unseen');
+    // Looked at against the backup at once, and left alone; the reminder says so before any run is finished.
+    await attemptEnds('left-alone');
+    await eventually(() => expect(reminderShowing()).toBe(true));
+    await startRun(42);
+    await settle(60);
     expect(github.file?.text).toBe(serializeRecord(kept));
+    expect(github.writes).toHaveLength(2);
   });
 
   // Was a disagreement, since fixed. The restore waited on the network and then opened its confirmation,
@@ -1451,7 +1480,7 @@ describe('check 7: the key stays where it was put', () => {
     // Another install writes the backup, so that this one is offered the sheet that would overwrite it.
     github.seed(serializeRecord(otherGame()));
     dom.tap('Back up now');
-    await attemptEnds('unseen');
+    await attemptEnds('left-alone');
     await eventually(() => expect(dom.buttons()).toContain('Overwrite the backup…'));
     look('Settings with a backup this phone has not seen');
     dom.tap('Overwrite the backup…');
@@ -1669,5 +1698,464 @@ describe('check 8: one address and no more', () => {
       // No cookie goes with a call, no cached answer is taken for one, and the page it came from is not named.
       expect(call.init).toMatchObject({ credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer' });
     }
+  });
+});
+
+// ---- the verifier pass's cases ----
+//
+// Written by the separate verifier of 2026-10-13 against the first build of the guard, which rested on what the
+// install remembered. Each states the safe behaviour, and most of them failed then. They are kept as tests of
+// the guard that replaced it, which compares the two saves. What the author changed in them, and nothing else:
+// the name of the result and the wording on screen; in U1b, a fight, so that the later save keeps something the
+// earlier one does not (two saves that keep exactly the same things may replace each other, and nothing is
+// lost); in U3, the line that read a note the new guard does not keep, and its last check, which now looks at every commit for the empty game where it looked for any change to the file, since the restored game is itself written back; in U4, the check that a simulated write
+// failure was used up, since nothing is written at that moment any more, and a relaunch added at the end; in W1
+// and W6, the expectations, which recorded the fault as it was seen and now record its cure.
+describe('VERIFIER U1: automatic fallback past a damaged record at load', () => {
+  it('U1a hot slot damaged after a mid-run Back up now: the fallback game must not replace the more advanced backup without asking', async () => {
+    await seedGame(40, 57);
+    await configureKey();
+    await startApp(dom.root, OPTIONS);
+    await startRun(41);
+    await backedUp();
+    await fightOnce();
+    openSettings();
+    dom.tap('Back up now');
+    const kept = await backedUp();
+    expect(kept.payload.game.run.battleCount).toBe(1);
+    expect(github.file?.text).toBe(serializeRecord(kept));
+    // The hot slot goes bad: its bytes no longer match its checksum.
+    await seed((backend) => putRaw(backend, 'hot', { ...kept, seq: kept.seq + 1 }));
+    await relaunch();
+    await gameShowsRun(41);
+    expect(showsStart('A save could not be read, so an older one was loaded')).toBe(true);
+    expect((await hot()).payload.game.run.battleCount).toBe(0);
+    await settle(50);
+    expect(github.file?.text).toBe(serializeRecord(kept));
+    // Does anything on screen say the backup is ahead of the game now on the phone?
+    const reminded = reminderShowing();
+    await startRun(42);
+    const replaced = await comesTrue(() => github.file?.text !== serializeRecord(kept));
+    expect({ reminded, replaced }, 'the fallback game took the place of the backup, unasked').toEqual({ reminded: true, replaced: false });
+  });
+
+  it('U1b hot slot and newest checkpoint damaged: the game falls back a whole run and must not replace the backup of the later run', async () => {
+    await seedGame(40, 57);
+    await configureKey();
+    await startApp(dom.root, OPTIONS);
+    await startRun(41);
+    await backedUp();
+    await fightOnce();
+    await startRun(42);
+    const kept = await backedUp();
+    expect(kept.payload.game.profile.counters.runsStarted).toBe(42);
+    const stored = (await storage()).slots as Record<string, SlotRecord>;
+    const checkpoints = Object.values(stored)
+      .filter((entry) => entry.slot !== 'hot')
+      .sort((a, b) => b.seq - a.seq);
+    const newest = checkpoints[0];
+    if (newest === undefined) throw new Error('no checkpoint');
+    expect(newest.payload.game.profile.counters.runsStarted).toBe(42);
+    await seed(async (backend) => {
+      await putRaw(backend, 'hot', { ...kept, writtenAt: kept.writtenAt + 1 });
+      await putRaw(backend, newest.slot, { ...newest, writtenAt: newest.writtenAt + 1 });
+    });
+    await relaunch();
+    await gameShowsRun(41);
+    await settle(50);
+    expect(github.file?.text).toBe(serializeRecord(kept));
+    await startRun(42);
+    const replaced = await comesTrue(() => github.file?.text !== serializeRecord(kept));
+    expect(replaced, 'the older game took the place of the backup of run 42, unasked').toBe(false);
+  });
+});
+
+describe('VERIFIER U2: the note that the backup is no longer ours does not reach storage', () => {
+  it('U2 import, the notes could not be stored that once (or the app was killed before they were), relaunch: the imported game must not replace the old backup', async () => {
+    await seedGame(40, 57);
+    await configureKey();
+    await startApp(dom.root, OPTIONS);
+    await startRun(41);
+    const kept = await backedUp();
+
+    const setDevice = LocalBackend.prototype.setDevice;
+    let failOnce = true;
+    vi.spyOn(LocalBackend.prototype, 'setDevice').mockImplementation(async function (this: LocalBackend, key: string, value: unknown): Promise<void> {
+      if (key === BACKUP_STATE && failOnce) {
+        failOnce = false;
+        throw new Error('simulated: the notes were not stored');
+      }
+      await setDevice.call(this, key, value);
+    });
+    openSettings();
+    dom.tap('Import…');
+    dom.fill(JSON.stringify(realRecord('hot', 9, realGame(3))));
+    dom.tap('Check');
+    dom.tap('Replace the current game');
+    await eventually(async () => expect((await hot()).payload.game.profile.counters.runsStarted).toBe(3));
+    await settle(50);
+    expect(failOnce).toBe(false);
+
+    await relaunch();
+    await gameShowsRun(3);
+    await startRun(4);
+    const replaced = await comesTrue(() => github.file?.text !== serializeRecord(kept));
+    expect(replaced, 'the imported game took the place of the old backup, unasked').toBe(false);
+  });
+
+  it('U4 recovery screen, new game, with the device store failing once at that moment: the new game must not replace the old backup', async () => {
+    await seedGame(40, 57);
+    await configureKey();
+    await startApp(dom.root, OPTIONS);
+    await startRun(41);
+    const kept = await backedUp();
+    await seed((backend) => putRaw(backend, 'hot', realRecord('hot', 80, suspectGame(41))));
+
+    const getDevice = LocalBackend.prototype.getDevice;
+    const setDevice = LocalBackend.prototype.setDevice;
+    let failRead = true;
+    let failWrite = true;
+    vi.spyOn(LocalBackend.prototype, 'getDevice').mockImplementation(async function (this: LocalBackend, key: string): Promise<unknown> {
+      if (key === BACKUP_KEY && failRead) {
+        failRead = false;
+        throw new Error('simulated: device store unreadable');
+      }
+      return getDevice.call(this, key);
+    });
+    vi.spyOn(LocalBackend.prototype, 'setDevice').mockImplementation(async function (this: LocalBackend, key: string, value: unknown): Promise<void> {
+      if (key === BACKUP_STATE && failWrite) {
+        failWrite = false;
+        throw new Error('simulated: device store unwritable');
+      }
+      await setDevice.call(this, key, value);
+    });
+    await relaunch();
+    await eventually(() => expect(dom.buttons()).toContain('Start a new game…'));
+    dom.tap('Start a new game…');
+    dom.tap(/^Tap again to start a new game/);
+    await gameShowsRun(1);
+    // The key could not be read, so the backup is off for this launch. Nothing is written about it.
+    expect(failRead).toBe(false);
+    await startRun(2);
+    const replaced = await comesTrue(() => github.file?.text !== serializeRecord(kept));
+    expect(replaced, 'the new game took the place of the old backup, unasked').toBe(false);
+    // The next launch reads the key, and the new game still does not take the old one's place.
+    failWrite = false;
+    await relaunch();
+    await gameShowsRun(2);
+    await startRun(3);
+    await attemptEnds('left-alone');
+    expect(github.file?.text).toBe(serializeRecord(kept));
+  });
+});
+
+describe('VERIFIER U3: restore from the backup while the first attempt of the key is still on its way', () => {
+  it('U3 after a reinstall: key saved, its first look is slow, the player restores at once; the empty game must not be written over the real backup', async () => {
+    const real = otherGame();
+    const text = serializeRecord(real);
+    github.seed(text);
+    let count = 0;
+    let open: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    const slowFirst: FetchLike = async (url, init) => {
+      count += 1;
+      trace.push(`request ${init.method ?? 'GET'}`);
+      if (count === 1) await held;
+      return github.fetch(url, init);
+    };
+    vi.stubGlobal('fetch', slowFirst);
+    await startApp(dom.root, OPTIONS);
+    await gameShowsRun(1);
+    typeKey(REPOSITORY, token);
+    dom.tap('Save the key');
+    await keySheetClosed();
+    await eventually(() => expect(count).toBe(1));
+    dom.tap('Restore from backup…');
+    await eventually(() => expect(shows('Replace the current game?')).toBe(true));
+    dom.tap('Replace the current game');
+    await eventually(async () => expect((await hot()).payload.game.profile.counters.runsStarted).toBe(40));
+    open();
+    // The restored game is the backup's own, and the phone's record of it is written back once the late look has
+    // come in. What must never happen is the empty game being sent, at any moment.
+    await eventually(() => expect(github.writes.length).toBeGreaterThan(0));
+    await settle(80);
+    const runOf = (fileText: string): number => (JSON.parse(fileText) as SlotRecord).payload.game.profile.counters.runsStarted;
+    const everSent = github.commits.map((commit) => runOf(commit.text));
+    const now = github.file === null ? null : runOf(github.file.text);
+    expect({ emptyGameEverSent: everSent.includes(1), runInBackup: now }, 'the empty game of the new install was written over the real backup').toEqual({ emptyGameEverSent: false, runInBackup: 40 });
+    expect(github.file?.text).toBe(serializeRecord(await hot()));
+    expect(text).not.toBe(github.file?.text);
+  });
+});
+
+describe('VERIFIER set 2', () => {
+  it('W1 restoring a set-aside save from Settings leaves the old backup alone (expected to hold)', async () => {
+    await seedGame(40, 57);
+    await seed((backend) => backend.addQuarantine([{ slot: 'hot', kind: 'kept', reason: 'replaced-by-import', raw: realRecord('hot', 20, realGame(5)) }]).then(() => undefined));
+    await configureKey();
+    await startApp(dom.root, OPTIONS);
+    await startRun(41);
+    const kept = await backedUp();
+    openSettings();
+    await eventually(() => expect(dom.buttons()).toContain('Restore…'));
+    dom.tap('Restore…');
+    expect(shows('Replace the current game?')).toBe(true);
+    dom.tap('Replace the current game');
+    await eventually(async () => expect((await hot()).payload.game.profile.counters.runsStarted).toBe(5));
+    // The backup is looked at again as soon as the game is replaced, so the game says where things stand before
+    // any run is finished. It used to say "Worked", with no reminder, until the next run ended.
+    await attemptEnds('left-alone');
+    dom.tap('Map');
+    const reminded = reminderShowing();
+    openSettings();
+    const lastAttempt = valueOf('Last attempt');
+    await startRun(6);
+    await settle(60);
+    expect(github.file?.text).toBe(serializeRecord(kept));
+    expect(github.writes).toHaveLength(1);
+    expect({ reminded, lastAttempt: lastAttempt?.startsWith('Did not go through') }).toEqual({ reminded: true, lastAttempt: true });
+  });
+
+  it('W2 check 3: the notes cannot be stored at all and the service answers nonsense; a new run and a fight write the same bytes as with backup off', async () => {
+    // Backup off.
+    await seedGame();
+    await startApp(dom.root, OPTIONS);
+    await startRun(2);
+    await fightOnce();
+    const off = await slotBytes();
+    const offWrites = localWrites();
+
+    const setDevice = LocalBackend.prototype.setDevice;
+    let refused = 0;
+    vi.spyOn(LocalBackend.prototype, 'setDevice').mockImplementation(async function (this: LocalBackend, key: string, value: unknown): Promise<void> {
+      if (key === BACKUP_STATE) {
+        refused += 1;
+        throw new Error('simulated: the notes cannot be stored');
+      }
+      await setDevice.call(this, key, value);
+    });
+    for (const nonsense of ['undefined', 'object', 'no-headers', 'json-hangs', 'html'] as const) {
+      newPhone();
+      await configureKey();
+      await seedGame();
+      const odd = ((): Promise<Response> => {
+        trace.push('request GET');
+        if (nonsense === 'undefined') return Promise.resolve(undefined as unknown as Response);
+        if (nonsense === 'object') return Promise.resolve({} as unknown as Response);
+        if (nonsense === 'no-headers') return Promise.resolve({ status: 200, json: () => Promise.resolve({}) } as unknown as Response);
+        if (nonsense === 'json-hangs') return Promise.resolve({ status: 200, headers: new Headers(), json: () => new Promise(() => undefined) } as unknown as Response);
+        return Promise.resolve(new Response('<html>captive portal</html>', { status: 200, headers: { 'content-type': 'text/html' } }));
+      }) as unknown as FetchLike;
+      vi.stubGlobal('fetch', odd);
+      await startApp(dom.root, OPTIONS);
+      await startRun(2);
+      await fightOnce();
+      await settle(60);
+      expect(await slotBytes(), nonsense).toEqual(off);
+      expect(localWrites(), nonsense).toEqual(offWrites);
+      expect((await storage()).quarantine, nonsense).toEqual([]);
+      expect(requests().length, nonsense).toBeGreaterThan(0);
+    }
+    expect(refused).toBeGreaterThan(0);
+  });
+
+  it('W3 check 7: errors that echo the Authorization header, thrown and rejected, never reach the log, the screen or the notes', async () => {
+    const marker = madeUpKey('leakprobe');
+    github.token = marker;
+    const holds = (value: unknown): boolean => (typeof value === 'string' ? value : (JSON.stringify(value) ?? '')).includes(marker);
+    let mode: 'throw' | 'reject' | 'reject-object' = 'throw';
+    const echo: FetchLike = (_url, init) => {
+      const header = (init.headers as Record<string, string>)['Authorization'] ?? '';
+      // WebKit and Node both put the offending value in the message of the error a bad header raises.
+      const error = new TypeError(`Header 'Authorization' has invalid value: '${header}'`);
+      if (mode === 'throw') throw error;
+      if (mode === 'reject') return Promise.reject(error);
+      return Promise.reject({ headers: init.headers, url: _url });
+    };
+    vi.stubGlobal('fetch', echo);
+    await seedGame();
+    await startApp(dom.root, OPTIONS);
+    await mapShows();
+    typeKey(REPOSITORY, marker);
+    dom.tap('Save the key');
+    await keySheetClosed();
+    await attemptEnds('unreachable');
+    for (const next of ['reject', 'reject-object'] as const) {
+      mode = next;
+      openSettings();
+      dom.tap('Back up now');
+      await settle(60);
+      dom.tap('Restore from backup…');
+      await eventually(() => expect(showsStart('The backup could not be fetched.')).toBe(true));
+      dom.tap('Cancel');
+    }
+    await startRun(2);
+    await settle(80);
+    openSettings();
+    dom.tap('Show the log');
+    await settle(60);
+    expect(holds(dom.text()), 'on screen').toBe(false);
+    expect(dom.fields().some(holds), 'in a box').toBe(false);
+    const backend = new LocalBackend();
+    const diagnostics = await backend.readDiagnostics();
+    const raw = await buildExport(backend, null, BUILD, FIXED_NOW, { raw: true });
+    (await backend.handle()).close();
+    expect(diagnostics.length).toBeGreaterThan(0);
+    expect(holds(diagnostics), 'the diagnostics store').toBe(false);
+    expect(holds(raw), 'the raw export').toBe(false);
+    const device = await deviceStore();
+    for (const [name, value] of Object.entries(device)) if (name !== BACKUP_KEY) expect(holds(value), `device store under ${name}`).toBe(false);
+  });
+
+  it('W4 check 7: a device store whose error echoes the value it was handed puts the key in the diagnostics log', async () => {
+    const marker = madeUpKey('echoprobe');
+    const setDevice = LocalBackend.prototype.setDevice;
+    vi.spyOn(LocalBackend.prototype, 'setDevice').mockImplementation(async function (this: LocalBackend, key: string, value: unknown): Promise<void> {
+      if (key === BACKUP_KEY) throw new Error(`could not be stored: ${JSON.stringify(value)}`);
+      await setDevice.call(this, key, value);
+    });
+    await seedGame();
+    await startApp(dom.root, OPTIONS);
+    await mapShows();
+    typeKey(REPOSITORY, marker);
+    dom.tap('Save the key');
+    await eventually(() => expect(shows('The key could not be stored on this phone.')).toBe(true));
+    dom.tap('Cancel');
+    await settle(60);
+    const backend = new LocalBackend();
+    const diagnostics = await backend.readDiagnostics();
+    (await backend.handle()).close();
+    expect(JSON.stringify(diagnostics).includes(marker), 'the key is in the diagnostics log, which is in every export').toBe(false);
+  });
+
+  it('W5 a refused key: does the reminder stay until a new key is entered? One run finished offline afterwards', async () => {
+    await configureKey();
+    await seedGame();
+    github.mode = 401;
+    await startApp(dom.root, OPTIONS);
+    await startRun(2);
+    await attemptEnds('refused');
+    await eventually(() => expect(reminderShowing()).toBe(true));
+    github.mode = 'offline';
+    await startRun(3);
+    await attemptEnds('unreachable');
+    dom.tap('Map');
+    // GDD 11: "a reminder that does not block play stays until a new one is entered".
+    expect(reminderShowing(), 'the reminder for the refused key is still on the map').toBe(true);
+  });
+
+  it('W6 a backup file the service does not hand over as text: is there a button that gets the player out?', async () => {
+    await configureKey();
+    await seedGame();
+    github.seed('x'.repeat(50));
+    github.opaque = true;
+    await startApp(dom.root, OPTIONS);
+    await startRun(2);
+    await attemptEnds('left-alone');
+    expect(github.writes).toEqual([]);
+    openSettings();
+    const words = lines().find((line) => line.startsWith('The backup holds a different game')) ?? '';
+    const offered = dom.buttons().includes('Overwrite the backup…');
+    dom.tap('Restore from backup…');
+    await eventually(() => expect(showsStart('The backup cannot be restored: the file in the repository is not one this game wrote.')).toBe(true));
+    dom.tap('Cancel');
+    dom.tap('Map');
+    expect({ words: words !== '', offered, reminder: reminderShowing(), writes: github.writes.length }).toEqual({ words: true, offered: true, reminder: true, writes: 0 });
+    // And the way out works: the player's answer overwrites the file.
+    openSettings();
+    dom.tap('Overwrite the backup…');
+    dom.tap('Overwrite the backup with this game');
+    github.opaque = false;
+    await attemptEnds('ok');
+    expect(github.file?.text).toBe(serializeRecord(await hot()));
+    dom.tap('Map');
+    await eventually(() => expect(reminderShowing()).toBe(false));
+  });
+});
+
+// ---- added after the author's own pass of deliberate breaks, for the four that no test had caught ----
+
+describe('the reworked guard: what a pass of deliberate breaks found untested', () => {
+  it('sends nothing by itself for a save used "anyway" from the recovery screen', async () => {
+    await seed((backend) => putRaw(backend, 'hot', realRecord('hot', 9, suspectGame(3))));
+    await configureKey();
+    await startApp(dom.root, OPTIONS);
+    await eventually(() => expect(dom.buttons()).toContain('Use hot anyway (run 3)'));
+    dom.tap('Use hot anyway (run 3)');
+    await gameShowsRun(3);
+    await settle(80);
+    // A save that fails a check is not sent unless he asks (GDD D-44): not even looked at against the backup.
+    expect(github.calls).toEqual([]);
+  });
+
+  it('says so in the sheet when the key could not be removed from the phone, and leaves it set', async () => {
+    await configureKey();
+    await seedGame();
+    await startApp(dom.root, OPTIONS);
+    await mapShows();
+    const setDevice = LocalBackend.prototype.setDevice;
+    vi.spyOn(LocalBackend.prototype, 'setDevice').mockImplementation(async function (this: LocalBackend, key: string, value: unknown): Promise<void> {
+      if (key === BACKUP_KEY && value === null) throw new Error('simulated: the store would not let go of the key');
+      await setDevice.call(this, key, value);
+    });
+    openSettings();
+    dom.tap('Change or forget the key…');
+    dom.tap('Forget the key on this phone');
+    await eventually(() => expect(shows('The key could not be removed from this phone. It is still set, and still in use.')).toBe(true));
+    expect(shows('Cloud backup key')).toBe(true);
+    expect((await deviceStore())[BACKUP_KEY]).toMatchObject({ owner: OWNER, repo: REPO });
+    dom.tap('Cancel');
+    openSettings();
+    expect(valueOf('Repository')).toBe(REPOSITORY);
+  });
+
+  it('offers to overwrite the backup only while the backup stands left alone', async () => {
+    await configureKey();
+    await seedGame();
+    await startApp(dom.root, OPTIONS);
+    await startRun(2);
+    await backedUp();
+    openSettings();
+    expect(dom.buttons()).not.toContain('Overwrite the backup…');
+    github.mode = 'offline';
+    await startRun(3);
+    await attemptEnds('unreachable');
+    openSettings();
+    expect(dom.buttons()).not.toContain('Overwrite the backup…');
+    github.mode = 401;
+    await startRun(4);
+    await attemptEnds('refused');
+    openSettings();
+    expect(dom.buttons()).not.toContain('Overwrite the backup…');
+    // Another game in the file: now it is offered, and stays offered through a run finished offline.
+    github.mode = 'normal';
+    github.seed(serializeRecord(otherGame()));
+    await startRun(5);
+    await attemptEnds('left-alone');
+    openSettings();
+    expect(dom.buttons()).toContain('Overwrite the backup…');
+    github.mode = 'offline';
+    await startRun(6);
+    await attemptEnds('unreachable');
+    openSettings();
+    expect(dom.buttons()).toContain('Overwrite the backup…');
+  });
+
+  it('goes on saying that the key was refused, in those words, after a run finished offline', async () => {
+    await configureKey();
+    await seedGame();
+    await startApp(dom.root, OPTIONS);
+    github.mode = 401;
+    await startRun(2);
+    await attemptEnds('refused');
+    github.mode = 'offline';
+    await startRun(3);
+    await attemptEnds('unreachable');
+    expect(shows('The cloud backup has stopped: GitHub refused the key. The save on this phone is unaffected.')).toBe(true);
+    openSettings();
+    expect(showsStart('GitHub could not be reached.')).toBe(true);
+    expect(showsStart('Before that: GitHub refused the key.')).toBe(true);
   });
 });

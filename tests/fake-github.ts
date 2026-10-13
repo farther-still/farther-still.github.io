@@ -44,6 +44,8 @@ export class FakeGitHub {
   /** With `normal`: answer a 403 as the service does when too many calls were made. */
   rateLimited = false;
   repositoryExists = true;
+  /** With `normal`: hand the file over with no content, as the service does for one too large to send as text. */
+  opaque = false;
   file: { text: string; sha: string } | null = null;
   readonly commits: { message: string; text: string }[] = [];
   readonly calls: FakeCall[] = [];
@@ -96,7 +98,11 @@ export class FakeGitHub {
     if (path !== `${repository}/contents/${BACKUP_FILE}`) return Promise.resolve(answer(404, { message: 'Not Found' }));
     if (method === 'GET') {
       return Promise.resolve(
-        this.file === null ? answer(404, { message: 'Not Found' }) : answer(200, { type: 'file', encoding: 'base64', content: encode(this.file.text), sha: this.file.sha }),
+        this.file === null
+          ? answer(404, { message: 'Not Found' })
+          : this.opaque
+            ? answer(200, { type: 'file', encoding: 'none', content: '', sha: this.file.sha })
+            : answer(200, { type: 'file', encoding: 'base64', content: encode(this.file.text), sha: this.file.sha }),
       );
     }
     if (method !== 'PUT') return Promise.resolve(answer(405, {}));

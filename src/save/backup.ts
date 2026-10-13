@@ -1,21 +1,24 @@
-// When a backup is made and what this install remembers about it (ARCHITECTURE 7.5). The local save is the
-// source of truth: this file is handed a record that is already committed, never waits on behalf of the game,
-// and has no way to write a slot. Its key and its notes live in the `device` store, outside every save.
+// When a backup is made, what may be replaced by it, and what this install notes about it (ARCHITECTURE 7.5).
+// The local save is the source of truth: this file is handed a record that is already committed, never waits on
+// behalf of the game, and has no way to write a slot. Its key and its notes live in the `device` store, outside
+// every save. The notes are for showing only: no decision about what to replace rests on them.
 
 import { GitHubBackend, backupMessage } from './cloud';
 import type { CloudFailure, CloudFile, CloudKey, CloudResult, FetchLike, TimerLike } from './cloud';
 import { isObject, serializeRecord } from './record';
 import type { SlotRecord } from './schema';
+import { backedUpPayload, succeeds } from './succession';
 
 /** `device` store keys. The key is kept apart from the notes, so that reading the notes never touches the secret. */
 export const BACKUP_KEY = 'backupKey';
 export const BACKUP_STATE = 'backupState';
 
 /**
- * How the last attempt ended. `unseen` is the one that is not a fault: the backup holds a save this install
- * neither wrote nor restored, so it was left alone until the player chooses between the two.
+ * How an attempt ended. `left-alone` is the one that is not a fault: the backup holds a different game, or one
+ * that keeps something the game on this phone does not, so it was not replaced. The player restores it or says
+ * to overwrite it.
  */
-export type BackupOutcome = 'ok' | 'unreachable' | 'refused' | 'not-found' | 'unseen' | 'failed';
+export type BackupOutcome = 'ok' | 'unreachable' | 'refused' | 'not-found' | 'left-alone' | 'failed';
 
 export type BackupAttempt = { at: number; outcome: BackupOutcome; status: number | null };
 
@@ -24,6 +27,12 @@ export type BackupStatus = {
   repository: string | null;
   lastOk: { at: number; seq: number; run: number } | null;
   lastAttempt: BackupAttempt | null;
+  /**
+   * What the service last said, when it said anything: the result of the newest attempt that got an answer.
+   * An attempt that reached nobody does not change it, so a refused key is still known to be refused after a
+   * run finished offline.
+   */
+  standing: BackupOutcome | null;
   busy: boolean;
 };
 
@@ -38,7 +47,7 @@ export type BackupDeps = {
   fetch: FetchLike;
   timer: TimerLike;
   now: () => number;
-  /** Goes to the diagnostics log. Never handed the key. */
+  /** Goes to the diagnostics log. Never handed the key, nor anything read from the `device` store. */
   log: (kind: string, message: string) => void;
 };
 
@@ -71,12 +80,15 @@ const readKey = (raw: unknown): CloudKey | null =>
     ? { owner: raw['owner'], repo: raw['repo'], token: raw['token'] }
     : null;
 
-const OUTCOMES: readonly BackupOutcome[] = ['ok', 'unreachable', 'refused', 'not-found', 'unseen', 'failed'];
+const OUTCOMES: readonly BackupOutcome[] = ['ok', 'unreachable', 'refused', 'not-found', 'left-alone', 'failed'];
 
-const readAttempt = (raw: unknown): BackupAttempt | null =>
-  isObject(raw) && typeof raw['at'] === 'number' && OUTCOMES.includes(raw['outcome'] as BackupOutcome)
-    ? { at: raw['at'], outcome: raw['outcome'] as BackupOutcome, status: typeof raw['status'] === 'number' ? raw['status'] : null }
-    : null;
+const readOutcome = (raw: unknown): BackupOutcome | null => (OUTCOMES.includes(raw as BackupOutcome) ? (raw as BackupOutcome) : null);
+
+const readAttempt = (raw: unknown): BackupAttempt | null => {
+  if (!isObject(raw) || typeof raw['at'] !== 'number') return null;
+  const outcome = readOutcome(raw['outcome']);
+  return outcome === null ? null : { at: raw['at'], outcome, status: typeof raw['status'] === 'number' ? raw['status'] : null };
+};
 
 const readOk = (raw: unknown): BackupStatus['lastOk'] =>
   isObject(raw) && typeof raw['at'] === 'number' && typeof raw['seq'] === 'number' && typeof raw['run'] === 'number'
@@ -86,51 +98,35 @@ const readOk = (raw: unknown): BackupStatus['lastOk'] =>
 /** `read` never answers `changed`; the type allows it, so it is given a home. */
 const readFailure = (failure: CloudFailure): BackupOutcome => (failure === 'changed' ? 'failed' : failure);
 
-const checksumIn = (text: string): string | null => {
-  try {
-    const parsed: unknown = JSON.parse(text);
-    return isObject(parsed) && typeof parsed['checksum'] === 'string' ? parsed['checksum'] : null;
-  } catch {
-    return null;
-  }
-};
+/** What kind of error it was, and no more: an error's own text could hold whatever was being stored. */
+const kindOf = (error: unknown): string => (error instanceof Error ? error.name : 'unknown error');
+
+type Result = { outcome: BackupOutcome; status: number | null };
 
 export class CloudBackup {
   private key: CloudKey | null = null;
-  /** The backup file as this install last wrote or restored it. A write replaces that version and no other. */
-  private seenSha: string | null = null;
-  /** The checksum of the last record sent. If its answer was lost, this is how the file is known to be ours. */
-  private sentChecksum: string | null = null;
   private lastOk: BackupStatus['lastOk'] = null;
   private lastAttempt: BackupAttempt | null = null;
+  private standing: BackupOutcome | null = null;
   private waiting: SlotRecord | null = null;
-  private loaded = false;
-  /** Raised when the game on this phone stops being the one the backup was made from. An attempt begun before that learns nothing. */
-  private epoch = 0;
   private inFlight = 0;
   private chain: Promise<unknown> = Promise.resolve();
   private readonly listeners = new Set<() => void>();
 
   constructor(private readonly deps: BackupDeps) {}
 
-  /**
-   * Reads the key and the notes, once. A store that cannot be read leaves the backup off, and the next call
-   * tries again; it never throws.
-   */
+  /** Reads the key and the notes at startup. A store that cannot be read leaves the backup off; it never throws. */
   async restore(): Promise<void> {
-    if (this.loaded) return;
     try {
       this.key = readKey(await this.deps.device.getDevice(BACKUP_KEY));
       const state = await this.deps.device.getDevice(BACKUP_STATE);
       if (isObject(state)) {
-        this.seenSha = typeof state['seenSha'] === 'string' ? state['seenSha'] : null;
-        this.sentChecksum = typeof state['sentChecksum'] === 'string' ? state['sentChecksum'] : null;
         this.lastOk = readOk(state['lastOk']);
         this.lastAttempt = readAttempt(state['lastAttempt']);
+        this.standing = readOutcome(state['standing']);
       }
-      this.loaded = true;
     } catch (error) {
-      this.deps.log('backup', `could not read the backup settings: ${String(error)}`);
+      this.deps.log('backup', `could not read the backup settings (${kindOf(error)})`);
     }
   }
 
@@ -143,14 +139,14 @@ export class CloudBackup {
       repository: this.key === null ? null : `${this.key.owner}/${this.key.repo}`,
       lastOk: this.lastOk,
       lastAttempt: this.lastAttempt,
+      standing: this.standing,
       busy: this.inFlight > 0,
     };
   }
 
-  /** True when the last attempt ended in a way only the player can put right. Being offline is not one. */
+  /** True when the service's last answer is one only the player can put right. Being offline is not one. */
   get needsAttention(): boolean {
-    const outcome = this.lastAttempt?.outcome;
-    return this.key !== null && (outcome === 'refused' || outcome === 'not-found' || outcome === 'unseen');
+    return this.key !== null && (this.standing === 'refused' || this.standing === 'not-found' || this.standing === 'left-alone');
   }
 
   subscribe(listener: () => void): () => void {
@@ -159,8 +155,8 @@ export class CloudBackup {
   }
 
   /**
-   * Stores the key. Entering a key sends nothing by itself. A different repository is one this install has
-   * never seen, so what was remembered about the old one is dropped. False if the key could not be stored.
+   * Stores the key. Storing it sends nothing by itself. What was noted about the last attempts is dropped, and
+   * for a different repository so is the last backup that worked. False if the key cannot be sent or stored.
    */
   async setKey(key: CloudKey): Promise<boolean> {
     const token = cleanToken(key.token);
@@ -173,41 +169,45 @@ export class CloudBackup {
     try {
       await this.deps.device.setDevice(BACKUP_KEY, next);
     } catch (error) {
-      this.deps.log('backup', `could not store the backup key: ${String(error)}`);
+      this.deps.log('backup', `could not store the backup key (${kindOf(error)})`);
       return false;
     }
     this.key = next;
-    if (!sameRepository) {
-      this.seenSha = null;
-      this.sentChecksum = null;
-      this.lastOk = null;
-    }
+    if (!sameRepository) this.lastOk = null;
     this.lastAttempt = null;
+    this.standing = null;
     await this.persist();
     this.notify();
     return true;
   }
 
-  /** Removes the key from this install and forgets the backup. Nothing in the repository is touched. */
-  async forget(): Promise<void> {
-    this.key = null;
-    this.seenSha = null;
-    this.sentChecksum = null;
-    this.lastOk = null;
-    this.lastAttempt = null;
-    this.waiting = null;
+  /**
+   * Removes the key from this install and drops the notes. Nothing in the repository is touched, and an attempt
+   * already on its way does not write. False if the key could not be removed from the store, in which case it
+   * is still there and still in use.
+   */
+  async forget(): Promise<boolean> {
     try {
       await this.deps.device.setDevice(BACKUP_KEY, null);
     } catch (error) {
-      this.deps.log('backup', `could not remove the backup key: ${String(error)}`);
+      this.deps.log('backup', `could not remove the backup key (${kindOf(error)})`);
+      return false;
     }
+    this.key = null;
+    this.lastOk = null;
+    this.lastAttempt = null;
+    this.standing = null;
+    this.waiting = null;
     await this.persist();
     this.notify();
+    return true;
   }
 
   /**
-   * A run has ended and `record` is already committed locally. Returns at once and never throws: the backup is
-   * made in the background, one at a time, and if several pile up only the newest is sent.
+   * `record` is committed locally and is the game as it now stands: a run has ended, or the game on the phone
+   * was changed some other way and the backup should be looked at again. Returns at once and never throws: the
+   * attempt is made in the background, one at a time, and if several pile up only the newest record is sent.
+   * It replaces the backup only where `succeeds` allows.
    */
   runEnded(record: SlotRecord): void {
     try {
@@ -221,13 +221,13 @@ export class CloudBackup {
         if (next !== null) await this.attempt(next, false);
       });
     } catch (error) {
-      this.deps.log('backup', `could not start a backup: ${String(error)}`);
+      this.deps.log('backup', `could not start a backup (${kindOf(error)})`);
     }
   }
 
   /**
    * One attempt, asked for by the player. With `replace`, the backup is overwritten whatever it holds, which is
-   * the player's answer to `unseen`. Without it, the file is replaced only if it is this install's own.
+   * the player's answer to `left-alone`. Without it, the same rule holds as for a run that has ended.
    */
   backUp(record: SlotRecord, options: { replace: boolean } = { replace: false }): Promise<BackupOutcome> {
     return this.enqueue(() => this.attempt(record, options.replace));
@@ -243,28 +243,6 @@ export class CloudBackup {
     }
   }
 
-  /**
-   * The game on this phone is no longer the one the backup was made from: it was started anew, imported, or
-   * picked on the recovery screen. From here the backup is a save this install has not seen, and it is left
-   * alone until the player restores it or says to overwrite it.
-   */
-  async disown(): Promise<void> {
-    this.epoch += 1;
-    this.seenSha = null;
-    this.sentChecksum = null;
-    this.waiting = null;
-    await this.persist();
-    this.notify();
-  }
-
-  /** The player has restored the file with this version name, so it is now one this install has seen. */
-  async adopt(sha: string): Promise<void> {
-    this.seenSha = sha;
-    if (this.lastAttempt?.outcome === 'unseen') this.lastAttempt = null;
-    await this.persist();
-    this.notify();
-  }
-
   private enqueue<T>(task: () => Promise<T>): Promise<T> {
     const result = this.chain.then(task, task);
     this.chain = result.catch(() => undefined);
@@ -276,20 +254,26 @@ export class CloudBackup {
     if (key === null) return 'failed';
     this.inFlight += 1;
     this.notify();
-    let result: { outcome: BackupOutcome; status: number | null };
+    let result: Result;
     try {
-      result = await this.send(new GitHubBackend(key, this.deps.fetch, this.deps.timer), record, replace);
+      result = await this.send(key, record, replace);
     } catch (error) {
       // Nothing in `send` is meant to throw. If something does, it is a failed backup and no more than that.
-      this.deps.log('backup', `a backup attempt threw: ${error instanceof Error ? error.name : 'unknown error'}`);
+      this.deps.log('backup', `a backup attempt threw (${kindOf(error)})`);
       result = { outcome: 'failed', status: null };
+    }
+    this.inFlight -= 1;
+    // The key was replaced or forgotten while this was on its way. What it came to says nothing about the new one.
+    if (this.key !== key) {
+      this.notify();
+      return result.outcome;
     }
     const before = this.lastAttempt?.outcome ?? null;
     this.lastAttempt = { at: this.deps.now(), ...result };
     if (result.outcome === 'ok') {
       this.lastOk = { at: this.lastAttempt.at, seq: record.seq, run: record.payload.game.profile.counters.runsStarted };
     }
-    this.inFlight -= 1;
+    if (result.outcome !== 'unreachable') this.standing = result.outcome;
     // One line when the result changes, not one per run: a week of offline play must not fill the log.
     if (result.outcome !== 'ok' && result.outcome !== before) {
       this.deps.log('backup', `${result.outcome}${result.status === null ? '' : ` (HTTP ${result.status})`}`);
@@ -299,50 +283,33 @@ export class CloudBackup {
     return result.outcome;
   }
 
-  private async send(backend: GitHubBackend, record: SlotRecord, replace: boolean): Promise<{ outcome: BackupOutcome; status: number | null }> {
-    // Always look first. What may be replaced is decided here, from what the file holds, and is not left to the
-    // service to refuse.
-    const epoch = this.epoch;
+  private async send(key: CloudKey, record: SlotRecord, replace: boolean): Promise<Result> {
+    const backend = new GitHubBackend(key, this.deps.fetch, this.deps.timer);
+    // Always look first. What may be replaced is decided here, from what the file holds and what the record
+    // holds, and from nothing remembered.
     const there = await backend.read();
     if (!there.ok) return { outcome: readFailure(there.failure), status: there.status };
-    // The game was replaced while the file was being read. This record is no longer the game on the phone.
-    if (epoch !== this.epoch) return { outcome: 'unseen', status: null };
     const file = there.value;
-    let sha: string | null = null;
-    if (file !== null) {
-      const theirs = checksumIn(file.text);
-      if (theirs !== null && theirs === record.checksum) {
-        // This very record is already there: an earlier write whose answer never arrived, or the save that was
-        // just restored from this file.
-        this.seenSha = file.sha;
-        return { outcome: 'ok', status: null };
-      }
-      // Ours if it is the version this install last wrote or restored, or the record it last sent.
-      const ours = file.sha === this.seenSha || (theirs !== null && theirs === this.sentChecksum);
-      if (!ours && !replace) return { outcome: 'unseen', status: null };
-      sha = file.sha;
+    const text = serializeRecord(record);
+    if (file !== null && !replace) {
+      // This very record is already there: a write whose answer never arrived.
+      if (file.text === text) return { outcome: 'ok', status: null };
+      const theirs = file.text === null ? null : backedUpPayload(file.text);
+      if (theirs === null || !succeeds(record.payload, theirs)) return { outcome: 'left-alone', status: null };
     }
-    // Noted before sending: if the answer is lost, the file can still be recognised as this install's own.
-    this.sentChecksum = record.checksum;
-    await this.persist();
-    const written = await backend.put(serializeRecord(record), sha, backupMessage(record));
+    // The key was replaced or forgotten while the file was being read. Nothing is written with the old one.
+    if (this.key !== key) return { outcome: 'failed', status: null };
+    const written = await backend.put(text, file?.sha ?? null, backupMessage(record));
     // `changed` here means the file moved between the look and the write. Nothing was written; the next run tries again.
     if (!written.ok) return { outcome: written.failure === 'changed' ? 'failed' : written.failure, status: written.status };
-    // If the game was replaced while the write was on its way, the file is the old game's and is not adopted.
-    if (epoch === this.epoch) this.seenSha = written.value;
     return { outcome: 'ok', status: null };
   }
 
   private async persist(): Promise<void> {
     try {
-      await this.deps.device.setDevice(BACKUP_STATE, {
-        seenSha: this.seenSha,
-        sentChecksum: this.sentChecksum,
-        lastOk: this.lastOk,
-        lastAttempt: this.lastAttempt,
-      });
+      await this.deps.device.setDevice(BACKUP_STATE, { lastOk: this.lastOk, lastAttempt: this.lastAttempt, standing: this.standing });
     } catch (error) {
-      this.deps.log('backup', `could not store the backup notes: ${String(error)}`);
+      this.deps.log('backup', `could not store the backup notes (${kindOf(error)})`);
     }
   }
 

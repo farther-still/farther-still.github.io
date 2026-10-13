@@ -42,6 +42,8 @@ Re-read this file at the start of every session and every work cycle. Update it 
 11. His acceptance run on the phone, with Spotify playing, each step marked: a manual export saved to Files first, as the safety net; the credential entered by him; a finished run shows up in the backup, where he can see it for himself; a run finished in Airplane mode is not held up and Settings says the backup did not go; the next run online backs up; the app deleted; reinstalled; the credential entered; restored; the Run and Settings readouts match the ones he noted before deleting; the self-test reads 13 of 13; Spotify never paused.
 12. The gate report is posted and work stops.
 
+The verifier pass was also given, as its own check, the rule the build added on the way: a backup the game on the phone did not come from is never replaced without asking (GDD D-40). It is not one of the twelve agreed above. It failed that check, and the gate report says so.
+
 ### Success checks, 5b: Z2
 
 1. The three commands pass. `check-content` passes with `data/content-spec.json` at Z2's full counts from GDD 7.5: 11 enemies, 2 of them bosses. The ID lock only grows.
@@ -190,15 +192,15 @@ Both checks below were read again in the Phase 5 session, before this was writte
 | # | Question | Michael's answer | Recorded as |
 |---|---|---|---|
 | 1 | Where the backup copies are kept: (a) a private repository on GitHub, recommended, or (b) Supabase's free tier | "a" | **Ruling.** A private GitHub repository, written through the contents API with a fine-grained token limited to that one repository. He was told in the same message where the key lives on the phone, who can read it, what a leak or an expiry does to his save, and what he does by hand, and asked nothing further about them |
-| 2 | Whether the key ever expires: (a) never, recommended, or (b) after a year. Put to him while 5a was being built, since nothing in the code hangs on it | "The answer for that is a" | **Ruling.** The key is made with no expiry (GDD R-17). He was told with the question that the backup repository would then go on his personal GitHub account and not in the `farther-still` organization, where keys are capped at 366 days by default; he said nothing against that, which is not a ruling |
+| 2 | Whether the key ever expires: (a) never, recommended, or (b) after a year. Put to him while 5a was being built, since nothing in the code hangs on it | "The answer for that is a" | **Ruling.** The key is made with no expiry (GDD R-17). He was told with the question that the backup repository would then go on his personal GitHub account and not in the `farther-still` organization, where keys are capped at 366 days by default. Told later that this half was a default and not his ruling, he replied "Personal account is fine": **Ruling.** The backup repository is on his personal account. It is in GDD R-17 |
 
 ### 5a: what was built (2026-10-13)
 
 `docs/ARCHITECTURE.md` section 7.5 describes it as built, and `docs/GDD.md` sections 11 and 13.8 hold its rules and the decisions made on the way (D-38 to D-43, A-38 to A-43).
 
-- **The backend.** `src/save/cloud.ts`: `GitHubBackend`, one file in a private repository through GitHub's contents API. `src/save/backup.ts`: `CloudBackup`, which decides when a backup is made, refuses to replace a backup this install has not seen, and keeps the key and its notes in the `device` store.
+- **The backend.** `src/save/cloud.ts`: `GitHubBackend`, one file in a private repository through GitHub's contents API. `src/save/backup.ts`: `CloudBackup`, which decides when a backup is tried and keeps the key and its notes in the `device` store. `src/save/succession.ts`: whether one save may take another's place in the backup without asking, worked out from the two saves.
 - **The wiring.** The controller tells the backup of a new run through a hook called after the commit and not awaited. Startup builds the backup with the `device` store and the network and nothing that can reach a slot.
-- **The screens.** A "Cloud backup" part of Settings; a sheet for the key; restore, which hands the file to the import that already exists; a sheet for overwriting a backup this phone has not seen; a reminder on the map for a failure he has to act on.
+- **The screens.** A "Cloud backup" part of Settings; a sheet for the key; restore, which hands the file to the import that already exists; a sheet for overwriting a backup that was left alone; a reminder on the map for a failure he has to act on.
 - **The one address.** `connect-src` in the content security policy names `https://api.github.com`, pinned in `vite.config.ts` and `scripts/check-dist.ts`, and the build scan allows that host and no other.
 - **What did not change:** the save (still version 2, no field added), both fixtures, every golden value, everything under `data/`, the engine, the simulator.
 - **Left as they are, by choice:**
@@ -206,6 +208,40 @@ Both checks below were read again in the Phase 5 session, before this was writte
   - Nothing is backed up between runs. The backup is at most one run behind the phone.
   - `CLAUDE.md` is unchanged. It stands at 7,999 characters of 8,000, so the enforcement map has no row for the backup; `docs/ARCHITECTURE.md` section 11 lists the checks.
   - Whether GitHub lets the contents API create the first file in a repository with no commits was not looked up. The steps he is given make the repository with a README, so the question does not arise.
+
+### 5a: the tests written by a separate pass, and what they found (2026-10-13)
+
+A separate agent was given the success checks and the code, and told to find where the two disagree and to break the code against its own tests. It was not shown this file's conclusions. It wrote `src/ui/backup.test.ts`, which drives the real `startApp` against a stand-in for the service, and added to the controller's and the service worker's tests. It changed no source.
+
+- **What it covered:** checks 3 to 9 through the real app start, the controller's hook and the service worker. It tried 48 deliberate breaks of the source; all 48 failed a test once it had strengthened one test of its own.
+- **What it found, and what was done.** It left three tests marked as expected to fail and one holding the behaviour it doubted. All four were then fixed by the author, and the marks came off:
+  - **A new game from the recovery screen replaced this install's own backup.** The guard knew the install and not the game. Its first finished run put a run-2 game where a run-41 game had been. An imported save and an older save picked on the recovery screen went the same way. The first fix made any way out of the recovery screen, and any save put in the game's place, drop the install's claim on the file. The verifier pass then showed that fix was not enough, and the claim itself was removed (below).
+  - **A restore's answer opened its confirmation over whatever sheet was up by then.** The restore now has a sheet of its own while it waits, and an answer that finds another sheet in its place is dropped (A-45).
+  - **A key with a character a browser cannot send was stored, and every backup then read as "offline" with no reminder.** A key is now cleaned of what a paste picks up, and one that still holds such a character is refused where it is typed.
+  - **A run whose checkpoint was skipped was sent anyway, in place of the last good backup.** Check 4 said "newest good record" and the code sent the newest record. The backup now follows the checkpoint's rule (GDD D-44).
+- **What it found in the checks' own wording:** check 3's "no write to the `slots` store" is true of the backup and not of three buttons that first ask the game to save; check 11's "readouts match" depends on when he notes them, since the backup is the save as the run began. Both checks are reworded above or in the steps he is given.
+- **Fixed by the author afterwards, and tested by the author:** the four fixes, with fourteen tests of them. Ten further breaks of the fixes each fail a test; one did not at first, and a test was added for it. Whether the fixes hold is for the verifier pass to say.
+- **It could not check:** the real service; `npm run build` and the build scan, which were not in its brief; the update that reloads the page as a run starts; and whether iOS offers to keep what is typed in the key's box in its own password store, which would be a place the key is that the tests do not look.
+
+### 5a: verifier pass (2026-10-13): FAILED, and what was rebuilt
+
+A separate agent was given commit `676294a`, the eleven checks and the instruction to find faults. It was told not to read this file beyond the success checks. It ran the checks, traced the paths, wrote its own tests, and broke the source 69 ways.
+
+- **Its ruling.** Checks 1 to 7 and 9 PASS. Check 8 FAIL on the build scan and PASS on the rest. Check 10, that a backup the game did not come from is never replaced without asking, FAIL. Check 11, that the documents match the code, FAIL. It found no way for the backup to delay, change or lose the save on the phone, and no way for the key to leave it.
+- **What failed check 10.** Five ways an automatic backup could overwrite a backup holding a different or a more advanced game. All came from one thing: the guard trusted a note of which file this install had last written or restored.
+  - Loading that fell back past a damaged record did not drop the note, so the older game's next run replaced the newer backup.
+  - A restore confirmed while the key's first attempt was still reading let that attempt, which carried the new install's empty game, write over the real backup. This is the reinstall, the one case the feature exists for; it needed a slow first answer.
+  - The note was dropped after the game was replaced and not before, and a failed store write was swallowed, so a failure or a kill at that moment brought the old claim back at the next launch.
+  - An attempt queued before the game changed ran after it and took the file for its own again.
+  - A file the service does not hand over as text read as a failure, which left backups stuck with no button to mend them.
+- **What was rebuilt.** The note is gone. Whether the file may be replaced is now worked out at every attempt from the two saves themselves (`succeeds` in `src/save/succession.ts`, GDD D-40, A-39): the same game, not from an earlier run, keeping at least everything the file's save keeps between runs. Nothing stored on the phone enters into it, so there is nothing to go stale, fail to be stored, or miss a case. The backup is also tried again at once when the game is changed other than by play (D-45), which is what makes the reminder speak before a run is finished.
+- **The rest of what it found, each fixed:** the build scan let through a string that only began with the allowed address, and nothing pinned its list of exceptions (A-43); "Forget the key" could fail without saying so, and an attempt on its way still wrote with the forgotten key; a refused key's reminder went away after one run finished offline; a failing store's own error text went into the diagnostics log, which could in principle repeat a key; Settings still said an export was the only copy off the phone; and twelve statements in the two documents were not true of the code, most of them about the note.
+- **Its tests.** The sixteen cases it wrote are kept in `src/ui/backup.test.ts` and `src/save/backup.test.ts`, the second set rewritten against the new guard. What was changed in the first set is listed in a comment above them: a fixture, two lines that read the old note, and three expectations that had recorded a fault as seen and now record its cure.
+- **Its mutations.** 57 of 69 caught; of the 12 that were not, 7 mattered. Five of those are about code that no longer exists or now have a test: a listener that throws, something thrown inside an attempt, a set-aside save restored from Settings, when Overwrite is offered, and the scan's exceptions. Two were about the note.
+- **What it said of the tests:** the stand-in service answers at once, in order and always as text, so no race and no unreadable file was ever tried; one test could only fail if the exact old symptom came back; two could not fail at all. The stand-in can now hold a call at a gate and hand over a file that is not text, and there are tests of both.
+- **What it could not check:** the real service, including whether iOS Safari's preflight accepts these headers with `cache: 'no-store'` and what the service answers for an expired or under-scoped key; the phone; CI. Those are for Michael's acceptance run.
+- **The author's own breaks of the rebuilt guard:** 39, one behaviour each. 34 failed a test at once. Five did not: a save used "anyway" from the recovery screen being sent, a failed "Forget the key" hidden by the sheet, Overwrite offered after any attempt, the reminder's words after a run finished offline, and the build scan letting the address through between two characters that are not quotes. A test was written for each, and each of the five now fails one.
+- **Fixed by the author afterwards.** A re-check by a separate agent is run on the rebuilt guard before the gate report, and its ruling is recorded here when it has returned, not before.
 
 ### 5a: what was looked up before the backend question (2026-10-13)
 
@@ -878,6 +914,11 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 - 2026-10-13 (Phase 5a): Three things were changed after that agent had started, and it was told of each: the key sheet and the overwrite sheet no longer wait on the network before closing; the backup's key is read on every way into the game, the recovery screen included; and two buttons were renamed so that restoring and overwriting cannot be taken for each other.
 - 2026-10-13 (Phase 5a): The built app was not driven against the real service, and no key of any kind, real or made up, was typed into it in the browser pane: a made-up key would still have been sent to GitHub. The stand-in service covers the code.
 - 2026-10-13 (Phase 5a): `tests/fake-github.ts` answers a write without a version name with 422 and one with the wrong name with 409, as GitHub's documentation lists them. The app does not rely on either answer (A-39).
+- 2026-10-13 (Phase 5a): After the verifier pass failed the guard, it was rebuilt and not patched: five separate faults had one cause, and a sixth patch to a note would have been a sixth event to remember. The rule he was told about is unchanged in what it protects; how it is decided is different, and D-40 says so. He is told in the gate report.
+- 2026-10-13 (Phase 5a): A game is told from another by the moment its save was begun, a field the save already had for export tracking (A-40). A field of its own would have been a save change and a migration on his phone.
+- 2026-10-13 (Phase 5a): Two saves of one game that keep exactly the same things may replace each other in the backup without asking, whichever is the older, as long as the newer run count is not the one being lost. Nothing that lasts is lost by it. The verifier's case U1b had two such saves and was given a fight so that they differ; the change is noted above the test.
+- 2026-10-13 (Phase 5a): The verifier's sixteen cases were kept as regression tests and edited by the author where the new guard made them read a note that is gone or expect a fault that is cured. Each edit is listed above them, so that the re-check can judge whether any of them softened a case.
+- 2026-10-13 (Phase 5a): The verifier ran nine mutations in the main working tree for about four minutes before moving to copies, and left one file mutated when it stopped that runner; it restored the file and said so. The author's full check was not running in that window.
 
 ## Handoff
 

@@ -19,6 +19,8 @@ import {
   stringFindings,
 } from '../scripts/check-content';
 import {
+  ALLOWED_URLS,
+  BACKUP_ADDRESS,
   REQUIRED_CSP,
   fileFindings,
   hoverFindings,
@@ -279,13 +281,59 @@ describe('check-dist', () => {
     expect(pageFindings(page(CONTENT_SECURITY_POLICY.replace(` ${BACKUP_ORIGIN}`, ''), VIEWPORT)).length).toBeGreaterThan(0);
   });
 
-  it('allows the cloud backup address in the bundle, that host exactly', () => {
+  it('allows the cloud backup address in the bundle only as a whole string, and that host exactly', () => {
+    expect(BACKUP_ADDRESS).toBe(BACKUP_ORIGIN);
     expect(urlFindings('a.js', `fetch("${BACKUP_ORIGIN}")`)).toEqual([]);
-    expect(urlFindings('a.js', 'fetch(`' + BACKUP_ORIGIN + '/repos/${a}/${b}/contents/x.json`)')).toEqual([]);
-    expect(urlFindings('a.js', 'fetch("https://api.github.com.example.net/repos")')).toHaveLength(1);
-    expect(urlFindings('a.js', 'fetch("https://uploads.github.com/x")')).toHaveLength(1);
-    expect(urlFindings('a.js', 'fetch("http://api.github.com/repos")')).toHaveLength(1);
-    expect(urlFindings('a.js', 'fetch("https://github.com/login")')).toHaveLength(1);
+    expect(urlFindings('a.js', `const a='${BACKUP_ORIGIN}';`)).toEqual([]);
+    expect(urlFindings('a.js', 'const a=`' + BACKUP_ORIGIN + '`;')).toEqual([]);
+    // A string that begins with the address can name any host at all. Each of these did, or could, pass a check
+    // that looked only at where the address-shaped text stopped.
+    for (const literal of [
+      `"${BACKUP_ORIGIN})@evil.example/x"`,
+      `"${BACKUP_ORIGIN} @evil.example/x"`,
+      `"${BACKUP_ORIGIN}<@evil.example/x"`,
+      `"${BACKUP_ORIGIN}'@evil.example/x"`,
+      `"${BACKUP_ORIGIN}\\@evil.example/x"`,
+      `"${BACKUP_ORIGIN}\\x40evil.example/x"`,
+      `"${BACKUP_ORIGIN}\\u002eevil.example/x"`,
+      `"${BACKUP_ORIGIN}@evil.example/x"`,
+      `"${BACKUP_ORIGIN}.example.net/repos"`,
+      `"${BACKUP_ORIGIN}:8443/x"`,
+      `"${BACKUP_ORIGIN}/repos/a/b"`,
+      `"${BACKUP_ORIGIN};"`,
+      `'${BACKUP_ORIGIN}"`,
+      `"x ${BACKUP_ORIGIN}"`,
+      '"https://uploads.github.com/x"',
+      '"http://api.github.com"',
+      '"wss://api.github.com"',
+      '"https://github.com/login"',
+      '"https://API.github.com.example.net"',
+    ]) {
+      expect(urlFindings('a.js', `fetch(${literal})`).length, literal).toBeGreaterThan(0);
+    }
+    // Nor is it let through where it merely stands between two of the same character that are not quotes.
+    expect(urlFindings('a.js', `// see ${BACKUP_ORIGIN} for the address`).length).toBeGreaterThan(0);
+    expect(urlFindings('a.js', `fetch( ${BACKUP_ORIGIN} )`).length).toBeGreaterThan(0);
+  });
+
+  it('allows the address in the page only as the content security policy names it', () => {
+    const policy = `<meta http-equiv="Content-Security-Policy" content="${CONTENT_SECURITY_POLICY}">`;
+    expect(policy).toContain(` ${BACKUP_ORIGIN}; `);
+    expect(urlFindings('index.html', policy)).toEqual([]);
+    expect(urlFindings('a.js', policy).length).toBeGreaterThan(0);
+    expect(urlFindings('index.html', policy.replace(`${BACKUP_ORIGIN}; `, `${BACKUP_ORIGIN};x `)).length).toBeGreaterThan(0);
+    expect(urlFindings('index.html', `<a href="${BACKUP_ORIGIN}/x">`).length).toBeGreaterThan(0);
+  });
+
+  it('pins the list of URL shapes that are let through, so that adding one is a deliberate act', () => {
+    expect(ALLOWED_URLS.map((allowed) => allowed.source)).toEqual([
+      '^http:\\/\\/www\\.w3\\.org\\/',
+      '^https?:\\/\\/json-schema\\.org\\/draft[-/][0-9-]+\\/schema#?$',
+      '^http:\\/\\/\\[\\$\\{[A-Za-z_$][\\w$]*\\}\\]$',
+    ]);
+    for (const url of ['https://example.com/x.js', 'https://cdn.example.net/lib.js', 'https://fonts.example.org/f.css', 'https://www.w3.org/x', 'https://api.example.com']) {
+      expect(urlFindings('a.js', `fetch("${url}")`), url).toHaveLength(1);
+    }
   });
 
   it('finds a missing or loosened content security policy', () => {

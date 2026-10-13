@@ -29,15 +29,10 @@ export const MEDIA_PATTERNS: ReadonlyArray<{ name: string; pattern: RegExp }> = 
   { name: 'speech synthesis', pattern: /\b(speechSynthesis|SpeechSynthesisUtterance)\b/ },
 ];
 
-// URL-shaped text that is an identifier or a parsing template, not a place anything is loaded from, and the one
-// address the page may call. Each entry names where it comes from. Anything else fails, and the policy's
-// `connect-src` blocks it at run time too.
-const ALLOWED_URLS: readonly RegExp[] = [
-  // The cloud backup's address (ARCHITECTURE 7.5): that host exactly, whatever path the code builds under it.
-  /^https:\/\/api\.github\.com(\/.*)?$/,
-  // The same address as the page's content security policy names it, with the directive's semicolon after it.
-  // The policy itself is held to the exact pinned list below.
-  /^https:\/\/api\.github\.com;$/,
+// URL-shaped text that is an identifier or a parsing template, not a place anything is loaded from. Each entry
+// names where it comes from. Anything else fails, and the policy's `connect-src` blocks it at run time too.
+// `tests/checks.test.ts` pins this list, so that adding to it takes a second, deliberate edit.
+export const ALLOWED_URLS: readonly RegExp[] = [
   // XML namespaces (SVG, XHTML).
   /^http:\/\/www\.w3\.org\//,
   // zod: the `$schema` names of the JSON Schema drafts it can describe a schema in.
@@ -81,10 +76,26 @@ export const fileFindings = (file: string): string[] => {
 export const mediaFindings = (file: string, text: string): string[] =>
   MEDIA_PATTERNS.filter(({ pattern }) => pattern.test(text)).map(({ name }) => `${file} contains ${name}`);
 
+/** The one address the page may call: the cloud backup's (ARCHITECTURE 7.5). Pinned here and in `vite.config.ts`. */
+export const BACKUP_ADDRESS = 'https://api.github.com';
+
+const QUOTES = ['"', "'", '`'];
+
+/**
+ * The backup's address is allowed in two shapes and no other. In code: as a whole string, opened and closed by
+ * the same quote, with nothing after the host. In the page: as the content security policy names it. A string
+ * that only begins with the address is not the address: what follows can name another host altogether.
+ */
+const isBackupAddress = (file: string, url: string, before: string, after: string): boolean =>
+  (url === BACKUP_ADDRESS && QUOTES.includes(before) && after === before) ||
+  (file.endsWith('.html') && url === `${BACKUP_ADDRESS};` && before === ' ' && after === ' ');
+
 export const urlFindings = (file: string, text: string): string[] => {
   const found = new Set<string>();
   for (const match of text.matchAll(/\b(?:https?|wss?|ftp):\/\/[^\s"'`<>)\\]+/gi)) {
     const url = match[0];
+    const at = match.index;
+    if (isBackupAddress(file, url, text[at - 1] ?? '', text[at + url.length] ?? '')) continue;
     if (!ALLOWED_URLS.some((allowed) => allowed.test(url))) found.add(url);
   }
   // Protocol-relative URLs load from another host just the same: in markup, in styles, or as a string in code.

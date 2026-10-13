@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { FakeGitHub, ManualTimer, madeUpKey } from '../../tests/fake-github';
-import { FIXED_NOW, gameAtRun, record } from '../../tests/helpers';
+import { FakeGitHub, ManualTimer, madeUpKey, shaOf } from '../../tests/fake-github';
+import { FIXED_NOW, gameAtRun, record, unsealed } from '../../tests/helpers';
 import { BACKUP_KEY, BACKUP_STATE, CloudBackup, cleanToken, parseRepository } from './backup';
 import type { DeviceStore } from './backup';
-import { serializeRecord } from './record';
-import type { SlotRecord } from './schema';
+import { checksumOf, sealRecord, serializeRecord } from './record';
+import type { SavePayload, SlotRecord } from './schema';
 
 const OWNER = 'someone';
 const REPO = 'some-saves';
@@ -54,6 +54,22 @@ const settle = async (): Promise<void> => {
 
 const run = (runsStarted: number, seq: number): SlotRecord => record('hot', seq, gameAtRun(runsStarted));
 
+const changed = (base: SlotRecord, change: (payload: SavePayload) => SavePayload): SlotRecord => sealRecord({ ...unsealed(base), payload: change(base.payload) });
+
+/** The same game with one more copy of an item: a save that keeps something `base` does not. */
+const withOneMore = (base: SlotRecord, item = 'i004'): SlotRecord =>
+  changed(base, (payload) => ({
+    ...payload,
+    game: { ...payload.game, profile: { ...payload.game.profile, items: { ...payload.game.profile.items, [item]: (payload.game.profile.items[item] ?? 0) + 1 } } },
+  }));
+
+/** Any fields at all, sealed with a checksum that matches them. */
+const sealedText = (fields: Record<string, unknown>): string => JSON.stringify({ ...fields, checksum: checksumOf(fields) });
+
+/** A game begun at another moment: another game altogether, whatever it holds. */
+const anotherGame = (runsStarted: number, seq: number): SlotRecord =>
+  changed(run(runsStarted, seq), (payload) => ({ ...payload, app: { ...payload.app, exportTracking: { ...payload.app.exportTracking, trackingSince: payload.app.exportTracking.trackingSince - 86_400_000 } } }));
+
 beforeEach(() => {
   token = madeUpKey('backup');
   github = new FakeGitHub(OWNER, REPO, token);
@@ -73,7 +89,7 @@ describe('CloudBackup: off until a key is entered', () => {
     expect((await backup.look()).ok).toBe(false);
     expect(github.calls).toEqual([]);
     expect(backup.configured).toBe(false);
-    expect(backup.status).toEqual({ repository: null, lastOk: null, lastAttempt: null, busy: false });
+    expect(backup.status).toEqual({ repository: null, lastOk: null, lastAttempt: null, standing: null, busy: false });
     expect(backup.needsAttention).toBe(false);
   });
 
@@ -210,60 +226,122 @@ describe('CloudBackup: what the last attempt came to', () => {
   });
 });
 
-describe('CloudBackup: a backup this install has not seen is left alone', () => {
-  it('does not overwrite a file that was there before the key was entered', async () => {
-    const theirs = serializeRecord(run(40, 900));
+describe('CloudBackup: what may be replaced is decided from the two saves', () => {
+  it('does not replace another game, whatever this install remembers or does not', async () => {
+    const theirs = serializeRecord(anotherGame(40, 900));
     github.seed(theirs);
     const backup = await withKey();
     backup.runEnded(run(1, 2));
     await settle();
     expect(github.writes).toEqual([]);
     expect(github.file?.text).toBe(theirs);
-    expect(backup.status.lastAttempt?.outcome).toBe('unseen');
+    expect(backup.status.lastAttempt?.outcome).toBe('left-alone');
     expect(backup.needsAttention).toBe(true);
-    expect(await backup.backUp(run(1, 3))).toBe('unseen');
+    expect(await backup.backUp(run(1, 3))).toBe('left-alone');
     expect(github.file?.text).toBe(theirs);
   });
 
-  it('does not overwrite a file another install has changed since', async () => {
+  it('does not replace the same game where the backup keeps something this save does not', async () => {
     const backup = await withKey();
-    backup.runEnded(run(2, 5));
+    const ahead = withOneMore(run(41, 60));
+    backup.runEnded(ahead);
     await settle();
-    const theirs = serializeRecord(run(9, 300));
-    github.seed(theirs);
-    backup.runEnded(run(3, 9));
+    expect(github.file?.text).toBe(serializeRecord(ahead));
+    // The phone's game is now a state of the same game that lacks the item: a fallback, an older save, an import.
+    backup.runEnded(run(42, 70));
     await settle();
-    expect(github.file?.text).toBe(theirs);
-    expect(backup.status.lastAttempt?.outcome).toBe('unseen');
+    expect(github.file?.text).toBe(serializeRecord(ahead));
+    expect(backup.status.lastAttempt?.outcome).toBe('left-alone');
+    expect(backup.status.lastOk).toEqual({ at: clock, seq: 60, run: 41 });
   });
 
-  it('backs up again once the player has restored that file', async () => {
-    const sha = github.seed(serializeRecord(run(40, 900)));
+  it('replaces the same game where this save keeps everything the backup does, whoever wrote the backup', async () => {
+    // Left there by something this install knows nothing of: another launch, a restore, a write whose answer was lost.
+    github.seed(serializeRecord(run(2, 5)));
     const backup = await withKey();
-    backup.runEnded(run(1, 2));
+    const later = withOneMore(run(3, 9));
+    backup.runEnded(later);
     await settle();
-    expect(backup.needsAttention).toBe(true);
-    await backup.adopt(sha);
-    expect(backup.needsAttention).toBe(false);
-    const next = run(41, 4);
-    backup.runEnded(next);
-    await settle();
-    expect(github.file?.text).toBe(serializeRecord(next));
+    expect(github.file?.text).toBe(serializeRecord(later));
     expect(backup.status.lastAttempt?.outcome).toBe('ok');
   });
 
-  it('overwrites it when the player says so, and only then', async () => {
-    github.seed(serializeRecord(run(40, 900)));
+  it('makes the same decision with its notes gone, since none rests on them', async () => {
+    const backup = await withKey();
+    const ahead = withOneMore(run(41, 60));
+    backup.runEnded(ahead);
+    await settle();
+    device.values.delete(BACKUP_STATE);
+    const restarted = make();
+    await restarted.restore();
+    restarted.runEnded(run(42, 70));
+    await settle();
+    expect(github.file?.text).toBe(serializeRecord(ahead));
+    expect(restarted.status.lastAttempt?.outcome).toBe('left-alone');
+    restarted.runEnded(withOneMore(withOneMore(run(42, 74))));
+    await settle();
+    expect(restarted.status.lastAttempt?.outcome).toBe('ok');
+  });
+
+  it('makes the same decision when its notes could never be stored', async () => {
+    const backup = await withKey();
+    const ahead = withOneMore(run(41, 60));
+    backup.runEnded(ahead);
+    await settle();
+    device.failing = true;
+    backup.runEnded(run(42, 70));
+    await settle();
+    device.failing = false;
+    const restarted = make();
+    await restarted.restore();
+    restarted.runEnded(run(42, 72));
+    await settle();
+    expect(github.file?.text).toBe(serializeRecord(ahead));
+  });
+
+  it.each([
+    ['text that is not a save', 'not json at all'],
+    ['a save whose checksum does not match', JSON.stringify({ ...run(2, 5), seq: 6 })],
+    ['a save from a newer version', sealedText({ ...unsealed(run(2, 5)), saveVersion: 99 })],
+    ['a save in a shape this build does not know', sealedText({ ...unsealed(run(2, 5)), payload: { game: {}, app: {} } })],
+    ['a save with a field this build does not know', sealedText({ ...unsealed(run(2, 5)), payload: { ...run(2, 5).payload, extra: true } })],
+    ['an empty file', ''],
+  ])('leaves alone a file that holds %s', async (_what, text) => {
+    github.seed(text);
+    const backup = await withKey();
+    backup.runEnded(run(3, 9));
+    await settle();
+    expect(github.writes).toEqual([]);
+    expect(github.file?.text).toBe(text);
+    expect(backup.status.lastAttempt?.outcome).toBe('left-alone');
+  });
+
+  it('leaves alone a file the service does not hand over as text, and can still overwrite it when told to', async () => {
+    const sha = github.seed('x'.repeat(50));
+    github.opaque = true;
+    const backup = await withKey();
+    expect(await backup.look()).toEqual({ ok: true, value: { text: null, sha } });
+    expect(await backup.backUp(run(3, 9))).toBe('left-alone');
+    expect(github.writes).toEqual([]);
+    // Not stranded: the player's answer still works.
+    expect(await backup.backUp(run(3, 9), { replace: true })).toBe('ok');
+    expect(github.file?.text).toBe(serializeRecord(run(3, 9)));
+  });
+
+  it('overwrites when the player says so, and only then', async () => {
+    const theirs = serializeRecord(anotherGame(40, 900));
+    github.seed(theirs);
     const backup = await withKey();
     const mine = run(1, 2);
-    expect(await backup.backUp(mine)).toBe('unseen');
+    expect(await backup.backUp(mine)).toBe('left-alone');
     expect(await backup.backUp(mine, { replace: true })).toBe('ok');
     expect(github.file?.text).toBe(serializeRecord(mine));
     // The replaced save is still in the repository's history.
-    expect(github.commits.map((commit) => commit.text)).toContain(serializeRecord(run(40, 900)));
+    expect(github.commits.map((commit) => commit.text)).toContain(theirs);
     backup.runEnded(run(2, 6));
     await settle();
     expect(backup.status.lastAttempt?.outcome).toBe('ok');
+    expect(backup.needsAttention).toBe(false);
   });
 
   it('recreates a file that has been deleted, since there is nothing to protect', async () => {
@@ -277,7 +355,7 @@ describe('CloudBackup: a backup this install has not seen is left alone', () => 
     expect(backup.status.lastAttempt?.outcome).toBe('ok');
   });
 
-  it('knows its own write when the answer to it was lost', async () => {
+  it('carries on after a write whose answer was lost', async () => {
     const backup = await withKey();
     backup.runEnded(run(2, 5));
     await settle();
@@ -293,19 +371,6 @@ describe('CloudBackup: a backup this install has not seen is left alone', () => 
     expect(github.file?.text).toBe(serializeRecord(run(4, 13)));
   });
 
-  it('knows its own write after a restart, too', async () => {
-    const backup = await withKey();
-    github.loseNextAnswer = true;
-    backup.runEnded(run(2, 5));
-    await settle();
-    const restarted = make();
-    await restarted.restore();
-    restarted.runEnded(run(3, 9));
-    await settle();
-    expect(restarted.status.lastAttempt?.outcome).toBe('ok');
-    expect(github.file?.text).toBe(serializeRecord(run(3, 9)));
-  });
-
   it('counts the same record already being there as backed up, without writing again', async () => {
     const backup = await withKey();
     github.loseNextAnswer = true;
@@ -316,21 +381,17 @@ describe('CloudBackup: a backup this install has not seen is left alone', () => 
     expect(github.writes).toHaveLength(before);
   });
 
-  it('treats a new repository as one it has never seen', async () => {
+  it('writes with the version it has just read, so a file that moves in between is not overwritten', async () => {
     const backup = await withKey();
     backup.runEnded(run(2, 5));
     await settle();
-    const elsewhere = new FakeGitHub(OWNER, 'other-saves', token);
-    elsewhere.seed(serializeRecord(run(40, 900)));
-    const moved = new CloudBackup({ device, fetch: elsewhere.fetch, timer: timer.timer, now: () => clock, log: () => undefined });
-    await moved.restore();
-    await moved.setKey({ owner: OWNER, repo: 'other-saves', token });
-    expect(moved.status.lastOk).toBeNull();
-    expect(await moved.backUp(run(3, 9))).toBe('unseen');
-    expect(elsewhere.writes).toEqual([]);
+    backup.runEnded(run(3, 9));
+    await settle();
+    const [, second] = github.writes;
+    expect((second?.body as { sha?: string }).sha).toBe(github.commits.length === 2 ? shaOf(serializeRecord(run(2, 5))) : 'unexpected');
   });
 
-  it('keeps what it knows when only the key is replaced', async () => {
+  it('keeps what it knows of the last backup when only the key is replaced, and drops it for another repository', async () => {
     const backup = await withKey();
     backup.runEnded(run(2, 5));
     await settle();
@@ -340,63 +401,17 @@ describe('CloudBackup: a backup this install has not seen is left alone', () => 
     expect(backup.status.lastAttempt?.outcome).toBe('refused');
     await backup.setKey({ owner: OWNER, repo: REPO, token: github.token });
     expect(backup.status.lastAttempt).toBeNull();
+    expect(backup.status.standing).toBeNull();
     expect(backup.status.lastOk?.run).toBe(2);
     backup.runEnded(run(4, 13));
     await settle();
     expect(backup.status.lastAttempt?.outcome).toBe('ok');
+    await backup.setKey({ owner: OWNER, repo: 'other-saves', token: github.token });
+    expect(backup.status.lastOk).toBeNull();
   });
 });
 
-describe('CloudBackup: a game that is not the one the backup was made from', () => {
-  it('leaves its own backup alone once the game has been replaced, until the player chooses', async () => {
-    const backup = await withKey();
-    const kept = run(41, 60);
-    backup.runEnded(kept);
-    await settle();
-    expect(github.file?.text).toBe(serializeRecord(kept));
-
-    await backup.disown();
-    backup.runEnded(run(2, 4));
-    await settle();
-    expect(github.file?.text).toBe(serializeRecord(kept));
-    expect(backup.status.lastAttempt?.outcome).toBe('unseen');
-    expect(backup.needsAttention).toBe(true);
-    expect(await backup.backUp(run(2, 5))).toBe('unseen');
-    // What it knew of its last good backup is still shown: only its claim on the file is gone.
-    expect(backup.status.lastOk).toEqual({ at: clock, seq: 60, run: 41 });
-
-    expect(await backup.backUp(run(2, 5), { replace: true })).toBe('ok');
-    expect(github.file?.text).toBe(serializeRecord(run(2, 5)));
-  });
-
-  it('remembers across a restart that the backup is no longer its own', async () => {
-    const backup = await withKey();
-    const kept = run(41, 60);
-    backup.runEnded(kept);
-    await settle();
-    await backup.disown();
-    const restarted = make();
-    await restarted.restore();
-    restarted.runEnded(run(2, 4));
-    await settle();
-    expect(github.file?.text).toBe(serializeRecord(kept));
-    expect(restarted.status.lastAttempt?.outcome).toBe('unseen');
-  });
-
-  it('does not know the old game\'s file as its own by the record it last sent', async () => {
-    const backup = await withKey();
-    github.loseNextAnswer = true;
-    const kept = run(41, 60);
-    backup.runEnded(kept);
-    await settle();
-    // The write was made and never answered, so only the note of what was sent ties the file to this install.
-    await backup.disown();
-    backup.runEnded(run(2, 4));
-    await settle();
-    expect(github.file?.text).toBe(serializeRecord(kept));
-    expect(backup.status.lastAttempt?.outcome).toBe('unseen');
-  });
-
+describe('CloudBackup: when the game on the phone changes while something is on its way', () => {
   /** A backup whose calls of one kind wait at a gate, so that something can happen while one is on its way. */
   const gated = (method: 'GET' | 'PUT'): { backup: CloudBackup; open: () => void } => {
     let open: () => void = () => undefined;
@@ -416,92 +431,176 @@ describe('CloudBackup: a game that is not the one the backup was made from', () 
     return { backup, open };
   };
 
-  it('does not send the old game when the game is replaced while the file is being read', async () => {
+  // The reinstall, with a slow first look: the empty game's attempt is still reading when the player restores.
+  it('does not send the game that was there before a restore, however late its look comes back', async () => {
+    const theirs = anotherGame(40, 900);
+    github.seed(serializeRecord(theirs));
     const { backup, open } = gated('GET');
     await backup.setKey({ owner: OWNER, repo: REPO, token });
-    backup.runEnded(run(41, 60));
+    const empty = run(1, 2);
+    backup.runEnded(empty);
     await settle();
-    await backup.disown();
+    // The player restores: the game on the phone is now the backup's, written here under a new save number.
+    const restored = changed(theirs, (payload) => payload);
+    const local = sealRecord({ ...unsealed(restored), seq: 3 });
+    backup.runEnded(local);
     open();
     await settle();
-    // The read came back to a game that is no longer the one on the phone. Nothing was written.
-    expect(github.writes).toEqual([]);
-    expect(github.file).toBeNull();
-    expect(backup.status.lastAttempt?.outcome).toBe('unseen');
+    // The empty game's attempt came back to a file it has no claim on, and wrote nothing. The restored game's
+    // own attempt then found a file it holds everything of.
+    expect(github.commits.map((commit) => commit.text)).not.toContain(serializeRecord(empty));
+    expect(github.file?.text).toBe(serializeRecord(local));
+    expect(backup.status.lastAttempt?.outcome).toBe('ok');
+    expect(backup.needsAttention).toBe(false);
   });
 
-  it('does not take the file for its own when the game is replaced while the write is on its way', async () => {
+  it('lets a write of the old game land, and still does not put the new game over it', async () => {
     const { backup, open } = gated('PUT');
     await backup.setKey({ owner: OWNER, repo: REPO, token });
-    const old = run(41, 60);
+    const old = withOneMore(run(41, 60));
     backup.runEnded(old);
     await settle();
-    await backup.disown();
+    // The game is replaced by another while the old one's write is on its way.
+    backup.runEnded(anotherGame(2, 4));
     open();
     await settle();
-    // The old game's write was already sent and it lands. It is the old game's file, not the new one's.
     expect(github.file?.text).toBe(serializeRecord(old));
-    backup.runEnded(run(2, 4));
-    await settle();
-    expect(github.file?.text).toBe(serializeRecord(old));
-    expect(backup.status.lastAttempt?.outcome).toBe('unseen');
+    expect(backup.status.lastAttempt?.outcome).toBe('left-alone');
   });
 
-  it('drops a write that was queued for the old game', async () => {
-    const backup = await withKey();
-    github.mode = 'hang';
-    backup.runEnded(run(41, 60));
+  it('runs an attempt that was asked for before the game changed, by the same rule', async () => {
+    const { backup, open } = gated('GET');
+    await backup.setKey({ owner: OWNER, repo: REPO, token });
+    const old = withOneMore(run(41, 60));
+    const first = backup.backUp(old);
+    const second = backup.backUp(old);
+    const imported = backup.backUp(anotherGame(2, 4));
+    open();
+    expect(await first).toBe('ok');
+    expect(await second).toBe('ok');
+    expect(await imported).toBe('left-alone');
+    expect(github.file?.text).toBe(serializeRecord(old));
+    expect(github.writes).toHaveLength(1);
+  });
+
+  it('does not write with a key that was forgotten while the file was being read', async () => {
+    const { backup, open } = gated('GET');
+    await backup.setKey({ owner: OWNER, repo: REPO, token });
+    backup.runEnded(run(2, 5));
     await settle();
-    backup.runEnded(run(42, 64));
-    await backup.disown();
-    github.mode = 'normal';
-    timer.fireAll();
+    expect(await backup.forget()).toBe(true);
+    open();
     await settle();
     expect(github.writes).toEqual([]);
     expect(github.file).toBeNull();
+    expect(backup.status).toEqual({ repository: null, lastOk: null, lastAttempt: null, standing: null, busy: false });
+    expect(device.values.get(BACKUP_STATE)).toEqual({ lastOk: null, lastAttempt: null, standing: null });
   });
 
-  it('counts the save that was just restored from the file as backed up, and carries on from it', async () => {
-    const theirs = run(40, 900);
-    const sha = github.seed(serializeRecord(theirs));
-    const backup = await withKey();
-    await backup.disown();
-    await backup.adopt(sha);
-    const next = run(41, 4);
-    backup.runEnded(next);
+  it('does not write with a key that was replaced while the file was being read, nor note its result against the new one', async () => {
+    const { backup, open } = gated('GET');
+    await backup.setKey({ owner: OWNER, repo: REPO, token });
+    backup.runEnded(run(2, 5));
     await settle();
-    expect(github.file?.text).toBe(serializeRecord(next));
+    await backup.setKey({ owner: OWNER, repo: 'other-saves', token });
+    open();
+    await settle();
+    expect(github.writes).toEqual([]);
+    expect(backup.status.lastAttempt).toBeNull();
+    expect(backup.status.lastOk).toBeNull();
   });
 });
 
-describe('CloudBackup: reading its settings once', () => {
-  it('does not read the store again once it has, so a later call cannot undo what has happened since', async () => {
-    const first = await withKey();
-    first.runEnded(run(2, 5));
-    await settle();
-    const backup = make();
-    await backup.restore();
+describe('CloudBackup: faults in its own surroundings', () => {
+  it('says so when the key could not be removed, and goes on using it', async () => {
+    const backup = await withKey();
     device.failing = true;
-    // The note that the file is no longer its own could not be stored: the store still says it is.
-    await backup.disown();
+    expect(await backup.forget()).toBe(false);
     device.failing = false;
-    // A second call, as every way into the game makes one, must not bring the stored claim back.
-    await backup.restore();
-    backup.runEnded(run(3, 9));
+    expect(backup.configured).toBe(true);
+    expect(device.values.get(BACKUP_KEY)).toEqual({ owner: OWNER, repo: REPO, token });
+    backup.runEnded(run(2, 5));
     await settle();
-    expect(backup.status.lastAttempt?.outcome).toBe('unseen');
-    expect(github.file?.text).toBe(serializeRecord(run(2, 5)));
+    expect(backup.status.lastAttempt?.outcome).toBe('ok');
   });
 
-  it('tries again after a read that failed', async () => {
-    await withKey();
-    device.failing = true;
-    const backup = make();
+  it('is not stopped by a listener that throws, and still tells the listeners after it', async () => {
+    const backup = await withKey();
+    let told = 0;
+    backup.subscribe(() => {
+      throw new Error('a screen failed to draw');
+    });
+    backup.subscribe(() => {
+      told += 1;
+    });
+    backup.runEnded(run(2, 5));
+    await settle();
+    expect(github.file?.text).toBe(serializeRecord(run(2, 5)));
+    expect(backup.status.lastAttempt?.outcome).toBe('ok');
+    expect(told).toBeGreaterThanOrEqual(2);
+  });
+
+  it('turns anything thrown inside an attempt into a failed backup, and carries on with the next', async () => {
+    const backup = await withKey();
+    const poisoned = new Proxy(run(2, 5), {
+      get: (target, property, receiver) => {
+        if (property === 'payload') throw new Error('this record cannot be read');
+        return Reflect.get(target, property, receiver) as unknown;
+      },
+    });
+    expect(await backup.backUp(poisoned)).toBe('failed');
+    expect(github.writes).toEqual([]);
+    expect(logged.some((line) => line.startsWith('backup: a backup attempt threw'))).toBe(true);
+    expect(await backup.backUp(run(2, 5))).toBe('ok');
+  });
+
+  it('does not put what a failing store says into the log', async () => {
+    // A store whose errors repeat what it was asked to keep. No browser is known to do this; the log is in
+    // every export, so nothing is left to that.
+    const echoing: DeviceStore = {
+      getDevice: () => Promise.reject(new Error(`could not read; last value was ${token}`)),
+      setDevice: (key, value) => Promise.reject(new Error(`could not store ${key}: ${JSON.stringify(value)}`)),
+    };
+    const backup = new CloudBackup({ device: echoing, fetch: github.fetch, timer: timer.timer, now: () => clock, log: (kind, message) => logged.push(`${kind}: ${message}`) });
     await backup.restore();
-    expect(backup.configured).toBe(false);
-    device.failing = false;
-    await backup.restore();
-    expect(backup.configured).toBe(true);
+    expect(await backup.setKey({ owner: OWNER, repo: REPO, token })).toBe(false);
+    expect(await backup.forget()).toBe(false);
+    expect(logged.length).toBeGreaterThanOrEqual(3);
+    expect(logged.join('\n')).not.toContain(token);
+  });
+});
+
+describe('CloudBackup: a problem the service reported is not forgotten by an attempt that reached nobody', () => {
+  it('keeps asking for the player after a refused key and then a run finished offline', async () => {
+    const backup = await withKey();
+    github.mode = 401;
+    backup.runEnded(run(2, 5));
+    await settle();
+    expect(backup.needsAttention).toBe(true);
+    github.mode = 'offline';
+    backup.runEnded(run(3, 9));
+    await settle();
+    expect(backup.status.lastAttempt?.outcome).toBe('unreachable');
+    expect(backup.status.standing).toBe('refused');
+    expect(backup.needsAttention).toBe(true);
+    // And across a restart.
+    const restarted = make();
+    await restarted.restore();
+    expect(restarted.needsAttention).toBe(true);
+    github.mode = 'normal';
+    restarted.runEnded(run(4, 13));
+    await settle();
+    expect(restarted.needsAttention).toBe(false);
+    expect(restarted.status.standing).toBe('ok');
+  });
+
+  it('does not ask for the player over a failure that is not theirs to mend', async () => {
+    const backup = await withKey();
+    github.mode = 500;
+    backup.runEnded(run(2, 5));
+    await settle();
+    expect(backup.status.standing).toBe('failed');
+    expect(backup.needsAttention).toBe(false);
   });
 });
 
@@ -568,7 +667,7 @@ describe('CloudBackup: the key stays in the device store', () => {
     const calls = github.calls.length;
     await backup.forget();
     expect(JSON.stringify([...device.values.values()])).not.toContain(token);
-    expect(backup.status).toEqual({ repository: null, lastOk: null, lastAttempt: null, busy: false });
+    expect(backup.status).toEqual({ repository: null, lastOk: null, lastAttempt: null, standing: null, busy: false });
     backup.runEnded(run(3, 9));
     await settle();
     expect(github.calls).toHaveLength(calls);
@@ -606,19 +705,19 @@ describe('CloudBackup: the key stays in the device store', () => {
     device.values.set(BACKUP_STATE, { seenSha: 7, lastOk: 'yesterday', lastAttempt: { at: 1, outcome: 'splendid' } });
     const backup = make();
     await backup.restore();
-    expect(backup.status).toEqual({ repository: null, lastOk: null, lastAttempt: null, busy: false });
+    expect(backup.status).toEqual({ repository: null, lastOk: null, lastAttempt: null, standing: null, busy: false });
   });
 });
 
 describe('CloudBackup: looking', () => {
-  it('reads the backup without changing it or what this install remembers', async () => {
-    const text = serializeRecord(run(40, 900));
+  it('reads the backup without changing it, and having looked changes nothing of what may be replaced', async () => {
+    const text = serializeRecord(anotherGame(40, 900));
     const sha = github.seed(text);
     const backup = await withKey();
     expect(await backup.look()).toEqual({ ok: true, value: { text, sha } });
     expect(github.writes).toEqual([]);
-    // Having looked is not having restored: the file is still one this install must not replace.
-    expect(await backup.backUp(run(1, 2))).toBe('unseen');
+    // Having looked is not having restored: the file is still another game's.
+    expect(await backup.backUp(run(1, 2))).toBe('left-alone');
   });
 
   it('reports why it could not look', async () => {

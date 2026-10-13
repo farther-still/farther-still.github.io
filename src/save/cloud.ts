@@ -31,8 +31,12 @@ export type CloudFailure = 'unreachable' | 'refused' | 'not-found' | 'changed' |
 
 export type CloudResult<T> = { ok: true; value: T } | { ok: false; failure: CloudFailure; status: number | null };
 
-/** The backup file: its text, and the version name the service gives that text. */
-export type CloudFile = { text: string; sha: string };
+/**
+ * The backup file: its text, and the version name the service gives that text. `text` is null for a file that
+ * is there but was not handed over as text this build can decode, which is how the service answers for a very
+ * large file. It can still be replaced, by its version name; it cannot be compared or restored.
+ */
+export type CloudFile = { text: string | null; sha: string };
 
 export type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -66,12 +70,6 @@ export const backupMessage = (record: SlotRecord): string =>
   `Run ${record.payload.game.profile.counters.runsStarted}, save ${record.seq}`;
 
 export class GitHubBackend implements SaveBackend {
-  /**
-   * The version of the file this install last wrote or restored. `write` names it, so a file that has changed
-   * since, or one this install has never seen, is left alone.
-   */
-  seenSha: string | null = null;
-
   constructor(
     private readonly key: CloudKey,
     private readonly fetchFn: FetchLike,
@@ -134,13 +132,14 @@ export class GitHubBackend implements SaveBackend {
     if (answer === null) return fail('unreachable', null);
     if (answer.status === 200) {
       const body = answer.body;
-      if (!isObject(body) || typeof body['sha'] !== 'string' || typeof body['content'] !== 'string' || body['encoding'] !== 'base64') {
-        return fail('failed', answer.status);
-      }
+      // No version name means this is not a file at all: a folder of that name, say.
+      if (!isObject(body) || typeof body['sha'] !== 'string') return fail('failed', answer.status);
+      const sha = body['sha'];
+      if (typeof body['content'] !== 'string' || body['encoding'] !== 'base64') return { ok: true, value: { text: null, sha } };
       try {
-        return { ok: true, value: { text: fromBase64(body['content'].replace(/\s+/g, '')), sha: body['sha'] } };
+        return { ok: true, value: { text: fromBase64(body['content'].replace(/\s+/g, '')), sha } };
       } catch {
-        return fail('failed', answer.status);
+        return { ok: true, value: { text: null, sha } };
       }
     }
     if (answer.status === 404) {
@@ -169,11 +168,16 @@ export class GitHubBackend implements SaveBackend {
     return fail(failureOf(answer), answer.status);
   }
 
+  // The two methods of `SaveBackend`, which the kickoff asks every backend to have. The app's own backup does
+  // not call them: `CloudBackup` uses `read` and `put`, because it has to look at what is there before it may
+  // replace it, and these two cannot say what they found.
+
   /** The backup as a list of at most one record, exactly as stored: it may be damaged, like any stored record. */
   async readAll(): Promise<unknown[]> {
     const file = await this.read();
     if (!file.ok) throw new CloudError(file.failure, file.status);
     if (file.value === null) return [];
+    if (file.value.text === null) return [null];
     try {
       return [JSON.parse(file.value.text)];
     } catch {
@@ -181,10 +185,11 @@ export class GitHubBackend implements SaveBackend {
     }
   }
 
-  /** Resolves only once the commit is made. Replaces nothing but the version this install last saw. */
+  /** Resolves only once the commit is made. Replaces whatever the file holds: the caller has decided that it may. */
   async write(record: SlotRecord): Promise<void> {
-    const written = await this.put(serializeRecord(record), this.seenSha, backupMessage(record));
+    const there = await this.read();
+    if (!there.ok) throw new CloudError(there.failure, there.status);
+    const written = await this.put(serializeRecord(record), there.value?.sha ?? null, backupMessage(record));
     if (!written.ok) throw new CloudError(written.failure, written.status);
-    this.seenSha = written.value;
   }
 }

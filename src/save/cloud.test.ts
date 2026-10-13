@@ -123,6 +123,12 @@ describe('GitHubBackend: reading', () => {
     github.mode = 200;
     expect(await backend().read()).toEqual({ ok: false, failure: 'failed', status: 200 });
   });
+
+  it('says a file is there, by its version, when it is not handed over as text', async () => {
+    const sha = github.seed('x'.repeat(40));
+    github.opaque = true;
+    expect(await backend().read()).toEqual({ ok: true, value: { text: null, sha } });
+  });
 });
 
 describe('GitHubBackend: writing', () => {
@@ -166,14 +172,22 @@ describe('GitHubBackend as a SaveBackend', () => {
     expect(checksumMatches(back)).toBe(true);
   });
 
-  it('carries on from the version it wrote, and refuses a file it has not seen', async () => {
+  it('replaces whatever the file holds, one commit a write: what may be replaced is the caller\'s to decide', async () => {
     const cloud = backend();
     await cloud.write(record('hot', 1));
     await cloud.write(record('hot', 2));
     expect(github.commits).toHaveLength(2);
-    const stranger = backend();
-    await expect(stranger.write(record('hot', 3))).rejects.toMatchObject({ failure: 'changed' });
-    expect(github.file?.text).toBe(serializeRecord(record('hot', 2)));
+    // It names the version it has just read, so each write is made against the file as it is.
+    expect((github.writes[1]?.body as { sha?: string }).sha).toBe(shaOf(serializeRecord(record('hot', 1))));
+    await backend().write(record('hot', 3));
+    expect(github.file?.text).toBe(serializeRecord(record('hot', 3)));
+    expect(github.commits).toHaveLength(3);
+  });
+
+  it('hands back a file that is not text as a record that cannot be read', async () => {
+    github.seed('x');
+    github.opaque = true;
+    expect(await backend().readAll()).toEqual([null]);
   });
 
   it('reads an empty repository as no records and hands back damage as it is', async () => {

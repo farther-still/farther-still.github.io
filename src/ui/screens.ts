@@ -55,8 +55,8 @@ const exportReminder = (session: Session): HTMLElement | null => {
 /** The reminder that the cloud backup has stopped for a reason only the player can put right. It never blocks play. */
 const backupReminder = (session: Session): HTMLElement | null => {
   const { backup, shell, view } = session;
-  const outcome = backup.status.lastAttempt?.outcome;
-  if (view.backupReminderPutOff || !backup.needsAttention || outcome === undefined) return null;
+  const outcome = backup.status.standing;
+  if (view.backupReminderPutOff || !backup.needsAttention || outcome === null) return null;
   return el(
     'div',
     { class: 'notice' },

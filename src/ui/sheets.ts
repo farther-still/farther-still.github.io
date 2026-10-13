@@ -200,11 +200,6 @@ export const confirmReplaceSheet = (
   problems: readonly string[],
   close: () => void,
   migratedFrom: number | null = null,
-  /**
-   * Called once the incoming save is in place. A restore from the cloud backup passes one, to adopt the file it
-   * came from. For any other save put in the game's place, the cloud backup is no longer this game's (GDD D-40).
-   */
-  onReplaced: (() => void) | null = null,
 ): HTMLElement => {
   const { backup, controller, notices } = session;
   const status = el('p', { class: 'muted' });
@@ -229,8 +224,11 @@ export const confirmReplaceSheet = (
         status.textContent = 'Saving…';
         void controller.replaceWith(incoming).then(({ outcome, repaired }) => {
           if (outcome.kind === 'done') {
-            if (onReplaced === null) void backup.disown();
-            else onReplaced();
+            // The game on the phone is now another one, so the cloud backup is looked at again at once: it is
+            // replaced only if this game follows from the one it holds (GDD D-40), and if not, the reminder says
+            // so now and not a run later. A save that fails a check is not sent by itself (D-44).
+            const saved = controller.lastSaved;
+            if (problems.length === 0 && saved !== null) backup.runEnded(saved);
             notices.add(
               repaired
                 ? 'Save replaced. Its run pointed at something this version no longer has, which was cleared.'
@@ -354,7 +352,12 @@ export const backupKeySheet = (session: Session, close: () => void): HTMLElement
           () => {
             if (busy) return;
             busy = true;
-            void backup.forget().then(() => {
+            void backup.forget().then((forgotten) => {
+              if (!forgotten) {
+                busy = false;
+                status.textContent = 'The key could not be removed from this phone. It is still set, and still in use.';
+                return;
+              }
               close();
               shell.rerender();
             });
@@ -400,13 +403,16 @@ export const openBackupRestore = (session: Session): void => {
       status.textContent = 'There is no backup in the repository yet.';
       return;
     }
+    if (file.value.text === null) {
+      status.textContent = 'The backup cannot be restored: the file in the repository is not one this game wrote. Nothing on this phone was changed.';
+      return;
+    }
     const checked = checkImport(file.value.text, content);
     if (!checked.ok) {
       status.textContent = `The backup cannot be restored. ${checked.reason} Nothing on this phone was changed.`;
       return;
     }
-    const { sha } = file.value;
-    shell.openSheet((close) => confirmReplaceSheet(session, checked.record, checked.problems, close, checked.migratedFrom, () => void backup.adopt(sha)));
+    shell.openSheet((close) => confirmReplaceSheet(session, checked.record, checked.problems, close, checked.migratedFrom));
   });
 };
 

@@ -157,7 +157,7 @@ export const settingsScreen = (session: Session): HTMLElement => {
         button('Export…', () => void openSaveExport(session), { class: 'primary grow' }),
         button('Import…', () => shell.openSheet((close) => importSheet(session, content, close)), { class: 'grow' }),
       ),
-      el('p', { class: 'muted', text: 'Deleting the Home Screen icon deletes the save. An export is the only copy off this phone.' }),
+      el('p', { class: 'muted', text: cloud.lastOk === null ? 'Deleting the Home Screen icon deletes the save. An export is the only copy off this phone.' : 'Deleting the Home Screen icon deletes the save. An export and the cloud backup are the copies off this phone.' }),
     ),
     section(
       'Cloud backup',
@@ -174,13 +174,17 @@ export const settingsScreen = (session: Session): HTMLElement => {
             cloud.lastAttempt === null || cloud.lastAttempt.outcome === 'ok'
               ? null
               : el('p', { class: 'flash', text: backupWords(cloud.lastAttempt.outcome, cloud.lastAttempt.status) }),
+            // An attempt that reached nobody says nothing about a problem the service reported before it.
+            cloud.lastAttempt?.outcome === 'unreachable' && backup.needsAttention && cloud.standing !== null
+              ? el('p', { class: 'flash', text: `Before that: ${backupWords(cloud.standing, null)}` })
+              : null,
             el(
               'div',
               { class: 'row' },
               button('Back up now', () => void backUpNow(), { class: 'primary grow', disabled: cloud.busy }),
               button('Restore from backup…', () => openBackupRestore(session), { class: 'grow' }),
             ),
-            cloud.lastAttempt?.outcome === 'unseen' ? button('Overwrite the backup…', () => shell.openSheet((close) => replaceBackupSheet(session, close))) : null,
+            cloud.standing === 'left-alone' ? button('Overwrite the backup…', () => shell.openSheet((close) => replaceBackupSheet(session, close))) : null,
             button('Change or forget the key…', () => shell.openSheet((close) => backupKeySheet(session, close))),
           ]),
     ),

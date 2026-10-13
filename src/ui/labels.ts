@@ -201,8 +201,8 @@ export const backupWords = (outcome: BackupOutcome, status: number | null): stri
       return 'GitHub refused the key. It may have expired or been revoked, or it may not have write access to the repository. The save on this phone is unaffected. Make a new key and enter it here.';
     case 'not-found':
       return 'GitHub found no such repository for this key. Check its name, and that the key is allowed to use it. The save on this phone is unaffected.';
-    case 'unseen':
-      return 'The backup holds a save that the game on this phone did not come from, so it was left alone. Restore it to this phone, or overwrite it with the game on this phone. After a reinstall, restoring is the one you want.';
+    case 'left-alone':
+      return 'The backup holds a different game, or one that has something the game on this phone does not, so it was left alone. Restore it to this phone, or overwrite it with the game on this phone. After a reinstall, restoring is the one you want.';
     case 'failed':
       return `The backup did not go through${status === null ? '' : ` (GitHub answered ${status})`}. The save on this phone is unaffected, and the next finished run tries again.`;
   }
@@ -225,8 +225,8 @@ export const backupReadWords = (failure: CloudFailure, status: number | null): s
 
 /** The map's reminder, shown only for a result the player has to act on. Being offline is not one. */
 export const backupReminderWords = (outcome: BackupOutcome): string =>
-  outcome === 'unseen'
-    ? 'The cloud backup holds a save that the game on this phone did not come from, so nothing is being backed up.'
+  outcome === 'left-alone'
+    ? 'The cloud backup holds a different game, or one that has something this one does not, so nothing is being backed up.'
     : outcome === 'refused'
       ? 'The cloud backup has stopped: GitHub refused the key.'
       : 'The cloud backup has stopped: GitHub found no such repository for the key.';

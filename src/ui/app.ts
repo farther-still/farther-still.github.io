@@ -141,7 +141,12 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
 
   // ---- the game, once a save has been chosen ----
 
-  const runGame = async (payload: SavePayload, cursor: WriteCursor, lastGood: SlotRecord | null, commitNow: boolean): Promise<void> => {
+  /**
+   * `lookAgain` is for a game that is not simply the one this phone was playing when it was last closed: the
+   * cloud backup is then looked at as soon as the game is up, and replaced only if this game follows from the
+   * one it holds (GDD D-40).
+   */
+  const runGame = async (payload: SavePayload, cursor: WriteCursor, lastGood: SlotRecord | null, commitNow: boolean, lookAgain = false): Promise<void> => {
     const writer = new SaveWriter({ store: backend, build, content, now: Date.now, log }, cursor, lastGood);
     const controller = new GameController({ content, writer, build, randomSeed, now: Date.now, onRunEnded: (record) => backup.runEnded(record) }, payload);
     let current: ScreenName = 'map';
@@ -218,6 +223,7 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
     await platform.zoom.restore();
     await backup.restore();
     render();
+    if (lookAgain && controller.lastSaved !== null) backup.runEnded(controller.lastSaved);
 
     controller.subscribe(render);
     platform.notices.subscribe(render);
@@ -258,7 +264,7 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
     }
   };
 
-  const play = async (record: SlotRecord, cursor: WriteCursor, lastGood: SlotRecord | null, forceCommit: boolean, migratedFrom: number | null): Promise<void> => {
+  const play = async (record: SlotRecord, cursor: WriteCursor, lastGood: SlotRecord | null, forceCommit: boolean, migratedFrom: number | null, lookAgain = false): Promise<void> => {
     const stored = record.payload.game;
     // Run repair is tried on every load, whatever content the record says it was written with: it returns the
     // same object when the run already fits, and a migrated record always needs it (ARCHITECTURE 7.3).
@@ -274,7 +280,7 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
       platform.notices.add('The game was updated in the middle of a run. Nothing in the run needed changing.');
     }
     // A repaired run or a changed content version is written at once, so the record says which content its run now fits.
-    await runGame({ game, app: record.payload.app }, cursor, lastGood, forceCommit || contentChanged || game !== stored);
+    await runGame({ game, app: record.payload.app }, cursor, lastGood, forceCommit || contentChanged || game !== stored, lookAgain);
   };
 
   const recover = (reason: RecoveryReason, records: readonly Classified[], detail: string): void => {
@@ -302,10 +308,6 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
         draw();
         return;
       }
-      // Whatever is chosen here, the game that follows is not simply the one this phone was backing up. The
-      // cloud backup is left alone until the player has looked at it (GDD D-40).
-      await backup.restore();
-      await backup.disown();
       await start(exit.cursor);
     };
 
@@ -330,7 +332,9 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
       use: (record: SlotRecord): void => {
         const source = records.find((entry) => (entry.kind === 'good' || entry.kind === 'suspect') && entry.record === record);
         const from = source !== undefined && (source.kind === 'good' || source.kind === 'suspect') && source.migrated ? storedVersion(source.raw) : null;
-        void leave((cursor) => play(record, cursor, null, true, from));
+        // A save that passes its checks is looked at against the cloud backup at once. One used "anyway" is not
+        // sent by itself at all (GDD D-44).
+        void leave((cursor) => play(record, cursor, null, true, from, source?.kind === 'good'));
       },
       restore: (entry: QuarantineEntry): void => {
         const checked = checkImport(JSON.stringify(entry.raw), content);
@@ -341,7 +345,7 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
         }
         // A suspect one may be restored from here: this screen is where "use anyway" is asked.
         const from = storedVersion(entry.raw);
-        void leave((cursor) => play(checked.record, cursor, null, true, from !== null && from < checked.record.saveVersion ? from : null));
+        void leave((cursor) => play(checked.record, cursor, null, true, from !== null && from < checked.record.saveVersion ? from : null, checked.problems.length === 0));
       },
       startNew: (): void => {
         if (!view.confirmNew) {
@@ -349,7 +353,7 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
           draw();
           return;
         }
-        void leave((cursor) => runGame({ game: newGame(randomSeed(), content), app: newAppState(Date.now()) }, cursor, null, true));
+        void leave((cursor) => runGame({ game: newGame(randomSeed(), content), app: newAppState(Date.now()) }, cursor, null, true, true));
       },
       checkUpdate: (): void => {
         view.status = 'Checking…';
@@ -394,7 +398,8 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
       return;
     }
     for (const notice of result.notices) platform.notices.add(notice.text);
-    await play(result.record, result.cursor, result.record, result.rewriteHot, result.migratedFrom);
+    // A fallback is a game from an earlier moment than the one this phone last had.
+    await play(result.record, result.cursor, result.record, result.rewriteHot, result.migratedFrom, result.notices.length > 0);
   };
 
   try {
