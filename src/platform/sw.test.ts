@@ -194,4 +194,29 @@ describe('service worker', () => {
     expect((await worker.get('https://elsewhere.test/x.js')).handled).toBe(false);
     expect((await worker.get(`${ORIGIN}/index.html`, 'no-cors', 'POST')).handled).toBe(false);
   });
+
+  // Phase 5a success check 8. The cloud backup calls one address off the site (ARCHITECTURE 7.5). A backup read
+  // answered from a cache would show the file as it once was, and one held in a cache would be a second copy of
+  // the save that nothing keeps current. The address is spelled out here because this folder may not import the
+  // save module; src/ui/backup.test.ts pins the same text to the constant the app uses.
+  it('neither answers nor caches a call to the cloud backup, a read or a write, and does not fetch it itself', async () => {
+    const worker = await loadWorker(ENTRIES, SERVED);
+    await worker.fire('install');
+    await worker.fire('activate');
+    const held = (): Array<[string, string[]]> => [...worker.stores].map(([name, store]) => [name, [...store.keys()].sort()]);
+    const before = held();
+    const repository = 'https://api.github.com/repos/someone/some-saves';
+    const file = `${repository}/contents/farther-still-save.json`;
+
+    expect((await worker.get(file, 'cors', 'GET')).handled).toBe(false);
+    expect((await worker.get(file, 'cors', 'PUT')).handled).toBe(false);
+    expect((await worker.get(repository, 'cors', 'GET')).handled).toBe(false);
+    // However the request is made, and asked twice: a first answer must not have been kept for the second.
+    expect((await worker.get(file, 'no-cors', 'GET')).handled).toBe(false);
+    expect((await worker.get(file, 'cors', 'GET')).handled).toBe(false);
+
+    expect(worker.network).toEqual([]);
+    expect(held()).toEqual(before);
+    expect(before.flatMap(([, keys]) => keys).some((key) => key.includes('api.github.com'))).toBe(false);
+  });
 });

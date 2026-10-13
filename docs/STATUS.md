@@ -31,8 +31,8 @@ Re-read this file at the start of every session and every work cycle. Update it 
 
 1. `npm run check`, `npm run build` and `npm run check:dist` pass. `tests/golden/golden.json`, both save fixtures and every file under `data/` are the same bytes as at `06af802`.
 2. No save-data change unless one is forced. The credential, the backup's settings and its status are kept in the `device` store, which is outside every save, so `SAVE_VERSION` stays 2 and the schema-hash test does not move. If the build shows that a save field is needed after all, he is told before it is added and it follows the save-change checklist: version 3, a migration, a fixture, and fixtures 1 and 2 still loading.
-3. The local save stays the source of truth. Tests through the real `startApp`, with a backup that never answers, one that rejects, one that throws at once, and one that answers each of 401, 403, 404, 409, 422 and 500: in every case the new run's checkpoint and hot slot are committed before the backup is tried and are the same bytes as with backup off, the next input is taken without waiting for the backup, and the backup code makes no write to the `slots` store.
-4. A backup after each run. Confirming a new run with backup on sends exactly one upload, of the newest good record, and what is sent passes that record's own checksum. Against a stand-in server.
+3. The local save stays the source of truth. Tests through the real `startApp`, with a backup that never answers, one that rejects, one that throws at once, and one that answers each of 401, 403, 404, 409, 422 and 500: in every case the new run's checkpoint and hot slot are committed before the backup is tried and are the same bytes as with backup off, the next input is taken without waiting for the backup, and the backup code makes no write to the `slots` store. Reworded after the tests were written, 2026-10-13: the last clause is true of the backup itself and was loosely put. Three buttons, "Back up now", "Save the key" and "Overwrite", first ask the game to save what it has not yet saved, through the game's own writer, as hiding the app does, and what they then send is that saved record.
+4. A backup after each run. Confirming a new run with backup on sends exactly one upload, of the newest good record, and what is sent passes that record's own checksum. Against a stand-in server. "Good" is meant as section 7.3 of the architecture means it: a run whose checkpoint was skipped for failing a consistency check sends nothing (GDD D-44). The first build sent it regardless, and the tests' author caught the difference.
 5. A failure shows and does not block. Settings gives the last backup that worked, by run and time, and the last attempt's result in plain words, told apart for offline, credential refused or expired, and backup place not found. A reminder that does not block play appears only for a failure he has to act on, not for being offline.
 6. Restore is an import. What comes back from the backup goes through the same checks and confirmation as an imported file: a damaged or newer record is refused, the two saves are shown side by side, and the current game is set aside first. A test restores a damaged backup and finds every local record the same bytes as before.
 7. The credential stays where it was put. A test sets it to a marker and finds the marker in no slot record, export file, text code, quarantine copy, diagnostics entry (a failed request included) or backup body. `check-repo` finds no token pattern; tests make their stand-in credential at run time.
@@ -111,7 +111,6 @@ Result: 1, 2, 4, 5 and 6 PASS on the laptop, with the evidence under "Phase 3b w
 ### PENDING
 
 - [ ] Phase 5: what Michael's phone shows under the charged-loss rule: asked on 2026-10-13 for the Build line, the pre-fight sheet's cost line and a lost fight's energy line, not yet answered
-- [ ] Phase 5a: the backend question, then one on how long the credential lasts and where the backup is kept; build only after both
 - [ ] Phase 5a: cloud backup. The backend choice goes to him as one question with a recommendation; before building he is told where the credential lives, who can read it, what a leak or an expiry does to his save, and what he does by hand. Ends at a gate with a phone acceptance run: back up, delete the app, reinstall, restore
 - [ ] Phase 5b: content expansion, Z2 first, meeting the three findings under "Carried forward to Phase 5". Before anything past Z2 is authored he is told how many zones are proposed and what each costs
 
@@ -119,6 +118,8 @@ Result: 1, 2, 4, 5 and 6 PASS on the laptop, with the evidence under "Phase 3b w
 
 - [x] Phase 5: the Phase 4 push's CI run and the check of the live site written down, both read again in this session (2026-10-13)
 - [x] Phase 5: success checks, the split and the gates put to Michael before any work; agreed with his "A" (2026-10-13)
+- [x] Phase 5a: the backend put to him as one question, with what he asked to be told about the credential; answered "a", a private GitHub repository (2026-10-13)
+- [x] Phase 5a: whether the key ever expires; answered a, never (2026-10-13)
 
 - [x] Step 0: `git init`, `.gitignore` (verified `reference/` ignored before first commit), `docs/KICKOFF.md` verbatim, stub `CLAUDE.md`, this file, first commit
 - [x] Phase 0: read `reference/` (coverage and its one limit are listed under "Reading coverage")
@@ -183,6 +184,28 @@ Both checks below were read again in the Phase 5 session, before this was writte
 - **CI:** run 38408310068, the repo's tenth, for the push whose head is `06af8027a114f81f5e7374b76e26fcd36be8b592`. Completed with conclusion `success`; the `check` job succeeded at 13:51:21 UTC and the `deploy` job at 13:51:43 UTC on 2026-10-13. `https://github.com/farther-still/farther-still.github.io/actions/runs/38408310068`. Read from GitHub's REST API. PASS.
 - **The live site:** `https://farther-still.github.io/` answered 200. The one script the page asks for holds that full commit hash as its build, the balance table inside it has `chargeLosses` on, and the page carries the pinned content security policy, `connect-src 'self'` included. Read with curl. PASS.
 - **On Michael's phone:** NOT CHECKED. He is asked what the pre-fight sheet's cost line and a lost fight's sheet say.
+
+### 5a: Michael's answers (2026-10-13)
+
+| # | Question | Michael's answer | Recorded as |
+|---|---|---|---|
+| 1 | Where the backup copies are kept: (a) a private repository on GitHub, recommended, or (b) Supabase's free tier | "a" | **Ruling.** A private GitHub repository, written through the contents API with a fine-grained token limited to that one repository. He was told in the same message where the key lives on the phone, who can read it, what a leak or an expiry does to his save, and what he does by hand, and asked nothing further about them |
+| 2 | Whether the key ever expires: (a) never, recommended, or (b) after a year. Put to him while 5a was being built, since nothing in the code hangs on it | "The answer for that is a" | **Ruling.** The key is made with no expiry (GDD R-17). He was told with the question that the backup repository would then go on his personal GitHub account and not in the `farther-still` organization, where keys are capped at 366 days by default; he said nothing against that, which is not a ruling |
+
+### 5a: what was built (2026-10-13)
+
+`docs/ARCHITECTURE.md` section 7.5 describes it as built, and `docs/GDD.md` sections 11 and 13.8 hold its rules and the decisions made on the way (D-38 to D-43, A-38 to A-43).
+
+- **The backend.** `src/save/cloud.ts`: `GitHubBackend`, one file in a private repository through GitHub's contents API. `src/save/backup.ts`: `CloudBackup`, which decides when a backup is made, refuses to replace a backup this install has not seen, and keeps the key and its notes in the `device` store.
+- **The wiring.** The controller tells the backup of a new run through a hook called after the commit and not awaited. Startup builds the backup with the `device` store and the network and nothing that can reach a slot.
+- **The screens.** A "Cloud backup" part of Settings; a sheet for the key; restore, which hands the file to the import that already exists; a sheet for overwriting a backup this phone has not seen; a reminder on the map for a failure he has to act on.
+- **The one address.** `connect-src` in the content security policy names `https://api.github.com`, pinned in `vite.config.ts` and `scripts/check-dist.ts`, and the build scan allows that host and no other.
+- **What did not change:** the save (still version 2, no field added), both fixtures, every golden value, everything under `data/`, the engine, the simulator.
+- **Left as they are, by choice:**
+  - A new run started with "Update, then start the run" reloads the page at once, which can cut its backup short. The next finished run backs up, and "Back up now" is in Settings.
+  - Nothing is backed up between runs. The backup is at most one run behind the phone.
+  - `CLAUDE.md` is unchanged. It stands at 7,999 characters of 8,000, so the enforcement map has no row for the backup; `docs/ARCHITECTURE.md` section 11 lists the checks.
+  - Whether GitHub lets the contents API create the first file in a repository with no commits was not looked up. The steps he is given make the repository with a README, so the question does not arise.
 
 ### 5a: what was looked up before the backend question (2026-10-13)
 
@@ -849,6 +872,12 @@ Calls made without asking, so Michael can overrule them. Design decisions move t
 - 2026-10-13 (Phase 5): What his phone shows under the charged-loss rule was asked in the same message as the plan. It is a readout and not a decision, so it was not counted against "one question at a time". That is a reading of his instruction.
 - 2026-10-13 (Phase 5): GitHub's current rules for fine-grained tokens and for calls from a browser were looked up before the plan was posted, because GDD section 11 leaves them to be checked in Phase 5 and option (a) would be dead without browser access. Looking them up is not building. What was found goes to him with the backend question.
 - 2026-10-13 (Phase 5): Three gates are proposed where he said he expected at least two. The third follows from his own instruction that the number of zones be put to him before anything past Z2 is authored.
+- 2026-10-13 (Phase 5a): Design decisions made without asking are GDD D-38 to D-43; architecture decisions are `docs/ARCHITECTURE.md` A-38 to A-43. They are not repeated here.
+- 2026-10-13 (Phase 5a): The question of whether the key expires was put to him while the build went on and not before it, since nothing in the code hangs on the answer. A push is held while it is open.
+- 2026-10-13 (Phase 5a): The unit tests of the two new files were written by their author. The tests through the real `startApp` were written by a separate agent from a brief that named the success checks, with the instruction to find where code and checks disagree and to mutate the code against its own tests.
+- 2026-10-13 (Phase 5a): Three things were changed after that agent had started, and it was told of each: the key sheet and the overwrite sheet no longer wait on the network before closing; the backup's key is read on every way into the game, the recovery screen included; and two buttons were renamed so that restoring and overwriting cannot be taken for each other.
+- 2026-10-13 (Phase 5a): The built app was not driven against the real service, and no key of any kind, real or made up, was typed into it in the browser pane: a made-up key would still have been sent to GitHub. The stand-in service covers the code.
+- 2026-10-13 (Phase 5a): `tests/fake-github.ts` answers a write without a version name with 422 and one with the wrong name with 409, as GitHub's documentation lists them. The app does not rely on either answer (A-39).
 
 ## Handoff
 

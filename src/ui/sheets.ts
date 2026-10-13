@@ -4,10 +4,11 @@
 import { level, startingEnergy } from '../engine';
 import type { Content } from '../engine';
 import { canShareFile, copyText, downloadTextFile, shareTextFile } from '../platform';
-import { buildExport, checkImport, encodeTextCode, withExportRecorded } from '../save';
+import { buildExport, checkImport, cleanToken, encodeTextCode, parseRepository, withExportRecorded } from '../save';
 import type { SlotRecord } from '../save';
 import { button, el, formatTime, line, shortBuild } from './dom';
 import { formatNumber } from './format';
+import { backupReadWords } from './labels';
 import type { Session } from './session';
 
 const sheet = (title: string, ...children: (Node | null)[]): HTMLElement =>
@@ -37,7 +38,7 @@ export const newRunSheet = (session: Session, close: () => void): HTMLElement =>
     }
     if (outcome.checkpoint === 'skipped') {
       notices.add(
-        `A checkpoint was skipped because the save failed a consistency check (${outcome.problems.join('; ')}). Export your save from Settings.`,
+        `A checkpoint was skipped because the save failed a consistency check (${outcome.problems.join('; ')}). Export your save from Settings.${session.backup.configured ? ' The cloud backup was not updated either: it still holds the last save that passed.' : ''}`,
       );
     }
     if (thenUpdate) {
@@ -199,8 +200,13 @@ export const confirmReplaceSheet = (
   problems: readonly string[],
   close: () => void,
   migratedFrom: number | null = null,
+  /**
+   * Called once the incoming save is in place. A restore from the cloud backup passes one, to adopt the file it
+   * came from. For any other save put in the game's place, the cloud backup is no longer this game's (GDD D-40).
+   */
+  onReplaced: (() => void) | null = null,
 ): HTMLElement => {
-  const { controller, notices } = session;
+  const { backup, controller, notices } = session;
   const status = el('p', { class: 'muted' });
   let confirmed = false;
   return sheet(
@@ -223,6 +229,8 @@ export const confirmReplaceSheet = (
         status.textContent = 'Saving…';
         void controller.replaceWith(incoming).then(({ outcome, repaired }) => {
           if (outcome.kind === 'done') {
+            if (onReplaced === null) void backup.disown();
+            else onReplaced();
             notices.add(
               repaired
                 ? 'Save replaced. Its run pointed at something this version no longer has, which was cleared.'
@@ -275,4 +283,158 @@ export const importSheet = (session: Session, content: Content, close: () => voi
   );
 
   return sheet('Import', picker, box, check, button('Cancel', close), status);
+};
+
+// ---- cloud backup (ARCHITECTURE 7.5) ----
+
+const FIELD_ATTRS = { autocapitalize: 'off', autocomplete: 'off', autocorrect: 'off', spellcheck: 'false' };
+
+/**
+ * Where the key is entered. It is a sheet because a sheet is not redrawn under the player's typing. The key goes
+ * from the box to the `device` store and is cleared from the box; no screen ever shows it again.
+ */
+export const backupKeySheet = (session: Session, close: () => void): HTMLElement => {
+  const { backup, controller, shell } = session;
+  const current = backup.status.repository;
+  const status = el('p', {
+    class: 'muted',
+    text: current === null ? 'Nothing is sent anywhere until a key is saved here.' : `A key is set for ${current}. Saving a new one replaces it.`,
+  });
+  const repository = el('input', { class: 'field', attrs: { type: 'text', placeholder: 'owner/repository', 'aria-label': 'Backup repository', ...FIELD_ATTRS } });
+  repository.value = current ?? '';
+  const token = el('input', { class: 'field', attrs: { type: 'password', placeholder: 'Key', 'aria-label': 'Backup key', ...FIELD_ATTRS } });
+  let busy = false;
+
+  const save = button(
+    'Save the key',
+    () => {
+      if (busy) return;
+      const parsed = parseRepository(repository.value);
+      if (parsed === null) {
+        status.textContent = 'Enter the repository as owner/name.';
+        return;
+      }
+      if (token.value.trim() === '') {
+        status.textContent = 'Paste the key.';
+        return;
+      }
+      const entered = cleanToken(token.value);
+      if (entered === null) {
+        token.value = '';
+        status.textContent = 'That is not a key: it holds a character no key has. Copy it again from GitHub and paste it here.';
+        return;
+      }
+      busy = true;
+      token.value = '';
+      status.textContent = 'Saving the key…';
+      void (async () => {
+        if (!(await backup.setKey({ ...parsed, token: entered }))) {
+          busy = false;
+          status.textContent = 'The key could not be stored on this phone.';
+          return;
+        }
+        // The first backup is the test of the key. It replaces nothing it should not: a backup this phone has
+        // not seen is left alone, and Settings then offers the choice. The sheet does not wait for it: the
+        // network can take its time, and Settings shows the attempt and then its result.
+        close();
+        shell.rerender();
+        await controller.flush();
+        const record = controller.lastSaved;
+        if (record !== null) void backup.backUp(record);
+      })();
+    },
+    { class: 'primary' },
+  );
+
+  const forget =
+    current === null
+      ? null
+      : button(
+          'Forget the key on this phone',
+          () => {
+            if (busy) return;
+            busy = true;
+            void backup.forget().then(() => {
+              close();
+              shell.rerender();
+            });
+          },
+          { class: 'danger' },
+        );
+
+  return sheet(
+    'Cloud backup key',
+    el('p', { text: 'The repository as owner/name, and the key GitHub gave you for it. The key stays on this phone: it is in no save, no export and no backup.' }),
+    repository,
+    token,
+    save,
+    forget,
+    button('Cancel', () => {
+      token.value = '';
+      close();
+    }),
+    status,
+  );
+};
+
+/**
+ * Fetches the backup and puts it through the same checks and the same question as an imported file. Its own
+ * sheet is up while the answer is on its way, which can be a while; if that sheet has been closed or replaced by
+ * the time the answer comes, the answer is dropped.
+ */
+export const openBackupRestore = (session: Session): void => {
+  const { backup, content, shell } = session;
+  const status = el('p', { text: 'Fetching the backup…' });
+  const mine: { node: HTMLElement | null } = { node: null };
+  shell.openSheet((close) => {
+    mine.node = sheet('Restore from backup', status, button('Cancel', close));
+    return mine.node;
+  });
+  void backup.look().then((file) => {
+    if (mine.node === null || !shell.showing(mine.node)) return;
+    if (!file.ok) {
+      status.textContent = `The backup could not be fetched. ${backupReadWords(file.failure, file.status)} Nothing on this phone was changed.`;
+      return;
+    }
+    if (file.value === null) {
+      status.textContent = 'There is no backup in the repository yet.';
+      return;
+    }
+    const checked = checkImport(file.value.text, content);
+    if (!checked.ok) {
+      status.textContent = `The backup cannot be restored. ${checked.reason} Nothing on this phone was changed.`;
+      return;
+    }
+    const { sha } = file.value;
+    shell.openSheet((close) => confirmReplaceSheet(session, checked.record, checked.problems, close, checked.migratedFrom, () => void backup.adopt(sha)));
+  });
+};
+
+/** The other answer to a backup this phone has not seen: overwrite it with the game on this phone. The words differ from the restore sheet's on purpose, so the two cannot be taken for each other. */
+export const replaceBackupSheet = (session: Session, close: () => void): HTMLElement => {
+  const { backup, controller, shell } = session;
+  let confirmed = false;
+  return sheet(
+    'Overwrite the backup?',
+    el('p', { text: 'The backup holds a save this phone has not seen. Overwriting puts the game on this phone in its place.' }),
+    el('p', { class: 'flash', text: 'If the app was just reinstalled, the backup is the game to keep: cancel, and use Restore from backup.' }),
+    el('p', { class: 'muted', text: 'Every backup is a commit in the repository, so the save being overwritten can still be found in its history on GitHub.' }),
+    button(
+      'Overwrite the backup with this game',
+      () => {
+        if (confirmed) return;
+        confirmed = true;
+        // Not waited for, like every backup: Settings shows the attempt and then its result.
+        close();
+        shell.rerender();
+        void (async () => {
+          await controller.flush();
+          const record = controller.lastSaved;
+          if (record !== null) void backup.backUp(record, { replace: true });
+        })();
+      },
+      { class: 'danger' },
+    ),
+    button('Cancel', close),
+  );
 };

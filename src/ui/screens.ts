@@ -8,7 +8,7 @@ import { daysSinceExport, exportReminderDue } from '../save';
 import { button, el, line, section } from './dom';
 import { hintLine, openPrefight } from './fight';
 import { formatChance, formatNumber, formatPercent } from './format';
-import { REJECTIONS, STAT_NAME, derivedHelp, exportReminderWords, statHelp, tagList } from './labels';
+import { REJECTIONS, STAT_NAME, backupReminderWords, derivedHelp, exportReminderWords, statHelp, tagList } from './labels';
 import { MapView } from './mapview';
 import { openSalvage } from './salvage';
 import type { ScreenName, Session, SpendAmount } from './session';
@@ -44,6 +44,31 @@ const exportReminder = (session: Session): HTMLElement | null => {
         'Later',
         () => {
           view.exportReminderPutOff = true;
+          shell.rerender();
+        },
+        { class: 'small' },
+      ),
+    ),
+  );
+};
+
+/** The reminder that the cloud backup has stopped for a reason only the player can put right. It never blocks play. */
+const backupReminder = (session: Session): HTMLElement | null => {
+  const { backup, shell, view } = session;
+  const outcome = backup.status.lastAttempt?.outcome;
+  if (view.backupReminderPutOff || !backup.needsAttention || outcome === undefined) return null;
+  return el(
+    'div',
+    { class: 'notice' },
+    el('p', { text: `${backupReminderWords(outcome)} The save on this phone is unaffected.` }),
+    el(
+      'div',
+      { class: 'row' },
+      button('Open Settings', () => shell.show('settings'), { class: 'small' }),
+      button(
+        'Later',
+        () => {
+          view.backupReminderPutOff = true;
           shell.rerender();
         },
         { class: 'small' },
@@ -111,6 +136,7 @@ export class MapScreen {
       noticeList(this.session),
       hintLine(this.session, 'map'),
       exportReminder(this.session),
+      backupReminder(this.session),
       spent,
       unspent > 0 ? button(`${formatNumber(unspent)} stat point${unspent === 1 ? '' : 's'} to spend`, () => shell.show('hero'), { class: 'small' }) : null,
     ].filter((node): node is HTMLElement => node !== null);

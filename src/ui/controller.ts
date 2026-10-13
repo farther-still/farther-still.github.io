@@ -25,6 +25,13 @@ export type ControllerDeps = {
   randomSeed: () => number;
   /** The clock, for the run-duration log only. No game rule reads it (hard rule 3). */
   now: () => number;
+  /**
+   * Told once a new run is committed and its checkpoint written, with the record that is now in the hot slot.
+   * This is where the cloud backup hangs. A run whose checkpoint was skipped, because the state failed a
+   * consistency check, is not told: the backup, like a checkpoint, holds only a save that passed. It is called
+   * after the write and is not waited for; if it throws, the game does not notice.
+   */
+  onRunEnded?: (record: SlotRecord) => void;
 };
 
 /** A gap between two actions longer than this is the player being away, and is not counted as play. */
@@ -104,6 +111,7 @@ export class GameController {
       this.appState = app;
       this.unsaved = false;
       this.notify();
+      if (action.type === 'NewRun' && commit.checkpoint === 'written') this.runEnded(commit.record);
       return { kind: 'done', events: result.events, checkpoint: commit.checkpoint, problems: commit.problems };
     });
   }
@@ -206,5 +214,13 @@ export class GameController {
 
   private notify(): void {
     for (const listener of this.listeners) listener();
+  }
+
+  private runEnded(record: SlotRecord): void {
+    try {
+      this.deps.onRunEnded?.(record);
+    } catch {
+      // The save is already committed. Whatever hangs on this hook is no concern of the game.
+    }
   }
 }

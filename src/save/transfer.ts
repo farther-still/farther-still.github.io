@@ -3,6 +3,7 @@
 
 import type { Content } from '../engine';
 import type { LocalStore, StoredSlot } from './backend';
+import { fromBase64, toBase64 } from './base64';
 import { classify } from './classify';
 import { EXPORT_FORMAT, EXPORT_FORMAT_VERSION, EXPORT_REMINDER_DAYS, EXPORT_REMINDER_RUNS, HOT_SLOT, TEXT_CODE_PREFIX } from './constants';
 import type { DiagnosticEntry, QuarantineEntry } from './db';
@@ -42,19 +43,6 @@ export const buildExport = async (
     diagnostics: await store.readDiagnostics(),
   };
   return JSON.stringify(bundle);
-};
-
-const toBase64 = (text: string): string => {
-  let binary = '';
-  for (const byte of new TextEncoder().encode(text)) binary += String.fromCharCode(byte);
-  return btoa(binary);
-};
-
-const fromBase64 = (code: string): string => {
-  const binary = atob(code);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 };
 
 /** The record alone, as text that survives being pasted into a note or a message. */

@@ -132,6 +132,7 @@ Notes:
 
 - Full scope adds two persistent entries from the Q5 ledger: the journal and the sixth accessory slot.
 - The run-duration log exists only to measure section 5.9's time targets during playtests. No mechanic reads it (hard rule 3).
+- The cloud backup's key, and what the app remembers about the backup, are not in the save at all. They are facts about the install, like the map's zoom level, and are lost with the app (D-42, section 11).
 - Three rows on the right are kept in the save but outside the game state the engine sees: settings, export tracking and the run-duration log. They form the `app` half of the save payload and are versioned, migrated, exported and imported with the rest (`docs/ARCHITECTURE.md` section 7.1).
 - Unspent stat points and "drops found" are derived, not stored: unspent points from level, Growth and points spent; a drop counts as found once a copy of that item is owned.
 - The run seed is drawn by the UI when a run starts and stored in `run`. The engine never reads a clock or a random source of its own.
@@ -674,7 +675,7 @@ A tab bar at the bottom reaches Map, Hero, Gear, Items, Bestiary and the Run men
 | Auto-assign | A percentage for each of the five stats. | Turn on or off; edit the split. Points that do not divide evenly go to the stat furthest behind its percentage, ties going to the earlier stat in the order Life, Damage, Defense, Dexterity, Luck. If points spent by hand have left too few to bring every stat up to its share, each point goes to whichever stat is furthest behind at that moment. Unlocks permanently the first time the hero reaches level 250; RH's unlock is "shortly after level 250" [WEB]. |
 | Run menu | Run number, level, strongest enemy beaten this run and ever, energy. Progress counters: items, bestiary, bosses claimed, zones reached. | New run. Salvage. Settings. |
 | New-run sheet | Section 2.4. | Confirm or cancel. |
-| Settings | Playback speed; each movement control on or off; storage persistence status; export and import; days since last export; save-fallback notices; the diagnostics log and engine self-test; "update ready". | As listed in the kickoff save spec. Importing shows the two saves side by side and asks before replacing anything. |
+| Settings | Playback speed; each movement control on or off; storage persistence status; export and import; days since last export; save-fallback notices; the diagnostics log and engine self-test; "update ready"; the cloud backup: its repository, the last backup that worked and the last attempt's result. | As listed in the kickoff save spec. Importing shows the two saves side by side and asks before replacing anything. Cloud backup (section 11): enter or forget the key, back up now, restore, which is an import, and replace a backup this phone has not seen. |
 | Recovery | Shown at startup only if the newest save cannot be used as it is: what was found, and the choices in `docs/ARCHITECTURE.md` section 7.3. | Export everything; try again; use a save anyway; use an older save; restore a set-aside save; start a new game. |
 | Save-failed notice | Shown if a save cannot be written after a retry. Blocks play. | Copy the current game as a text code. |
 
@@ -730,7 +731,7 @@ Michael named nothing further from the two other games to avoid (G3).
 | Gates | Gate boss, key door, hidden path, sealed door | Adds condition-triggered enemies |
 | Drops | Named drops and handovers | Adds family group drops |
 | Other | One profile | Adds the journal and a sixth accessory slot |
-| Platform | Local saves, export and import | Adds cloud backup (Phase 5) |
+| Platform | Local saves, export and import, and a cloud backup of the save (section 11, built in Phase 5) | The same |
 
 The Phase 3b vertical slice is Z1 plus the first two or three enemies of Z2: about 12 enemies and 25 items. Its arc maps onto this document as follows.
 
@@ -752,11 +753,23 @@ The kickoff's save spec is the specification. This section only settles the Phas
 | Idle behaviour | None | Free projects pause after 7 days idle (kickoff) |
 | Accounts | The GitHub account already in use | A new service to maintain |
 | Secret on the phone | One token | A project key plus a sign-in |
-| Main risk | The token expires and must be replaced; details to check against GitHub's current rules in Phase 5 | A paused project fails silently between play sessions |
+| Main risk | The token can expire and must then be replaced | A paused project fails silently between play sessions |
 
-**Proposal: (a).**
+**Ruling: (a)** (Michael, 2026-10-13, R-16). The problem this section first raised was settled in Phase 3a: the app is served from `farther-still.github.io`, the address of an organization that publishes nothing else, so no other site shares its storage and none can read a key kept there.
 
-One problem to solve first: every project site on a personal `github.io` address shares one browser origin, so any of Michael's other sites could read a token stored on the phone. The fix recommended in Phase 0 stands: a free GitHub organization named after the game, which gives the app its own origin and a root address. This must be settled before the first install in Phase 3a, because the install address is permanent. With the name chosen in P1, the proposed address is `farther-still.github.io`. Michael has not yet decided on the organization, and nothing has been created.
+What Phase 5 built, as rules. How it is built is in `docs/ARCHITECTURE.md` section 7.5.
+
+- **What is backed up, and when (D-38, D-39, D-44).** The newest save record, when a new run is confirmed and its save has been written, and whenever "Back up now" is tapped in Settings. A run whose checkpoint was skipped, because the save failed a consistency check, is not sent by itself: the backup then still holds the last save that passed, and the notice about the skipped checkpoint says so. One file in the repository holds it. Every backup is a commit, so every earlier save is in the repository's history, and any of them can be downloaded there and imported like an export file. A commit's message holds the run number and the save number and nothing else.
+- **The save on the phone is the real one.** A backup is sent after the local write and is never waited for. One that fails, hangs or is refused changes nothing in the game and holds nothing up. Nothing is read from the backup unless the player taps Restore.
+- **A backup the game on the phone did not come from is left alone (D-40).** A file that this install neither wrote nor restored is never replaced automatically. Nor is the install's own file, once the game on the phone has stopped being the one it was made from: after a new game, an older save or a set-aside save is chosen on the recovery screen, or a save is imported or restored from the set-aside saves. The player either restores the backup or says to overwrite it, and until then nothing is backed up and a reminder says so. After a reinstall the phone holds an empty game, and without this rule its first finished run would put that empty game in the real backup's place; the same would happen after a bad save and a new game.
+- **Restore is an import (D-41).** What comes back goes through the same checks and the same sheet as an imported file: a damaged save or one from a newer version is refused, the two saves are shown side by side, and the current game is set aside before anything is replaced.
+- **The key (D-42).** A fine-grained token limited to the one repository, with read and write access to its contents. The player enters it; Claude never sees it and it is in no repository. It is kept in the app's storage on the phone, apart from the save, and is in no save, export, text code, backup or log. It is plain text there, since a web app has no keychain. Deleting the app deletes it, so it is entered again after a reinstall. It is made with no expiry (R-17), and the repository it opens is on Michael's personal account, where GitHub sets no limit on a key's life.
+- **Who can read the key.** The code published at the app's address, which means whoever can push to the app's repository, and the libraries built into the app. Nothing else on the web, as long as the organization publishes no second site. Someone holding the unlocked phone is shown only that a key is set.
+- **If the key leaks,** its holder can read, replace or delete the backups, history included, and nothing else: not the save on the phone, not the account, not another repository. The save holds game progress, settings and run times, and nothing personal. The cure is to revoke the key on GitHub and enter a new one.
+- **If the key expires or is revoked,** backups stop and nothing else does. Settings says the key was refused, and a reminder that does not block play stays until a new one is entered.
+- **What is shown (D-43).** Settings shows the repository, the last backup that worked, and the last attempt with its result in plain words. The map shows a reminder only when the backup has stopped for a reason the player has to act on: a refused key, a repository that cannot be found, or a backup the phone has not seen. Being offline is not one; the next finished run backs up by itself.
+
+About the service, from GitHub's documentation on 2026-10-13 and one call made with no key: its API takes calls from a web page on any address and lets them carry a key; a fine-grained token on a personal account may be made with no expiry, and inside an organization the default limit is 366 days; replacing a file needs the name of the version being replaced, which is what lets the app refuse to replace a version it has not seen.
 
 ## 12. Open-questions log
 
@@ -1073,6 +1086,27 @@ The sweep, seeds 1 to 200: the run the gate fell on, and the share of players ov
 | R-13 | The run his Z1 gate fell on | His eighth run of real play. The app counted 10 because the first two were test runs with no fights, made while trying the reset buttons | **His account, recorded beside the app's.** The Run times list as recorded in `docs/STATUS.md` shows 20 wins in each of runs 2 to 8, and the Run tab's screenshot showed fights in run 1, so the two do not fit together, and the screenshots are not at hand to settle it. `src/sim/recorded.json` keeps the app's count. On his account he is an ordinary careful player: run 8 is `like-michael`'s median and inside `cautious`'s band, and the bullet above that says his gate fell late even for a careful player does not apply. The rest stands on either reading: the Phase 3b player is quicker than he is, his tries at the boss are more than the careful players make, and no strategy passes the test on both sets of seeds, since the tries at the boss do not depend on which run it was. The test was not run again with 8 in place of 10 | 13.7 |
 | R-14 | Gate question: with a loss now charged, leave base starting energy at 20, which is about a third of a run harder for a careful player than the game he played, or make it 21, which is about 0.4 of a run easier? | a: leave it at 20 | **Ruling.** Base starting energy stays 20. R-12's reading stands | 5.8 |
 | R-15 | The Phase 4 gate | "approved" | **Approved**, 2026-10-13. Phase 5 starts in a new session | `docs/STATUS.md` |
+
+### 13.8 Phase 5a: cloud backup
+
+All dated 2026-10-13.
+
+| ID | Question | Michael's reply | Recorded as | Where it lives |
+|---|---|---|---|---|
+| R-16 | Where the backup copies are kept: (a) a private repository on GitHub, recommended, or (b) Supabase's free tier | "a" | **Ruling.** A private GitHub repository. He was told in the same message where the key lives on the phone, who can read it, what a leak or an expiry does to his save, and what he does by hand | 11 |
+| R-17 | Whether the key ever expires: (a) never, recommended, or (b) after a year | "The answer for that is a" | **Ruling.** The key is made with no expiry, so a backup cannot stop because a date passed. A leaked key then stays good until he revokes it; what it opens is the backups and nothing else. It follows that the backup repository is kept on his personal account: an organization caps a key at 366 days by default | 11 |
+
+Decisions made while building. Each is a system, so each is his to overrule.
+
+| ID | Decision | Reason | Where it lives |
+|---|---|---|---|
+| D-38 | The backup is the newest save record alone, as one file, in the record's own serialization | It still passes its checksum and the import that already exists reads it, so a file from any earlier commit can be downloaded on GitHub and imported by hand with no new code. The set-aside saves and the diagnostics log stay out: they grow, and they are not the save | 11 |
+| D-39 | A backup is made when a new run is committed, and on request. Not on every write | The kickoff asks for a backup after each run. A run is minutes long, so the backup is at most that far behind, for one small upload a run | 11 |
+| D-40 | A backup that the game on the phone did not come from is never replaced automatically. That is a file this install neither wrote nor restored, and also its own file once the game has been started anew, imported, restored from a set-aside save or picked on the recovery screen. The player restores it or overwrites it; until then nothing is backed up and a reminder says so | After a reinstall the phone holds an empty game, and its first finished run would otherwise replace the real backup with it. The real one would still be in the repository's history, but Restore would hand back the empty game. The second half was added when the tests' author showed the same loss by another road: a bad save, a new game from the recovery screen, one finished run | 11 |
+| D-41 | Restoring from the backup is an import: the same checks, the same side-by-side sheet, the current game set aside first | One way in for any save that did not come from this phone's own slots, already tested and already used on the phone | 11, 8.2 |
+| D-42 | The key, and what the app remembers about the backup, are facts about the install and are kept apart from the save. The save stays at version 2 | A key inside the save would travel in every export, every text code and every backup. Kept apart it is in none of them, and a phone holding real progress needs no migration. The cost: the key is entered again after a reinstall | 11, 2.5 |
+| D-43 | The map's reminder appears only for a failure the player has to act on. Being offline shows in Settings and nowhere else | A game played on a plane must not nag, and the next finished run backs up by itself | 11 |
+| D-44 | The backup follows the checkpoint's rule: a run whose checkpoint was skipped for failing a consistency check is not sent. "Back up now" and an overwrite he asks for send whatever the save holds, as an export does | The kickoff keeps checkpoints for states that pass their checks, and the backup is the checkpoint that is off the phone. Sent regardless, a save that fails a check would take the place of the last good one as the file Restore hands back | 11 |
 
 ## 14. Names
 

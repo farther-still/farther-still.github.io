@@ -2,9 +2,9 @@
 // that nobody is shown a result before it is committed.
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import { BUILD, CONTENT, FIXED_NOW, dump, flaky, freshIndexedDb, game, gameAtRun, payload, record } from '../../tests/helpers';
+import { BUILD, CONTENT, FIXED_NOW, dump, flaky, freshIndexedDb, game, gameAtRun, payload, record, suspectGame } from '../../tests/helpers';
 import type { Action, Content, GameState } from '../engine';
-import { LocalBackend, RUN_LOG_LIMIT, SaveWriter, checkImport, cursorFor } from '../save';
+import { LocalBackend, RUN_LOG_LIMIT, SaveWriter, checkImport, checksumMatches, cursorFor } from '../save';
 import type { AppState, LocalStore, RunLogEntry, SavePayload, SlotRecord } from '../save';
 import { GameController } from './controller';
 
@@ -329,6 +329,148 @@ describe('GameController', () => {
       clock += 4 * SECOND;
       await controller.dispatch(HINT);
       expect(controller.app).toEqual({ ...before, runTiming: { ...before.runTiming, activeMs: before.runTiming.activeMs + 4 * SECOND } });
+    });
+  });
+
+  // Where the cloud backup hangs (ARCHITECTURE 7.5; Phase 5a success checks 3 and 4). The local save is the
+  // source of truth, so the hook hears of a run only once it is committed, and nothing it does can reach back.
+  describe('the run-ended hook', () => {
+    const startHooked = (store: LocalStore, onRunEnded: (record: SlotRecord) => void, initial: SavePayload = payload()): GameController => {
+      const writer = new SaveWriter({ store, build: BUILD, content: CONTENT, now: () => clock, log: () => undefined }, cursorFor([]), null);
+      return new GameController({ content: CONTENT, writer, build: BUILD, randomSeed: () => 777, now: () => clock, onRunEnded }, initial);
+    };
+
+    /** Whatever comes first: the work, or a second, which is many times what two writes take. */
+    const orStillWaiting = <T>(work: Promise<T>): Promise<T | 'still waiting'> =>
+      Promise.race([work, new Promise<'still waiting'>((resolve) => setTimeout(() => resolve('still waiting'), 1000))]);
+
+    it('is told once per new run, after both writes have committed, with the record now in the hot slot', async () => {
+      const store = flaky(backend);
+      // What the hook was handed, what storage had been asked and had answered by then, and the run on screen.
+      const told: Array<{ record: SlotRecord; storage: string[]; run: number }> = [];
+      const controller: GameController = startHooked(store, (record) => told.push({ record, storage: [...store.calls], run: controller.game.profile.counters.runsStarted }));
+
+      expect(await controller.newRun()).toMatchObject({ kind: 'done', checkpoint: 'written' });
+      expect(told).toHaveLength(1);
+      const [first] = told;
+      if (first === undefined) throw new Error('the hook was not told');
+      expect(first.storage).toEqual(['write:checkpoint-0:1', 'committed:checkpoint-0:1', 'write:hot:2', 'committed:hot:2']);
+      expect(first.record).toEqual(await storedRecord('hot'));
+      expect(first.record).toBe(controller.lastSaved);
+      expect(first.record).toMatchObject({ slot: 'hot', seq: 2, payload: { game: { profile: { counters: { runsStarted: 4 } } } } });
+      expect(checksumMatches(first.record)).toBe(true);
+      expect(first.run).toBe(4);
+
+      // The next run: told once more, of that run's record.
+      await controller.dispatch(HINT);
+      expect(await controller.newRun()).toMatchObject({ kind: 'done' });
+      expect(told).toHaveLength(2);
+      expect(told[1]?.record).toEqual(await storedRecord('hot'));
+      expect(told[1]?.record).toMatchObject({ slot: 'hot', seq: 5, payload: { game: { profile: { counters: { runsStarted: 5 } } } } });
+      expect(told[1]?.storage.slice(-2)).toEqual(['write:hot:5', 'committed:hot:5']);
+    });
+
+    it('is not told of a run whose checkpoint was skipped: the backup, like a checkpoint, holds only a save that passed its checks', async () => {
+      const told: SlotRecord[] = [];
+      const controller = startHooked(backend, (record) => told.push(record), payload(suspectGame()));
+      expect(await controller.newRun()).toMatchObject({ kind: 'done', checkpoint: 'skipped' });
+      // The run itself is saved as ever: the hot slot holds it.
+      expect(await storedRecord('hot')).toMatchObject({ payload: { game: { profile: { counters: { runsStarted: 4 } } } } });
+      expect(told).toEqual([]);
+    });
+
+    it('is not told of any other action, a setting, a flush or a replaced game, nor of an action the engine rejects', async () => {
+      const told: SlotRecord[] = [];
+      const controller = startHooked(backend, (record) => told.push(record));
+      for (const action of [FIGHT, HINT, SPEND_ONE, WEST]) expect(await controller.dispatch(action)).toMatchObject({ kind: 'done' });
+      expect(await controller.flush()).toMatchObject({ kind: 'done' });
+      expect(await controller.updateApp((app) => ({ ...app, settings: { ...app.settings, dragToSteer: true } }))).toMatchObject({ kind: 'done' });
+      expect((await controller.replaceWith(record('hot', 50, gameAtRun(20)))).outcome).toMatchObject({ kind: 'done' });
+      expect(await controller.dispatch({ type: 'Fight', spawn: 's004' })).toMatchObject({ kind: 'rejected' });
+      expect(told).toEqual([]);
+
+      // It was listening all along: the run that follows is told.
+      await controller.newRun();
+      expect(told).toHaveLength(1);
+      expect(told[0]?.payload.game.profile.counters.runsStarted).toBe(21);
+    });
+
+    it('is not told of a new run that storage refused', async () => {
+      const told: SlotRecord[] = [];
+      const controller = startHooked(flaky(backend, { failWrites: 2 }), (record) => told.push(record));
+      expect(await controller.newRun()).toEqual({ kind: 'halted' });
+      expect(controller.halt).toMatchObject({ kind: 'save-failed' });
+      expect(told).toEqual([]);
+    });
+
+    it('is not told when the checkpoint was written and the hot slot was not', async () => {
+      const inner = flaky(backend);
+      const store: LocalStore = {
+        ...inner,
+        write: async (rec) => {
+          if (rec.slot === 'hot') throw new Error('simulated: the hot slot would not take the write');
+          await inner.write(rec);
+        },
+      };
+      const told: SlotRecord[] = [];
+      const controller = startHooked(store, (record) => told.push(record));
+      expect(await controller.newRun()).toEqual({ kind: 'halted' });
+      expect(Object.keys((await dump(backend)).slots)).toEqual(['checkpoint-0']);
+      expect(told).toEqual([]);
+    });
+
+    it('is not told when the new run fails its checks and is not written', async () => {
+      // Half a millisecond of play is not a whole number: the run-duration entry the new run files fails the schema.
+      const base = payload();
+      const told: SlotRecord[] = [];
+      const controller = startHooked(backend, (record) => told.push(record), { game: base.game, app: { ...base.app, runTiming: { ...base.app.runTiming, activeMs: 1.5 } } });
+      expect(await controller.newRun()).toEqual({ kind: 'halted' });
+      expect(controller.halt).toMatchObject({ kind: 'engine-bug' });
+      expect((await dump(backend)).slots).toEqual({});
+      expect(told).toEqual([]);
+    });
+
+    it('cannot change what a new run comes to by throwing', async () => {
+      // The same run twice, on two empty databases: once with a hook that does nothing, once with one that throws.
+      const quiet = await startHooked(backend, () => undefined).newRun();
+      const quietStorage = await dump(backend);
+      expect(quiet).toMatchObject({ kind: 'done', checkpoint: 'written', events: [{ type: 'RunStarted', run: 4 }] });
+
+      freshIndexedDb();
+      backend = new LocalBackend();
+      let thrown = 0;
+      const controller = startHooked(backend, () => {
+        thrown += 1;
+        throw new Error('simulated: the backup threw');
+      });
+      const listener = counted(controller);
+      expect(await controller.newRun()).toEqual(quiet);
+      expect(thrown).toBe(1);
+      expect(await dump(backend)).toEqual(quietStorage);
+      expect(controller.halt).toBeNull();
+      expect(controller.game.profile.counters.runsStarted).toBe(4);
+      expect(listener.shown()).toBe(1);
+
+      // The game goes on, and the hook is still told of the run after.
+      expect(await controller.dispatch(HINT)).toMatchObject({ kind: 'done' });
+      expect(await controller.newRun()).toMatchObject({ kind: 'done', events: [{ type: 'RunStarted', run: 5 }] });
+      expect(thrown).toBe(2);
+    });
+
+    it('is not waited for: a hook whose work never ends holds up neither the new run nor the input after it', async () => {
+      // The hook is typed to hand nothing back, and the cloud backup's does not. One that hands back its
+      // unfinished work is the way a later change would make the game wait on the network.
+      let told = 0;
+      const controller = startHooked(backend, () => {
+        told += 1;
+        return new Promise<void>(() => undefined);
+      });
+      expect(await orStillWaiting(controller.newRun())).toMatchObject({ kind: 'done', checkpoint: 'written' });
+      expect(told).toBe(1);
+      expect(await orStillWaiting(controller.dispatch(HINT))).toMatchObject({ kind: 'done' });
+      expect(await orStillWaiting(controller.newRun())).toMatchObject({ kind: 'done' });
+      expect((await stored('hot'))?.profile.counters.runsStarted).toBe(5);
+      expect(told).toBe(2);
     });
   });
 

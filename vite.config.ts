@@ -42,13 +42,14 @@ const contentVersion = (): string => {
 };
 
 // Added to the built page only; the dev server needs looser rules (ARCHITECTURE section 9). Nothing loads from
-// anywhere but the site itself, which is what enforces "no ads, no third parties" by machine.
+// anywhere but the site itself, which is what enforces "no ads, no third parties" by machine. The page may call
+// one address besides its own: the cloud backup's (ARCHITECTURE 7.5). `scripts/check-dist.ts` pins the same list.
 export const CONTENT_SECURITY_POLICY = [
   "default-src 'none'",
   "script-src 'self'",
   "style-src 'self'",
   "img-src 'self' data:",
-  "connect-src 'self'",
+  "connect-src 'self' https://api.github.com",
   "manifest-src 'self'",
   "worker-src 'self'",
   "base-uri 'none'",

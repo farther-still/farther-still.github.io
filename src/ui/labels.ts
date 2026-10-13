@@ -5,6 +5,7 @@ import type { Balance, HintId, ItemDef, ItemKind, LineKey, RejectReason, SlotId,
 import { TAGS } from '../engine';
 import type { GameText } from '../content';
 import { EXPORT_REMINDER_DAYS, EXPORT_REMINDER_RUNS } from '../save';
+import type { BackupOutcome, CloudFailure } from '../save';
 import { formatNumber } from './format';
 
 export const STAT_NAME: Record<StatKey, string> = { life: 'Life', damage: 'Damage', defense: 'Defense', dexterity: 'Dexterity', luck: 'Luck' };
@@ -185,6 +186,50 @@ export const exportReminderWords = (daysSinceExport: number, runsSinceExport: nu
   ];
   return `${overdue.length === 0 ? '' : `No export for ${overdue.join(' and ')}. `}The only copy of this save is on this phone.`;
 };
+
+/**
+ * What the last cloud backup attempt came to, in plain words (ARCHITECTURE 7.5). Each failure says what it means
+ * for the save, which is nothing, and what puts it right. None of them holds anything the player entered.
+ */
+export const backupWords = (outcome: BackupOutcome, status: number | null): string => {
+  switch (outcome) {
+    case 'ok':
+      return 'Backed up.';
+    case 'unreachable':
+      return 'GitHub could not be reached. The phone may be offline. The save on this phone is unaffected, and the next finished run tries again.';
+    case 'refused':
+      return 'GitHub refused the key. It may have expired or been revoked, or it may not have write access to the repository. The save on this phone is unaffected. Make a new key and enter it here.';
+    case 'not-found':
+      return 'GitHub found no such repository for this key. Check its name, and that the key is allowed to use it. The save on this phone is unaffected.';
+    case 'unseen':
+      return 'The backup holds a save that the game on this phone did not come from, so it was left alone. Restore it to this phone, or overwrite it with the game on this phone. After a reinstall, restoring is the one you want.';
+    case 'failed':
+      return `The backup did not go through${status === null ? '' : ` (GitHub answered ${status})`}. The save on this phone is unaffected, and the next finished run tries again.`;
+  }
+};
+
+/** Why the backup could not be fetched for a restore. Nothing was changed, and nothing tries again by itself. */
+export const backupReadWords = (failure: CloudFailure, status: number | null): string => {
+  switch (failure) {
+    case 'unreachable':
+      return 'GitHub could not be reached. The phone may be offline.';
+    case 'refused':
+      return 'GitHub refused the key. It may have expired or been revoked. Make a new key and enter it in Settings.';
+    case 'not-found':
+      return 'GitHub found no such repository for this key. Check its name, and that the key is allowed to use it.';
+    case 'changed':
+    case 'failed':
+      return status === null ? 'Something went wrong on the way.' : `GitHub answered ${status}.`;
+  }
+};
+
+/** The map's reminder, shown only for a result the player has to act on. Being offline is not one. */
+export const backupReminderWords = (outcome: BackupOutcome): string =>
+  outcome === 'unseen'
+    ? 'The cloud backup holds a save that the game on this phone did not come from, so nothing is being backed up.'
+    : outcome === 'refused'
+      ? 'The cloud backup has stopped: GitHub refused the key.'
+      : 'The cloud backup has stopped: GitHub found no such repository for the key.';
 
 /** The line a screen shows the first time it opens (GDD 8.4). There is no tutorial sequence. */
 export const hints = (balance: Balance): Record<HintId, string> => ({

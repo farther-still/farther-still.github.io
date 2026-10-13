@@ -1,7 +1,11 @@
 export { LocalBackend, quarantineKey, readSeq } from './backend';
 export type { LocalStore, QuarantineCopy, SaveBackend, StoredSlot } from './backend';
+export { BACKUP_KEY, BACKUP_STATE, CloudBackup, cleanToken, parseRepository } from './backup';
+export type { BackupAttempt, BackupDeps, BackupOutcome, BackupStatus, DeviceStore } from './backup';
 export { classify } from './classify';
 export type { Classified, ClassifyOptions, DamagedRecord, GoodRecord, NewerRecord, SuspectRecord } from './classify';
+export { BACKUP_FILE, BACKUP_ORIGIN, BACKUP_TIMEOUT_MS, CloudError, GitHubBackend, backupMessage } from './cloud';
+export type { CloudFailure, CloudFile, CloudKey, CloudResult, FetchLike, TimerLike } from './cloud';
 export * from './constants';
 export { openSaveDb } from './db';
 export type { DiagnosticEntry, QuarantineEntry, QuarantineKind, QuarantineReason, SaveDb, SaveDbSchema } from './db';

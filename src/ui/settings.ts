@@ -9,9 +9,10 @@ import golden from '../../tests/golden/golden.json';
 import { button, el, formatTime, line, section, shortBuild } from './dom';
 import { formatDuration, formatNumber } from './format';
 import { noticeList } from './screens';
+import { backupWords } from './labels';
 import { runSelfTest } from './selftest';
 import type { Session } from './session';
-import { confirmReplaceSheet, importSheet, openSaveExport } from './sheets';
+import { backupKeySheet, confirmReplaceSheet, importSheet, openBackupRestore, openSaveExport, replaceBackupSheet } from './sheets';
 
 const PERSIST_TEXT = {
   asking: 'Asking…',
@@ -32,7 +33,7 @@ const screenText = (reading: ScreenReading): string =>
   `${reading.screenHeight} high, page ${reading.pageHeight}, insets ${reading.insetTop} and ${reading.insetBottom}${bandBelow(reading) ? ': the page stops short of the screen' : ''}`;
 
 export const settingsScreen = (session: Session): HTMLElement => {
-  const { controller, content, backend, build, updates, diagnostics, persist, shell, view, standalone, screen } = session;
+  const { controller, content, backend, backup, build, updates, diagnostics, persist, shell, view, standalone, screen } = session;
   const saved = controller.lastSaved;
   const { settings, runLog } = controller.app;
   const settingsView = view.settings;
@@ -93,6 +94,17 @@ export const settingsScreen = (session: Session): HTMLElement => {
     });
   }
 
+  const cloud = backup.status;
+  const backUpNow = async (): Promise<void> => {
+    await controller.flush();
+    const record = controller.lastSaved;
+    if (record === null) {
+      shell.toast('There is no save to back up yet.');
+      return;
+    }
+    shell.toast((await backup.backUp(record)) === 'ok' ? 'Backed up.' : 'The backup did not go through.');
+  };
+
   const selfTest = settingsView.selfTest;
   const passed = selfTest?.filter((result) => result.pass).length ?? 0;
   const lastRuns = runLog.slice(-8).reverse();
@@ -146,6 +158,31 @@ export const settingsScreen = (session: Session): HTMLElement => {
         button('Import…', () => shell.openSheet((close) => importSheet(session, content, close)), { class: 'grow' }),
       ),
       el('p', { class: 'muted', text: 'Deleting the Home Screen icon deletes the save. An export is the only copy off this phone.' }),
+    ),
+    section(
+      'Cloud backup',
+      ...(cloud.repository === null
+        ? [
+            el('p', { class: 'muted', text: 'Off. With a key for a private GitHub repository of yours, a copy of the save is sent there after every run. The save on this phone stays the real one.' }),
+            button('Set up…', () => shell.openSheet((close) => backupKeySheet(session, close)), { class: 'primary' }),
+          ]
+        : [
+            line('Repository', cloud.repository),
+            line('Key', 'Set, on this phone only'),
+            line('Last backup', cloud.lastOk === null ? 'None yet' : `run ${formatNumber(cloud.lastOk.run)}, save ${cloud.lastOk.seq} at ${formatTime(cloud.lastOk.at)}`),
+            line('Last attempt', cloud.busy ? 'Sending…' : cloud.lastAttempt === null ? 'None yet' : `${cloud.lastAttempt.outcome === 'ok' ? 'Worked' : 'Did not go through'} at ${formatTime(cloud.lastAttempt.at)}`),
+            cloud.lastAttempt === null || cloud.lastAttempt.outcome === 'ok'
+              ? null
+              : el('p', { class: 'flash', text: backupWords(cloud.lastAttempt.outcome, cloud.lastAttempt.status) }),
+            el(
+              'div',
+              { class: 'row' },
+              button('Back up now', () => void backUpNow(), { class: 'primary grow', disabled: cloud.busy }),
+              button('Restore from backup…', () => openBackupRestore(session), { class: 'grow' }),
+            ),
+            cloud.lastAttempt?.outcome === 'unseen' ? button('Overwrite the backup…', () => shell.openSheet((close) => replaceBackupSheet(session, close))) : null,
+            button('Change or forget the key…', () => shell.openSheet((close) => backupKeySheet(session, close))),
+          ]),
     ),
     section(
       'Run times',

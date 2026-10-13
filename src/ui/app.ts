@@ -5,7 +5,7 @@ import type { Content } from '../engine';
 import { loadBundled } from '../content';
 import type { GameText } from '../content';
 import { UpdateController, bandBelow, browserContainer, captureGlobalErrors, createDiagnostics, isStandalone, readScreen, requestPersistence } from '../platform';
-import { LocalBackend, SaveWriter, buildExport, checkImport, loadSave, newAppState, prepareRecoveryExit } from '../save';
+import { CloudBackup, LocalBackend, SaveWriter, buildExport, checkImport, loadSave, newAppState, prepareRecoveryExit } from '../save';
 import type { BuildInfo, Classified, LoadResult, QuarantineEntry, SavePayload, SlotRecord, WriteCursor } from '../save';
 import { GameController } from './controller';
 import { el } from './dom';
@@ -63,12 +63,15 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
   };
   measureScreen();
 
+  let sheetShown: HTMLElement | null = null;
   const closeSheet = (): void => {
+    sheetShown = null;
     sheetHost.hidden = true;
     sheetHost.replaceChildren();
   };
   const openSheet = (builder: SheetBuilder): void => {
-    sheetHost.replaceChildren(builder(closeSheet));
+    sheetShown = builder(closeSheet);
+    sheetHost.replaceChildren(sheetShown);
     sheetHost.hidden = false;
   };
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -109,11 +112,24 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
   });
   void updates.start(`${options.baseUrl}sw.js`, options.baseUrl);
 
+  // The backup is given the `device` store and the network, and nothing that can reach a slot.
+  const backup = new CloudBackup({
+    device: { getDevice: (key) => backend.getDevice(key), setDevice: (key, value) => backend.setDevice(key, value) },
+    fetch: (url, init) => fetch(url, init),
+    timer: (fire, ms) => {
+      const id = window.setTimeout(fire, ms);
+      return () => window.clearTimeout(id);
+    },
+    now: Date.now,
+    log,
+  });
+
   const platform: Platform = {
     build,
     content,
     text,
     backend,
+    backup,
     updates,
     diagnostics,
     notices: new Notices(backend, log),
@@ -127,7 +143,7 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
 
   const runGame = async (payload: SavePayload, cursor: WriteCursor, lastGood: SlotRecord | null, commitNow: boolean): Promise<void> => {
     const writer = new SaveWriter({ store: backend, build, content, now: Date.now, log }, cursor, lastGood);
-    const controller = new GameController({ content, writer, build, randomSeed, now: Date.now }, payload);
+    const controller = new GameController({ content, writer, build, randomSeed, now: Date.now, onRunEnded: (record) => backup.runEnded(record) }, payload);
     let current: ScreenName = 'map';
     let mapMounted = false;
 
@@ -185,6 +201,7 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
         },
         closeSheet,
         sheetOpen: () => !sheetHost.hidden,
+        showing: (sheet) => sheetShown === sheet,
         rerender: render,
         toast,
       },
@@ -197,12 +214,15 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
     // screen later.
     if (commitNow) await controller.updateApp((app) => app);
     // The map's zoom is read here, where every way into the game passes, so the first draw is at the remembered level.
+    // So is the cloud backup's key: a game reached through the recovery screen is backed up like any other.
     await platform.zoom.restore();
+    await backup.restore();
     render();
 
     controller.subscribe(render);
     platform.notices.subscribe(render);
     updates.subscribe(render);
+    backup.subscribe(render);
 
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
@@ -282,6 +302,10 @@ export const startApp = async (root: HTMLElement, options: AppOptions): Promise<
         draw();
         return;
       }
+      // Whatever is chosen here, the game that follows is not simply the one this phone was backing up. The
+      // cloud backup is left alone until the player has looked at it (GDD D-40).
+      await backup.restore();
+      await backup.disown();
       await start(exit.cursor);
     };
 

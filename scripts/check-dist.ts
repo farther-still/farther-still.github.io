@@ -29,9 +29,15 @@ export const MEDIA_PATTERNS: ReadonlyArray<{ name: string; pattern: RegExp }> = 
   { name: 'speech synthesis', pattern: /\b(speechSynthesis|SpeechSynthesisUtterance)\b/ },
 ];
 
-// URL-shaped text that is an identifier or a parsing template, not a place anything is loaded from. Each entry
-// names where it comes from. Anything else fails, and the policy's `connect-src 'self'` blocks it at run time too.
+// URL-shaped text that is an identifier or a parsing template, not a place anything is loaded from, and the one
+// address the page may call. Each entry names where it comes from. Anything else fails, and the policy's
+// `connect-src` blocks it at run time too.
 const ALLOWED_URLS: readonly RegExp[] = [
+  // The cloud backup's address (ARCHITECTURE 7.5): that host exactly, whatever path the code builds under it.
+  /^https:\/\/api\.github\.com(\/.*)?$/,
+  // The same address as the page's content security policy names it, with the directive's semicolon after it.
+  // The policy itself is held to the exact pinned list below.
+  /^https:\/\/api\.github\.com;$/,
   // XML namespaces (SVG, XHTML).
   /^http:\/\/www\.w3\.org\//,
   // zod: the `$schema` names of the JSON Schema drafts it can describe a schema in.
@@ -48,7 +54,7 @@ export const REQUIRED_CSP = [
   "script-src 'self'",
   "style-src 'self'",
   "img-src 'self' data:",
-  "connect-src 'self'",
+  "connect-src 'self' https://api.github.com",
   "manifest-src 'self'",
   "worker-src 'self'",
   "base-uri 'none'",

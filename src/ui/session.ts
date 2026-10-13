@@ -3,7 +3,7 @@
 import type { Content, ItemId, SlotId, StatKey } from '../engine';
 import type { GameText } from '../content';
 import type { Diagnostics, PersistStatus, ScreenReading, UpdateController } from '../platform';
-import type { BuildInfo, LocalBackend } from '../save';
+import type { BuildInfo, CloudBackup, LocalBackend } from '../save';
 import type { GameController } from './controller';
 import type { SelfTestResult } from './selftest';
 
@@ -114,6 +114,8 @@ export type Shell = {
   openSheet: (build: SheetBuilder) => void;
   closeSheet: () => void;
   sheetOpen: () => boolean;
+  /** True while this very sheet is the one on screen. A sheet that waited on something asks before it goes on. */
+  showing: (sheet: HTMLElement) => boolean;
   rerender: () => void;
   /** A line that appears briefly over the current screen, such as "Not enough gold". */
   toast: (text: string) => void;
@@ -134,6 +136,8 @@ export type ViewState = {
   unseenItems: ItemId[];
   /** True once "Later" has been tapped on the export reminder. It is back the next time the app is started (D-33). */
   exportReminderPutOff: boolean;
+  /** The same for the reminder that the cloud backup needs the player. */
+  backupReminderPutOff: boolean;
 };
 
 export type Platform = {
@@ -141,6 +145,8 @@ export type Platform = {
   content: Content;
   text: GameText;
   backend: LocalBackend;
+  /** The cloud backup (ARCHITECTURE 7.5). Off until a key is entered in Settings. */
+  backup: CloudBackup;
   updates: UpdateController;
   diagnostics: Diagnostics;
   notices: Notices;
@@ -164,4 +170,5 @@ export const newViewState = (): ViewState => ({
   items: { filter: 'all' },
   unseenItems: [],
   exportReminderPutOff: false,
+  backupReminderPutOff: false,
 });

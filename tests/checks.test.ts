@@ -31,6 +31,7 @@ import {
   workerFindings,
 } from '../scripts/check-dist';
 import { hardWrappedLines } from '../scripts/check-prose';
+import { BACKUP_ORIGIN } from '../src/save';
 import {
   EXCEPTIONS_FILE,
   LOG_FORMAT,
@@ -267,6 +268,24 @@ describe('check-dist', () => {
 
   it('holds the build to the exact policy the check requires', () => {
     expect(CONTENT_SECURITY_POLICY.split('; ')).toEqual(REQUIRED_CSP);
+  });
+
+  it('lets the page call its own site and the cloud backup, and nowhere else', () => {
+    expect(REQUIRED_CSP.filter((directive) => directive.startsWith('connect-src'))).toEqual([`connect-src 'self' ${BACKUP_ORIGIN}`]);
+    // Every other directive names the site itself, inline data or nothing: no second address anywhere.
+    expect(REQUIRED_CSP.join(' ').match(/https?:\/\/[^\s;]+/g)).toEqual([BACKUP_ORIGIN]);
+    expect(pageFindings(page(CONTENT_SECURITY_POLICY.replace(BACKUP_ORIGIN, `${BACKUP_ORIGIN} https://uploads.github.com`), VIEWPORT)).length).toBeGreaterThan(0);
+    expect(pageFindings(page(CONTENT_SECURITY_POLICY.replace(BACKUP_ORIGIN, 'https://*.github.com'), VIEWPORT)).length).toBeGreaterThan(0);
+    expect(pageFindings(page(CONTENT_SECURITY_POLICY.replace(` ${BACKUP_ORIGIN}`, ''), VIEWPORT)).length).toBeGreaterThan(0);
+  });
+
+  it('allows the cloud backup address in the bundle, that host exactly', () => {
+    expect(urlFindings('a.js', `fetch("${BACKUP_ORIGIN}")`)).toEqual([]);
+    expect(urlFindings('a.js', 'fetch(`' + BACKUP_ORIGIN + '/repos/${a}/${b}/contents/x.json`)')).toEqual([]);
+    expect(urlFindings('a.js', 'fetch("https://api.github.com.example.net/repos")')).toHaveLength(1);
+    expect(urlFindings('a.js', 'fetch("https://uploads.github.com/x")')).toHaveLength(1);
+    expect(urlFindings('a.js', 'fetch("http://api.github.com/repos")')).toHaveLength(1);
+    expect(urlFindings('a.js', 'fetch("https://github.com/login")')).toHaveLength(1);
   });
 
   it('finds a missing or loosened content security policy', () => {

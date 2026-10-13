@@ -43,7 +43,7 @@ flowchart TD
 |---|---|---|---|
 | `src/engine/` | Nothing outside itself, and no npm package | Everything else | Browser and Node |
 | `src/content/` | Engine types and pure functions, zod | UI, save, platform | Browser and Node |
-| `src/save/` | Engine types and constants, `hash` and `canonicalJson`, zod, idb | UI, sim, platform, content | Browser; Node in tests with a fake IndexedDB |
+| `src/save/` | Engine types and constants, `hash` and `canonicalJson`, zod, idb | UI, sim, platform, content | Browser; Node in tests with a fake IndexedDB and a stand-in for the backup service |
 | `src/platform/` | Save: the database handle and the store names only (`db`, `constants`) | Engine, UI, sim, content | Browser |
 | `src/ui/` | All of the above | Sim | Browser |
 | `src/sim/` | Engine, content, Node APIs | UI, save, platform | Node |
@@ -109,6 +109,7 @@ steadfast/
       sample.fixture.ts        the made-up world the tests share
     content/                   section 6: schemas.ts, bundle.ts (the files that ship), index.ts (the loader)
     save/                      section 7
+      cloud.ts  backup.ts      the cloud backend; when a backup is made and what is remembered about it
       migrations/v1-to-v2.ts   one frozen file per version step
     ui/                        section 8
       app.ts  controller.ts    startup and the screen switcher; the save-before-show loop
@@ -129,6 +130,7 @@ steadfast/
   tests/
     helpers.ts                 a fresh fake IndexedDB per test, sample records, stores that fail on demand
     fake-dom.ts                a stand-in for the few DOM parts the UI uses, so startup and recovery wiring can be tested
+    fake-github.ts             a stand-in for the backup service: one repository, one file, the contents API as documented
     fixtures/saves/v1.json ... one frozen slot record per save version
     golden/                    golden values, the test that runs them, and the hash cross-check
     enforcement.test.ts        each lint ban and the engine's no-DOM compile, shown to fire
@@ -299,7 +301,7 @@ One IndexedDB database named `farther-still`, namespaced so nothing else on the 
 |---|---|
 | `slots` | `hot`, and `checkpoint-0` to `checkpoint-4` |
 | `quarantine` | Raw copies of records, each stored once, keyed by slot, `seq` and a checksum of the raw copy itself, so two differently damaged copies of one record are both held. Two kinds: *kept* copies of records that were damaged, replaced by an import or set aside by the player, which are never removed automatically; and *routine* copies made before a migration, of which the newest 10 are held. A routine copy never pushes out a kept one. Included in exports |
-| `device` | Facts about this install, not about the game: notices waiting to be shown, the last build seen, the map's zoom level. Not part of a save |
+| `device` | Facts about this install, not about the game: notices waiting to be shown, the last build seen, the map's zoom level, and the cloud backup's key and notes (section 7.5). Not part of a save, and not in any export |
 | `diagnostics` | A ring buffer of the last 200 errors |
 
 A slot record is `{ slot, saveVersion, buildId, contentVersion, seq, writtenAt, payload: { game, app }, checksum }`.
@@ -376,7 +378,15 @@ interface SaveBackend {
 }
 ```
 
-- `LocalBackend` is IndexedDB through `idb`. `CloudBackend` arrives in Phase 5 (GDD section 11) and backs up after each run; it is never the primary.
+- `LocalBackend` is IndexedDB through `idb` and is always the primary.
+- **The cloud backend** (GDD section 11, built in Phase 5a) is `GitHubBackend` in `src/save/cloud.ts`: one file, `farther-still-save.json`, in a private repository, read and written through GitHub's contents API with a fine-grained token. `write` sends the record's own serialization as one commit and names the version it replaces; `readAll` gives back at most one record, exactly as stored. It talks to one address, `https://api.github.com`, through a `fetch` it is handed, asks that no answer come from the browser's cache, sends no cookies, and gives up on a call with no answer after 20 seconds.
+- **`CloudBackup`** in `src/save/backup.ts` decides when a backup is made and what is remembered about it. It is given the `device` store, a `fetch`, a timer, a clock and the log, and nothing that can reach a slot (A-38). The controller calls its `runEnded` with the hot record once a new run is committed and its checkpoint written; a run whose checkpoint was skipped is not sent (GDD D-44). The call returns at once and cannot throw, attempts run one at a time, and if several pile up only the newest record is sent.
+  - **It looks before it writes (A-39).** Each attempt first reads the file. No file: it is created. The file this install last wrote or restored, or one holding the record it last sent: it is replaced. The very record being sent: nothing is written and the attempt counts as done. Anything else is a backup this install has not seen: nothing is written and the result is `unseen`, until the player restores the file, which adopts it, or says to overwrite it.
+  - **It gives up its claim when the game changes under it (A-44).** `disown` is called on every way out of the recovery screen and whenever a save other than the backup's own is put in the game's place. It forgets the version and the checksum that made the file this install's, and drops a write still queued. An attempt that was already on its way learns nothing from its answer.
+  - **Results:** `ok`, `unreachable` (no answer), `refused` (401, or a 403 that is not a rate limit), `not-found`, `unseen` and `failed`. The last attempt and the last one that worked are kept, and shown in Settings. Only `refused`, `not-found` and `unseen` raise the map's reminder.
+  - **The key** is `{ owner, repo, token }` under `backupKey` in the `device` store; the notes are under `backupState`, apart from it, so reading them never touches the secret. Neither is part of a save, an export or the backup itself. The token goes into the `Authorization` header and nowhere else, and what is logged is a result and a status code. A key is cleaned of the spaces and invisible characters a paste picks up; one that still holds a character outside printable ASCII is refused where it is typed, since a browser would refuse to send it and the failure would read as being offline. A key for a different repository drops what was remembered about the old one.
+  - **Restore** puts up a sheet of its own, reads the file, and hands its text to `checkImport` and the import's own confirmation sheet; on confirmation the file's version is adopted. If its sheet is no longer the one on screen when the answer comes, the answer is dropped. Nothing else ever reads from the backup.
+  - **Nothing in the UI waits on the network.** Saving a key stores it, closes the sheet and starts one guarded attempt in the background, which is the test of the key; Settings shows "Sending…" and then the result. The key is read on every way into the game, the recovery screen included.
 - **Export:** the newest valid record, the quarantine store and the diagnostics log, as a JSON file through the share sheet, and the record alone as a text code that can be copied: `FS1.` followed by the record's serialization in base64. The text code is the fallback where file sharing is unreliable. Where there is no share sheet at all, as on the laptop, the file is downloaded.
 - **Import:** a file or a pasted code is checked the same way as a loaded record. A damaged record, or one from a newer version, is refused. A suspect one is offered with its problems listed and a "replace anyway" confirmation, as on the recovery screen, because it is the save the app itself tells the player to export when a checkpoint is skipped. A raw export made from the recovery screen can be imported too: the newest good record in it is offered, or failing that the newest suspect one. The app then shows the two saves side by side (runs started, items owned, when written) and asks for confirmation. On yes, the current hot record is copied to quarantine and to a checkpoint, and the import is written as the new hot slot with the next `seq`.
 - Settings shows days since the last export and the result of `navigator.storage.persist()`. After 10 runs or 7 days without an export, a reminder appears that does not block play. It names only what is overdue, and "Later" puts it off until the app is next started, no longer (GDD D-33).
@@ -386,7 +396,7 @@ interface SaveBackend {
 From the kickoff's save spec:
 
 - Safari and the installed Home Screen app do not share storage. A save made in one is invisible to the other, so the only way across is export and import.
-- Deleting the Home Screen icon deletes the save. Export is the only protection until cloud backup exists.
+- Deleting the Home Screen icon deletes the save, and the cloud backup's key with it. An export, or the cloud backup once a key is entered, is the only copy off the phone.
 - The installed app is exempt from Safari's seven-day storage eviction only in standalone display mode, so the display mode never changes.
 - The install address is permanent once installed (section 12).
 
@@ -432,7 +442,7 @@ sequenceDiagram
   - The app asks for an update check each time it returns to the foreground, so one that is only ever resumed still learns of new versions.
 - **Persistence.** `navigator.storage.persist()` is requested at launch and its answer shown in Settings. Nothing relies on it.
 - **Diagnostics.** `error` and `unhandledrejection` are written to the ring buffer. Settings can show it, and exports include it, because there is no Mac to attach Web Inspector to the phone.
-- **Content security policy.** Added to the built page only, since the dev server needs looser rules: scripts and styles from the site itself, images from the site or inline data, nothing from anywhere else. So no third-party script, font or tracker can load. Phase 5 adds the one backup address. The policy also forbids inline scripts, inline styles and code built at run time, so the UI sets classes, never `style` attributes, and zod's run-time compiler is switched off. Anything the policy blocks is written to the diagnostics log.
+- **Content security policy.** Added to the built page only, since the dev server needs looser rules: scripts and styles from the site itself, images from the site or inline data, nothing from anywhere else. So no third-party script, font or tracker can load. The page may call one address besides its own, `https://api.github.com`, for the cloud backup (section 7.5); the policy names it under `connect-src` and names no other. The policy is written out twice, in `vite.config.ts` and in `scripts/check-dist.ts`, so that changing it takes two edits and a failing test in between. The policy also forbids inline scripts, inline styles and code built at run time, so the UI sets classes, never `style` attributes, and zod's run-time compiler is switched off. Anything the policy blocks is written to the diagnostics log.
 
 ## 10. Simulator
 
@@ -471,12 +481,13 @@ Simulator output names content by ID only. What it cannot say anything about is 
 | Golden replays | Vitest, in `tests/golden/` | Any change to battle results: fixed seed and loadout must give the same event-log hash. The same list runs on the phone as the self-test |
 | Save fixtures | Vitest with a fake IndexedDB | A version that no longer loads; a schema change without a version bump; a change to the hash or serialization; the load path writing over a damaged, suspect or newer record; a routine quarantine copy pushing out a kept one |
 | Pinned names | Vitest | A change to the database name or a store name |
+| Cloud backup | Vitest with a stand-in service, in `src/save/cloud.test.ts`, `src/save/backup.test.ts` and `src/ui/backup.test.ts` | A backup that holds up or changes the local save; more or fewer than one upload a run; a backup this install has not seen being replaced; a restore that skips the import checks; the key turning up in a save, an export, a log or a backup; a call to any address but the one |
 | Enforcement | Vitest, in `tests/enforcement.test.ts` and `tests/checks.test.ts` | A lint ban, the engine's no-DOM compile or a check script that has stopped firing: each is run against a deliberate violation |
 | Content checks | `scripts/check-content.ts` | The GDD 7.9 list |
 | Reference names | `tests/refnames.test.ts` against `tests/refnames.hashes.json` | A content display name equal to a reference-game name |
 | Repo checks | `scripts/check-repo.ts` | Anything under `reference/` tracked by git; a token pattern in a tracked file; a content display name appearing in unsealed tracked text or in a commit message; an ID removed from the lock or changed in kind since the previous commit; an existing save fixture changed |
 | Prose | `scripts/check-prose.ts` | Hard-wrapped markdown. `docs/KICKOFF.md` is excluded because it is stored verbatim |
-| Build scan | `scripts/check-dist.ts` | In `dist/`: media elements, audio calls, the bare media tag names or media files; external URLs; the reference game's title or developer name in any spacing; a content security policy or viewport tag that is not exactly the pinned one; a `:hover` rule; a source map; a built manifest whose display mode, start URL or scope is not the pinned value, or that sets `display_override`; a service worker that calls `skipWaiting` anywhere but in answer to the page's message; a page that asks for a file the worker does not precache |
+| Build scan | `scripts/check-dist.ts` | In `dist/`: media elements, audio calls, the bare media tag names or media files; external URLs other than the cloud backup's one address; the reference game's title or developer name in any spacing; a content security policy or viewport tag that is not exactly the pinned one; a `:hover` rule; a source map; a built manifest whose display mode, start URL or scope is not the pinned value, or that sets `display_override`; a service worker that calls `skipWaiting` anywhere but in answer to the page's message; a page that asks for a file the worker does not precache |
 | Pre-commit | `.githooks/pre-commit` | Runs `npm run check` |
 | Commit message | `.githooks/commit-msg` | A content display name in the message |
 | On-device self-test | Settings | The phone's engine disagreeing with Node's |
@@ -487,7 +498,8 @@ Simulator output names content by ID only. What it cannot say anything about is 
 - Repo checks read file contents directly, because sealed paths print as binary in diffs.
 - The scan for content names in unsealed text matches a whole name in any case, with a plural ending, and with spaces or hyphens between its words. A name that is also an ordinary word the unsealed text uses is exempted in a sealed file, `data/name-scan-exceptions.json`, by strings-file key and with a reason; an exception that is stale or has no reason is itself a finding. The list is empty. The same scan runs over commit messages: a `commit-msg` hook refuses one that holds a content name, and the repo check reads the messages of the commits since the previous one, so CI catches what a skipped hook did not. A finding gives the name's number, never the name.
 - The reference-name list holds 1,170 salted hashes: every enemy, item and zone name in the developer's data files, the names in the enemy file's drop columns, and one made-up canary. The test looks the canary up under the file's salt, so a file whose salt and hashes no longer belong together fails instead of quietly matching nothing.
-- The build scan's check for external URLs allows three kinds of URL-shaped text that nothing is loaded from, each listed with its source in `scripts/check-dist.ts`: XML namespaces, and two strings inside zod. Anything else fails.
+- The build scan's check for external URLs allows three kinds of URL-shaped text that nothing is loaded from, each listed with its source in `scripts/check-dist.ts`: XML namespaces, and two strings inside zod. It allows one address that is called: the cloud backup's, that host exactly. Anything else fails.
+- `CLAUDE.md` has no room for a row of its own for the cloud backup in the enforcement map: it stands at 7,999 characters of the kickoff's 8,000. The checks are the "Cloud backup" row above and the build scan; rule 7's row, "no secrets", is the rule they serve.
 
 ## 12. Build and deploy
 
@@ -570,6 +582,19 @@ Added in Phase 4:
 | A-36 | The summary takes its rows from the table in GDD 5.9 as it runs, and stops if the GDD and its own list of measures differ | "Every row" would otherwise be a claim that held on the day it was written. Reading a document from a tool is unusual here, and it is confined to this one table and to Node |
 | A-37 | The simulator spreads players over child processes that are given a rule, a variant name, a strategy name and seeds, and hand back run records | A summary worth ruling on needs a few hundred players per configuration and several configurations, which was four minutes single-threaded. Each player's game follows from its seed alone, so the split cannot change a figure |
 
+Added in Phase 5a:
+
+| ID | Decision | Reason |
+|---|---|---|
+| A-38 | `CloudBackup` is handed the `device` store's two functions, a `fetch`, a timer, a clock and the log. It is not handed the backend, the writer or the controller. The controller tells it of a new run through a hook that is called after the commit, is not awaited, and is wrapped so that a hook that throws changes nothing | "The local save is the source of truth" is then a matter of what the code can reach, not of care: the backup has no way to write a slot and the game has nothing to wait for |
+| A-39 | Every attempt reads the file before it writes, and decides from what it read whether the file is this install's to replace. The service's own refusal of a wrong version is the second line, not the first | The guard that keeps an empty game from replacing the real backup after a reinstall should rest on the app's own comparison, which the tests cover, and not on an answer of the service's that cannot be tried without a key. It costs a second call per backup |
+| A-40 | The record last sent is noted, by its checksum, before the write goes out | If the write is made and its answer is lost, the file's version name is unknown to this install. The checksum in the file is how the next attempt knows the file as its own, instead of taking it for a stranger's and stopping until the player steps in |
+| A-41 | The key and the notes are two entries in the `device` store. No save field was added and `SAVE_VERSION` is still 2 | GDD D-42. The `device` store is in no export and no backup, which is where a secret has to be |
+| A-42 | The key is typed into a sheet, the box is emptied as soon as it is read, and no screen shows it again | A screen is rebuilt whenever the game changes, which would wipe a half-typed key; a sheet is built once. And a key that is never rendered cannot be read off the phone's screen or out of a screenshot sent for debugging |
+| A-43 | The content security policy and the build scan each name the backup's address themselves, and a test holds the two to the constant the code uses | A-10's guarantee was "nothing but the site". It is now "the site and one address", and it should take more than one edit to make it two |
+| A-44 | `CloudBackup.disown` is called by the recovery screen's exit and by the sheet that replaces the game, and raises a counter that an attempt compares before it notes what it sent and before it adopts what it wrote | GDD D-40's second half. Without the counter, a backup of the old game that was still on its way when the game was replaced would come back and claim the file, and the new game's first run would overwrite it |
+| A-45 | The shell can say whether a given sheet is the one on screen (`showing`) | A sheet that waits on the network has to know, when the answer comes, whether it is still there. The restore's confirmation used to open over whatever sheet the player had opened meanwhile |
+
 Settled in Phase 3a:
 
 - The generator and the hash: A-12, frozen by `src/engine/rng.test.ts`, `src/engine/hash.test.ts` and the cross-check against Node in `tests/golden/golden.test.ts`.
@@ -600,7 +625,8 @@ What exists, so nobody has to infer it from the sections above, which describe t
 
 - **Engine:** everything in section 5 except the three actions listed at the end of 5.2. The reducer handles a run from start to end: walking, fights, levels, allocation, loadouts, buying, Salvage, stashes, hidden tiles, zone exits, doors and a new run. The forecast, run repair, pathfinding and both allocation policies are built.
 - **Content:** schemas and a loader for every file in section 6, and the slice: Z1 in full (10 enemies, 1 gate boss, 23 of the 25 items) and Z2's first two enemies with their two drops, behind the gate and before a sealed door. `data/dummy.json` is gone.
-- **Save:** version 2, with the migration from version 1 and a fixture for each. The `app` half carries real settings and the run-duration log. The cloud backend is still Phase 5.
+- **Save:** version 2, with the migration from version 1 and a fixture for each. The `app` half carries real settings and the run-duration log.
+- **Cloud backup, Phase 5a:** `GitHubBackend` and `CloudBackup` as section 7.5 describes, the controller's hook, the Cloud backup part of Settings with its three sheets, and the map's reminder. No save field, no content, no balance number and no golden value changed. The content security policy gained one address. It has been run against a stand-in for the service only: Claude never holds a key, so the real service is for Michael's phone to say.
 - **Platform:** unchanged from Phase 3a.
 - **UI:** Map, pre-fight sheet, battle playback, result sheet, Hero, Gear, Items, Bestiary, Salvage, Run menu, New-run sheet, Settings, Recovery and the save-failed notice. Not built: the Waypoints screen and the Auto-assign screen.
 - **Checks:** everything in section 11, including the three that Phase 3a deferred: `scripts/check-content.ts`, the reference-name test with `scripts/build-refnames.ts`, and the battle golden replays.
